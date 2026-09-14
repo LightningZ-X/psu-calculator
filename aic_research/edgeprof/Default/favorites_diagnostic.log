@@ -1,0 +1,18 @@
+2026-09-14 02:23:01.016: [INFO] CurrentProfilePath: D:\deepseekharness\aic_research\edgeprof\Default
+2026-09-14 02:23:01.016: [INFO] Profiles total count: 1
+2026-09-14 02:23:01.016: [INFO] Profile: name=用户配置 1 path=D:\deepseekharness\aic_research\edgeprof\Default lastActive=2026-09-14T02:23:01.006Z
+2026-09-14 02:23:01.016: [INFO] LastUsedProfileDir: D:\deepseekharness\aic_research\edgeprof\Default
+2026-09-14 02:23:01.016: [INFO] MostRecentlyActiveProfile: name=用户配置 1 path=D:\deepseekharness\aic_research\edgeprof\Default lastActive=2026-09-14T02:23:01.006Z
+2026-09-14 02:23:01.016: [INFO] OnDoneLoading sync enabled: 0
+2026-09-14 02:23:01.016: [INFO] BookmarkModelLoaded, ids_reassigned: 0
+2026-09-14 02:23:01.016: [INFO] BookmarksLoadDropped droppedNodes=0
+2026-09-14 02:23:01.016: [INFO] BookmarksSnapshot Startup total=3 bar=3 other=0 mobile=0 showBar=0 showBarNTP=1
+2026-09-14 02:23:01.042: [INFO] RecordSyncInitDuration has_sync_been_enabled: 0 state: 0
+2026-09-14 02:23:01.109: [INFO] VisibilityChanged: 0
+2026-09-14 02:23:01.828: [INFO] RecordSyncInitDuration has_sync_been_enabled: 0 state: 0
+2026-09-14 02:23:01.830: [INFO] RecordSyncInitDuration has_sync_been_enabled: 0 state: 3
+2026-09-14 02:23:01.831: [INFO] Primary account changed.
+2026-09-14 02:23:01.831: [INFO] OnPrimaryAccountChanged PrimaryAccountChangeEvent::Type::kSet
+2026-09-14 02:23:01.833: [INFO] RecordSyncInitDuration has_sync_been_enabled: 0 state: 3
+2026-09-14 02:23:01.848: [INFO] RecordSyncInitDuration has_sync_been_enabled: 0 state: 3
+2026-09-14 02:23:07.260: [INFO] BookmarksSnapshot Shutdown total=3 bar=3 other=0 mobile=0 showBar=0 showBarNTP=1
