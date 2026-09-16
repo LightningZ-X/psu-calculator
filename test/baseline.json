@@ -1,7 +1,7 @@
 {
   "_comment": "计算层回归基线。任何改版都不得让这些数字发生变化。重新生成：node tools/baseline.mjs --capture",
   "_capturedAt": "2026-09-16",
-  "_revisionNote": "2026-09-16 因电源库扩充（24 → 46 款，新增追风者/九州风神/先马/鑫谷/技嘉/利民/海盗船 RM·HX·SF 等）而重抓。重抓前用 tools/baseline-diff.mjs 核对过：功耗计算、项数、问题码差异为 0，唯一变化是 5 处 pickWatts（推荐电源瓦数）由 850W → 1000W —— 原因是新增了更便宜/更高瓦数的合规型号（如利民 TG-1000、海盗船 SF1000），推荐随之更优，属预期内改善，非计算层改动。",
+  "_revisionNote": "2026-09-16 因补齐 RTX 40 系（新增 RTX 4080 / 4070 Ti SUPER / 4070 Ti / 4070 / 4060 Ti）而重抓。重抓前用 tools/baseline-diff.mjs 核对过：功耗计算、项数、问题码差异为 0，唯一变化是「仅 CPU（核显办公）」的 upgradeMaxGpu 升级建议由 Arc B580（190W）改为 GeForce RTX 4070（200W）—— 升级建议改为优先推荐当前在售且性能更高、且仍在电源余量内的型号，属预期改善，非计算层改动。",
   "fixtures": {
     "仅 CPU（核显办公）": {
       "cpuId": "r5-9600x",
@@ -232,7 +232,7 @@
       "gpuWatts": 0,
       "cpuWatts": 88,
       "upgradeHeadroom": 320.1,
-      "upgradeMaxGpu": "Arc B580（190W）",
+      "upgradeMaxGpu": "GeForce RTX 4070（200W）",
       "itemCount": 8,
       "items": [
         "CPU=88",
