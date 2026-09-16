@@ -9,6 +9,7 @@
 
 ## 版本历史
 
+- **v1.0.2**（2026-09-14）：修复「重置」会重新弹出数据声明弹窗的 bug。重置按钮改为就地清空配置、不再整页重载，用户点「重置」后不再被迫重读声明。
 - **v1.0.1**（2026-09-14）：大幅扩充内存与硬盘数据，覆盖市面主流硬件。
   - 内存 15 → **40** 款：新增芝奇 **Trident Z5 CK 幻锋CK / 炫锋CK**（CU-DIMM，DDR5-8200/9000）、皇家戟、金士顿 FURY Renegade/Beast、海盗船 Vengeance/DOMINATOR、威刚 XPG Lancer/Caster、十铨 T-Force DELTA、金百达、光威、宇瞻、宏碁 Predator、影驰 HOF、七彩虹 CVN 等主流 DDR5，并补入更多 DDR4 老平台条。
   - 存储 9 → **36** 款：新增海力士 **SK hynix Platinum P51**（Gen5，1/2/4TB）、英睿达 T705/T500、西数 SN7100/SN5000、铠侠 Exceria Pro/Plus G3、致态 TiPlus7100/Ti600、金士顿 KC3000、希捷 FireCuda 540、宏碁 N7000、爱国者 P7000Z、雷克沙 NM790、Solidigm P44 Pro、SATA 与机械硬盘等。
