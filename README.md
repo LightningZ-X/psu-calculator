@@ -305,7 +305,7 @@ Node 环境下 `db.js` 会自动 `require` 前两个模块，所以 `engine.js` 
 | 主板 | 30 | Z890 / B860 / Z790 / B760 / Z590 / B560 / B460、X870E / B850 / B650E / X670E / X570 / B550 / A520 |
 | 内存 | 40 | DDR5-5200~9000（8/16/24/32/48/128GB，含 **Trident Z5 CK 幻锋CK/炫锋CK CU-DIMM**、4-Rank CUDIMM）+ DDR4-3200/3600；覆盖芝奇/金士顿/海盗船/美光/威刚/十铨/金百达/光威/宇瞻/宏碁/影驰/七彩虹 |
 | 存储 | 36 | Gen5（**海力士 P51**、三星 9100 PRO、英睿达 T705、希捷 FireCuda 540、致态 TiPro9000）+ Gen4 主流（三星/西数/铠侠/致态/金士顿/英睿达/宏碁/爱国者/雷克沙/Solidigm）+ SATA + 机械硬盘 |
-| 电源 | 46 | 海韵 PRIME / VERTEX / FOCUS、振华 LEADEX III/VII、华硕 ROG THOR / TUF GAMING、微星 MEG/MPG/MAG、海盗船 RM/HX/SF、长城、航嘉、全汉、安钛克、酷冷、追风者、九州风神、先马、鑫谷、技嘉、利民，ATX 3.1 为主（覆盖 550W~1600W）|
+| 电源 | 46 | 海韵 PRIME / VERTEX / FOCUS、振华 LEADEX III/VII、华硕 ROG THOR / TUF GAMING、微星 MEG/MPG/MAG、海盗船 RM/HX/SF、长城、航嘉、全汉、安钛克、酷冷、追风者、九州风神、先马、鑫谷、技嘉、利民，ATX 3.1 为主（覆盖 550W~1600W）。选择器支持按「功率段 / 80PLUS 认证 / ATX 3.0·3.1」筛选，选项直接标注供电接口（12V-2x6 / PCIe 8pin / CPU 8pin / SATA）与参考价 |
 | 散热 / 风扇 / 机箱 | 9 / 8 / 8 | 360/240 一体式水冷、双塔风冷、ARGB PWM 风扇、E-ATX 与 ITX 机箱 |
 
 ### 覆盖边界（明确不做什么）
