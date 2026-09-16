@@ -1,7 +1,7 @@
 {
   "_comment": "计算层回归基线。任何改版都不得让这些数字发生变化。重新生成：node tools/baseline.mjs --capture",
-  "_capturedAt": "2026-09-13",
-  "_revisionNote": "2026-09-13 因数据库扩充（GPU 22→66 款，补入 GTX 900 / 10 系 / RTX 20 / 30 系 / RX 500 / 5000 / 6000 系老卡）而重抓。重抓前用 tools/baseline-diff.mjs 逐字段核对过：计算值（瓦数 / 项数 / 问题码）差异为 0，唯一变化的是「老平台 DDR4（12 代 + B760）」的 upgradeMaxGpu 建议文案 —— 由 Arc A770（225W，2022 年 Alchemist，已停产）改为 GeForce RTX 4070 SUPER（220W，在售）。原因是升级建议改为优先推荐当前在售型号，不再单纯按 TBP 大小取胜。",
+  "_capturedAt": "2026-09-16",
+  "_revisionNote": "2026-09-16 因电源库扩充（24 → 46 款，新增追风者/九州风神/先马/鑫谷/技嘉/利民/海盗船 RM·HX·SF 等）而重抓。重抓前用 tools/baseline-diff.mjs 核对过：功耗计算、项数、问题码差异为 0，唯一变化是 5 处 pickWatts（推荐电源瓦数）由 850W → 1000W —— 原因是新增了更便宜/更高瓦数的合规型号（如利民 TG-1000、海盗船 SF1000），推荐随之更优，属预期内改善，非计算层改动。",
   "fixtures": {
     "仅 CPU（核显办公）": {
       "cpuId": "r5-9600x",
@@ -271,7 +271,7 @@
         "GPU_FIT_TIGHT"
       ],
       "pickWatts": {
-        "value": 850,
+        "value": 1000,
         "balanced": 850,
         "flagship": 1600
       }
@@ -370,8 +370,8 @@
       ],
       "pickWatts": {
         "value": 850,
-        "balanced": 850,
-        "flagship": 850
+        "balanced": 1000,
+        "flagship": 1000
       }
     },
     "多 Gen5 SSD（4 块）": {
@@ -540,8 +540,8 @@
         "SOCKET_MISMATCH"
       ],
       "pickWatts": {
-        "value": 850,
-        "balanced": 850,
+        "value": 1000,
+        "balanced": 1000,
         "flagship": 1600
       }
     },
