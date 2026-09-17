@@ -444,11 +444,16 @@
   }
 
   /* ------------------------------------------------ 启动序列（Phase A）--
-     实测依据（参考录屏 8.286s→8.809s）：那一屏静止约 523ms，进出各 ≤25ms 的硬切。
-     本实现只借用「硬切 + 约 550ms 停留」这两个**参数**，画面自行设计（见 style.css 的 #boot）。
-     时间轴：T0 遮罩已在首帧 → T1 静止 550ms → T2 90ms 硬切离开 → T3 交接给声明弹窗。
-     任意 click / keydown / touchstart 立即跳到 T3；总时长 640ms（≤900ms 上限）。 */
-  var SPLASH_MS = 550;
+     节奏来自对参考录屏的**逐帧量化**（1152×720 / 11.925s）：
+       · 开机段 0→1.6s 是一块中灰底（亮度 48/255、近黑像素仅 9%），
+         白色内容分几次离散跳变增长，红色横跨整个宽度
+       · 帧差中位数只有 0.30（几乎静止），整段**只有一次真硬切**（df=14.1）收尾
+     这里是**用户指定**的时长：整段 ≥5 秒，覆盖录屏实测的 1.6 秒。
+     只保留实测的两条**形状**约束：遮罩硬切出现、结束时 90ms 硬切离开（不做长淡出）。
+     时间轴：T0 遮罩已在首帧 → T1 刻度线离散推进 4600ms（步进 8 档）+ 静止 600ms
+             → T2 90ms 硬切离开 → T3 交接给声明弹窗。总时长约 5.29 秒。
+     任意 click / keydown / touchstart 立即跳到 T3。 */
+  var SPLASH_MS = 5200;   // = 刻度推进 4600ms（与 style.css 的 transition 对齐）+ 收尾静止 600ms
 
   function setupBoot(afterBoot) {
     var el = $('boot');
@@ -490,6 +495,14 @@
 
     root.dataset.boot = 'running';
     root.classList.add('is-booting');
+
+    /* 让刻度线跑起来。必须先把 scaleX(0) 的初始样式**同步提交**一次
+       （读 offsetWidth 强制 style/layout 计算），再切 is-run 才会真的产生过渡；
+       若与首帧样式同帧生效，浏览器会把两次样式合并、过渡被跳过。
+       这里刻意不用 requestAnimationFrame：无头环境（--dump-dom）不产生渲染帧，
+       rAF 不触发，进度条会一直停在 0。 */
+    void el.offsetWidth;
+    if (!finished) el.classList.add('is-run');
 
     document.addEventListener('click', onInput, true);
     document.addEventListener('keydown', onInput, true);

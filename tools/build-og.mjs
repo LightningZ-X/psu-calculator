@@ -41,11 +41,12 @@ const appProbe = path.join(root, '_og-app.html');
 fs.writeFileSync(appProbe, idx.replace('</body>', clickQuick + '</body>'), 'utf8');
 
 /* ?nodisclaimer=1：不带的话声明弹窗会盖住整张截图。
+   &noanim=1：启动遮罩同样会盖住整张截图（且它现在长达 5 秒），必须一起关掉。
    上面那段 CSS 是第二道保险（截图前弹窗可能刚被打开）。 */
 execFileSync(edge, ['--headless=new', '--disable-gpu', '--no-sandbox', '--hide-scrollbars',
   '--user-data-dir=' + path.join(tmp, 'p1'),
   '--window-size=760,560', '--screenshot=' + appShot, '--virtual-time-budget=7000',
-  'file:///' + appProbe.replace(/\\/g, '/') + '?nodisclaimer=1'], { stdio: ['ignore', 'pipe', 'ignore'] });
+  'file:///' + appProbe.replace(/\\/g, '/') + '?nodisclaimer=1&noanim=1'], { stdio: ['ignore', 'pipe', 'ignore'] });
 fs.unlinkSync(appProbe);
 
 const appB64 = fs.readFileSync(appShot).toString('base64');

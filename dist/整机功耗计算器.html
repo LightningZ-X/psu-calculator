@@ -535,7 +535,7 @@ select option, select optgroup { background: var(--bg-soft); color: var(--text);
   width: 14px; height: 14px; border-radius: 50%; background: var(--text-4);
   transition: transform var(--dur) var(--ease), background-color var(--dur) var(--ease);
 }
-.switch input:checked + .track { background: var(--rog); border-color: var(--rog); }
+.switch input:checked + .track { background: var(--rog); border-color: transparent; }
 .switch input:checked + .track::after { transform: translateX(18px); background: #fff; }
 .switch input:focus-visible + .track { outline: 2px solid var(--rog); outline-offset: 2px; }
 
@@ -948,17 +948,20 @@ body.modal-open { overflow: hidden; }
        的 keyframes 白名单目前为空（将来真要新增动画时才登记进去）
      · 每一段都必须能被 ?noanim=1 / window.__PSU_NOANIM / prefers-reduced-motion 完全关掉
 
-   ── Phase A：启动遮罩（A2 方案）────────────────────────────────────────
-   实测量化（参考录屏 8.286s→8.809s）：该段逐帧完全静止，平均亮度仅 35/255、
-   红色像素约占 4% —— 是「暗底 + 一小块红色」，并不是满屏品牌红。
-   本实现只沿用实测的三个参数（硬切出现 / 静止约 550ms / 硬切离开），画面自行设计：
-   近黑底 + 站点自有的三条斜杠签名，红色面积 ≈ 0.04%。
-   注：这里那处 var(--rog) 是从 button.primary 的冗余描边回收来的
-   （该描边与底色同色、视觉上本来不可见），所以总数仍为 30 处。 */
+   ── Phase A：启动遮罩（A2 方案，节奏按参考录屏逐帧量化后复现）──────────
+   实测（1152×720 / 11.925s 录屏的开机段）：启动屏平均亮度 48/255、近黑像素仅 9%
+   （随后的暗色 UI 是亮度 21 / 近黑 87%）→ 启动屏是一块**中灰底**；
+   白色内容分几次离散跳变增长（帧差中位数 0.30，几乎静止），红色横跨整个宽度；
+   整段只有一次硬切（df=14.1）收尾。这里只复现这些**参数**，画面用站点自有图形。
+   时长「至少 5 秒」为**用户指定**（覆盖录屏实测的 1.6 秒）。
+   注：boot-mark 与 boot-track 各用掉一处 var(--rog)，已分别从 button.primary
+   与 .switch .track 的「描边与底色同色、视觉上本来就不可见」的冗余写法里回收，
+   总数仍为 30 处（designcheck 上限）。 */
 #boot {
   position: fixed; inset: 0; z-index: 9999;
-  display: grid; place-items: center;
-  background: #0a0a0a;          /* 字面量：开屏恒定深色，不跟随主题，不进 :root */
+  display: grid; place-items: center; align-content: center; gap: 26px;
+  background: #303030;          /* 字面量：中灰启动底（实测亮度≈48），不跟随主题 */
+  padding: 0;
 }
 /* 硬切离开：90ms 透明度切换（实测切换 ≤25ms，这里取规范给的过渡上限） */
 #boot.is-out { opacity: 0; pointer-events: none; transition: opacity var(--dur-fast) linear; }
@@ -973,7 +976,25 @@ body.modal-open { overflow: hidden; }
   transform: skewX(-20deg);
 }
 
-/* 启动期间锁滚动（最长约 640ms），T3 时释放 */
+/* 刻度线：通到底（实测红色 bbox 横跨 x 0→1），离散推进。
+   用 steps(8) 而不是平滑过渡 —— 实测启动段帧差中位数只有 0.30（几乎静止），
+   内容是在几次跳变里长出来的，平滑推进反而不像。
+   4600ms 与 js/ui.js 的 SPLASH_MS 对应（整段 ≥5 秒为用户指定）。 */
+#boot .boot-track {
+  display: block; width: 100%; height: 2px;
+  background: var(--line); overflow: hidden;
+}
+#boot .boot-track i {
+  display: block; width: 100%; height: 100%;
+  background: var(--rog);
+  transform: scaleX(0); transform-origin: left center;
+}
+#boot.is-run .boot-track i {
+  transform: scaleX(1);
+  transition: transform 4600ms steps(8, end);
+}
+
+/* 启动期间锁滚动，T3 时释放 */
 html.is-booting { overflow: hidden; }
 
 /* ================================================== ③ 响应式 与 打印 == */
@@ -1150,11 +1171,17 @@ html.is-booting { overflow: hidden; }
 
 <!-- ==================================================== 启动遮罩（Phase A）
      必须静态写在 <body> 第一行：若靠 JS 注入，首帧会先闪一下正文内容。
-     内容用站点自有的「三条斜杠」签名（纯 CSS 矩形 + skew，不使用任何品牌图形）。
-     节奏来自实测量化（见 改版方案/05-动效规范.md）：硬切出现 → 静止约 550ms → 硬切离开。
+     内容用站点自有的「三条斜杠」签名 + 一条通到底的刻度线（纯 CSS 矩形 + skew，
+     不使用任何品牌图形、不新增华硕视觉）。
+     节奏来自对参考录屏的**逐帧量化**（见 改版方案/05-动效规范.md 证据表）：
+       · 启动屏是一块中灰底（实测平均亮度 48/255、近黑像素仅 9%），明显亮于随后的暗色 UI（亮度 21）
+       · 白色内容分几次**离散跳变**增长（帧差中位数仅 0.30，几乎静止），红色横跨整个宽度
+       · 整段只有一次硬切（实测 df=14.1）收尾
+     时长「至少 5 秒」为**用户指定**，覆盖了录屏实测的 1.6 秒。
      aria-hidden：内部无文本、无可聚焦元素，对辅助技术完全不可见。 -->
 <div id="boot" aria-hidden="true">
   <span class="boot-mark"><i></i><i></i><i></i></span>
+  <span class="boot-track"><i></i></span>
 </div>
 
 <!-- 页面内容由 JavaScript 渲染，这里为禁用 JS 的访问者与部分爬虫提供兜底说明 -->
@@ -7454,11 +7481,16 @@ html.is-booting { overflow: hidden; }
   }
 
   /* ------------------------------------------------ 启动序列（Phase A）--
-     实测依据（参考录屏 8.286s→8.809s）：那一屏静止约 523ms，进出各 ≤25ms 的硬切。
-     本实现只借用「硬切 + 约 550ms 停留」这两个**参数**，画面自行设计（见 style.css 的 #boot）。
-     时间轴：T0 遮罩已在首帧 → T1 静止 550ms → T2 90ms 硬切离开 → T3 交接给声明弹窗。
-     任意 click / keydown / touchstart 立即跳到 T3；总时长 640ms（≤900ms 上限）。 */
-  var SPLASH_MS = 550;
+     节奏来自对参考录屏的**逐帧量化**（1152×720 / 11.925s）：
+       · 开机段 0→1.6s 是一块中灰底（亮度 48/255、近黑像素仅 9%），
+         白色内容分几次离散跳变增长，红色横跨整个宽度
+       · 帧差中位数只有 0.30（几乎静止），整段**只有一次真硬切**（df=14.1）收尾
+     这里是**用户指定**的时长：整段 ≥5 秒，覆盖录屏实测的 1.6 秒。
+     只保留实测的两条**形状**约束：遮罩硬切出现、结束时 90ms 硬切离开（不做长淡出）。
+     时间轴：T0 遮罩已在首帧 → T1 刻度线离散推进 4600ms（步进 8 档）+ 静止 600ms
+             → T2 90ms 硬切离开 → T3 交接给声明弹窗。总时长约 5.29 秒。
+     任意 click / keydown / touchstart 立即跳到 T3。 */
+  var SPLASH_MS = 5200;   // = 刻度推进 4600ms（与 style.css 的 transition 对齐）+ 收尾静止 600ms
 
   function setupBoot(afterBoot) {
     var el = $('boot');
@@ -7500,6 +7532,14 @@ html.is-booting { overflow: hidden; }
 
     root.dataset.boot = 'running';
     root.classList.add('is-booting');
+
+    /* 让刻度线跑起来。必须先把 scaleX(0) 的初始样式**同步提交**一次
+       （读 offsetWidth 强制 style/layout 计算），再切 is-run 才会真的产生过渡；
+       若与首帧样式同帧生效，浏览器会把两次样式合并、过渡被跳过。
+       这里刻意不用 requestAnimationFrame：无头环境（--dump-dom）不产生渲染帧，
+       rAF 不触发，进度条会一直停在 0。 */
+    void el.offsetWidth;
+    if (!finished) el.classList.add('is-run');
 
     document.addEventListener('click', onInput, true);
     document.addEventListener('keydown', onInput, true);
