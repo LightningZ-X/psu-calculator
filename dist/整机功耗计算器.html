@@ -917,6 +917,25 @@ body.modal-open { overflow: hidden; }
 }
 .modal-foot button.primary { flex: 0 0 auto; }
 
+/* MSI-inspired hierarchy: quiet component rows and one clear result. */
+.page-intro { padding: 30px 0 40px; }
+.page-intro .eyebrow { margin: 0 0 10px; color: var(--text-3); font-size: 11px; letter-spacing: .16em; }
+.page-intro h2 { margin: 0 0 10px; font-size: clamp(25px, 3vw, 36px); line-height: 1.3; font-weight: 600; color: var(--text); }
+.page-intro > p:last-child { margin: 0; color: var(--text-3); }
+.advanced-options { border-top: 1px solid var(--line-soft); margin-top: 14px; }
+.advanced-options > summary { cursor: pointer; color: var(--text-3); font-size: 12px; padding: 12px 0; }
+.advanced-options > summary:hover { color: var(--text); }
+.advanced-options > div { padding: 4px 0 10px; }
+.modal-lead { margin: 6px 0 18px !important; color: var(--text) !important; font-size: 18px !important; font-weight: 600; }
+.modal-body .usage-points { list-style: none; padding: 0; counter-reset: notice; margin-bottom: 22px; }
+.usage-points li { counter-increment: notice; display: flex; align-items: baseline; gap: 12px; padding: 7px 0; }
+.usage-points li::before { content: '0' counter(notice); color: var(--text-3); font: 11px var(--mono); }
+.modal-body .result-explain { border-top: 1px solid var(--line); }
+.modal-body .result-explain > summary { padding: 14px 0; color: var(--text-2); }
+.modal-body .result-explain p { margin-bottom: 12px; }
+.modal-backdrop { opacity: 1; transition: opacity 160ms var(--ease); }
+.modal-backdrop.is-closing { opacity: 0; }
+
 /* ------------------------------------------------------------- 滚动条 - */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
@@ -1154,6 +1173,84 @@ html:not(.psu-boot-active) details[open] > :not(summary),
   details.result-fold > .card-body, details.result-explain > div { display: block !important; }
 }
 
+/* 简洁计算器布局：宽配置区、紧凑结果区，帮助按需展开。 */
+@media (min-width: 1181px) {
+  .layout { grid-template-columns: minmax(0, 1.35fr) minmax(360px, .85fr); gap: 40px; }
+  .col-config .card { grid-template-columns: minmax(0, 150px) minmax(0, 1fr) 28px; padding: 18px 0; }
+}
+.col-config .card.guide { display: block; padding: 0 0 20px; border-top: none; }
+.card.guide > h2 { justify-content: space-between; }
+.card.guide > h2 .hint { display: none; }
+.card.guide > .card-body { display: flex; flex-wrap: wrap; align-items: start; gap: 14px; padding-top: 14px; }
+.guide-actions { margin: 0; }
+.guide-help { flex: 1 1 150px; font-size: var(--fs-sm); color: var(--text-3); }
+.guide-help > summary { cursor: pointer; padding: 8px 0; }
+.guide-help[open] { flex-basis: 100%; }
+.guide-help .guide-steps { margin: 12px 0; }
+.col-config .card > h2 .hint { display: none; }
+.col-config .card > h2 .idx { display: none; }
+.col-config .card > h2::before { display: none; }
+.col-config .card > h2 .sec-ico { transition: transform 160ms var(--ease); }
+.col-config .card:hover > h2 .sec-ico { transform: translateX(2px); }
+.col-result .reco { padding: 24px; }
+.col-result .reco .big { display: block; margin: 14px 0 22px; }
+.col-result .hero { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; padding: 18px 0; }
+.col-result .hero > div { display: block; min-width: 0; padding: 0; border: 0; }
+.col-result .hero .k { font-size: var(--fs-xs); }
+.col-result .hero .v { margin-top: 8px; font-size: 20px; }
+.col-result .hero > div::after { display: none; }
+.col-result .psu-picks { grid-template-columns: 1fr; gap: 0; }
+.col-result .psu-pick { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--line-soft); }
+.col-result .psu-pick > * { grid-column: 1; }
+.col-result .psu-pick .w { grid-column: 2; grid-row: 1 / 4; align-self: center; }
+.col-result .psu-pick .nm { margin: 4px 0; }
+.pick-specs { grid-column: 1 / -1 !important; color: var(--text-3); font-size: var(--fs-xs); margin-top: 8px; }
+.pick-specs > summary { cursor: pointer; padding: 4px 0; }
+.result-fold > summary::after, .result-explain > summary::after { transition: transform 180ms var(--ease); }
+.result-fold[open] > summary::after, .result-explain[open] > summary::after { content: '＋'; transform: rotate(45deg); }
+.storage-row, .custom-row { animation: psu-ui-enter .22s var(--ease) both; }
+@media (hover: hover) and (pointer: fine) {
+  button:not(:disabled):hover { transform: translateY(-1px); }
+  button:not(:disabled):active { transform: translateY(1px) scale(.98); }
+}
+@media (max-width: 700px) {
+  .modal-backdrop { padding: 16px; }
+  .modal-card { height: auto; max-height: calc(100dvh - 32px); border: 1px solid var(--line); }
+  .modal-foot { flex-wrap: wrap; }
+  .modal-foot .chk { font-size: var(--fs-sm); }
+  .col-result .reco { padding: 18px; }
+  .col-result .hero { gap: 8px; }
+}
+@media screen and (min-width: 1181px) {
+  .wrap, .top-inner { max-width: 1360px; }
+  .layout { grid-template-columns: minmax(0, 1.65fr) minmax(340px, 1fr); gap: 56px; }
+  .col-config .card { grid-template-columns: 132px minmax(0, 1fr) 28px; padding-top: 24px; padding-bottom: 24px; }
+}
+@media screen {
+  .col-result .reco { border: 1px solid var(--line); background: var(--surface); padding: 30px; }
+  .col-result .reco .big::after { display: none; }
+  .modal-card { width: min(580px, 100%); }
+  .modal-head, .modal-foot { padding: 20px 24px; }
+  .modal-body { padding: 10px 24px 20px; }
+  .modal-head .wordmark { display: none; }
+  .col-config .card { transition: border-color 200ms var(--ease), background-color 200ms var(--ease); }
+  select, input { transition: border-color 180ms var(--ease), background-color 180ms var(--ease); }
+  .page-intro { animation: psu-ui-enter .22s var(--ease) both; }
+}
+@media (max-width: 640px) {
+  .page-intro { padding: 14px 0 28px; }
+  .modal-head, .modal-foot { padding: 16px 20px; }
+  .modal-body { padding: 8px 20px 16px; }
+}
+@media print { .page-intro { display: none; } }
+@media (prefers-reduced-motion: reduce) {
+  button:hover, .col-config .card:hover > h2 .sec-ico { transform: none !important; }
+}
+@media print {
+  .guide-help { display: none !important; }
+  .storage-row, .custom-row { animation: none !important; }
+}
+
 /* 尊重系统的「减少动态效果」设置 */
 @media (prefers-reduced-motion: reduce) {
   .psu-boot { display: none !important; }
@@ -1259,7 +1356,7 @@ html:not(.psu-boot-active) details[open] > :not(summary),
  *    3. 把配置列里冗长的 .note 说明收成两行 + ⓘ 展开（结果列的说明不动，
  *       因为那是"答案的一部分"，折叠它反而有害）
  *    4. 移动端底部常驻条，同步显示推荐瓦数
- *    5. 使用须知弹窗（仅由顶栏或推荐区入口主动打开）
+ *    5. 精简使用须知弹窗（启动后展示，也可主动打开）
  *
  *  在 head 加载以决定首帧；DOMContentLoaded 初始化时 app.js 已渲染 DOM。
  * ==========================================================================*/
@@ -1587,7 +1684,7 @@ html:not(.psu-boot-active) details[open] > :not(summary),
      声明都搬进了这里，所以 id="sources" / id="aibCatalogNote" 都还在原位
      （只是换了父节点），app.js 一行都不用改。
 
-     用户主动打开，不在首次访问或动画结束后弹出。 */
+     启动结束后展示；支持不再提示和主动打开。 */
 
   function setupDisclaimer() {
     var m = $('disclaimerModal');
@@ -1598,10 +1695,19 @@ html:not(.psu-boot-active) details[open] > :not(summary),
     var okBtn = $('dmOk');
     var xBtn = $('dmClose');
     var lastFocus = null;
+    var closeTimer = null;
+    var never = $('dmNever');
+    var preferenceKey = 'psu-calc-2026-v1-disclaimer';
+    function version() { return window.HWDB && window.HWDB.meta.version || '1'; }
+    function suppressed() {
+      if (new URLSearchParams(location.search).get('nodisclaimer') === '1' || location.hash === '#nodisclaimer') return true;
+      try { return localStorage.getItem(preferenceKey) === version(); } catch (e) { return false; }
+    }
 
     function isOpen() { return !m.hidden; }
 
     function open() {
+      if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; m.classList.remove('is-closing'); return; }
       if (isOpen()) return;
       lastFocus = document.activeElement;
       m.hidden = false;
@@ -1611,13 +1717,25 @@ html:not(.psu-boot-active) details[open] > :not(summary),
     }
 
     function close() {
-      if (!isOpen()) return;
-      m.hidden = true;
-      document.body.classList.remove('modal-open');
-      if (lastFocus && lastFocus.focus) {
-        try { lastFocus.focus({ preventScroll: true }); } catch (e) {}
+      if (!isOpen() || closeTimer) return;
+      if (never && never.checked) {
+        try { localStorage.setItem(preferenceKey, version()); } catch (e) {}
       }
-      lastFocus = null;
+      function finishClose() {
+        closeTimer = null;
+        m.hidden = true;
+        m.classList.remove('is-closing');
+        document.body.classList.remove('modal-open');
+        if (lastFocus && lastFocus.focus) {
+          try { lastFocus.focus({ preventScroll: true }); } catch (e) {}
+        }
+        lastFocus = null;
+      }
+      if (matchMedia('(prefers-reduced-motion: reduce)').matches) finishClose();
+      else {
+        m.classList.add('is-closing');
+        closeTimer = setTimeout(finishClose, 160);
+      }
     }
 
     openBtn.addEventListener('click', open);
@@ -1643,6 +1761,11 @@ html:not(.psu-boot-active) details[open] > :not(summary),
       if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
       else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     });
+
+    function autoOpen() { if (!suppressed()) open(); }
+    if (document.documentElement.classList.contains('psu-boot-active')) {
+      document.addEventListener('psu:boot-end', autoOpen, { once: true });
+    } else autoOpen();
 
     // 供自动化测试 / 其他脚本调用
     window.__PSU_DISCLAIMER__ = { open: open, close: close, isOpen: isOpen };
@@ -1811,6 +1934,16 @@ html:not(.psu-boot-active) details[open] > :not(summary),
     var observer = new MutationObserver(refresh);
     function refresh() {
       observer.disconnect();
+      root.querySelectorAll('.psu-pick').forEach(function (pick) {
+        if (pick.querySelector('details')) return;
+        var specs = pick.querySelectorAll('.sp, .pr');
+        if (!pick.querySelector('.w') || !specs.length) return;
+        var detail = document.createElement('details'); detail.className = 'pick-specs';
+        var summary = document.createElement('summary'); summary.textContent = '规格与参考价';
+        detail.appendChild(summary);
+        specs.forEach(function (el) { detail.appendChild(el); });
+        pick.appendChild(detail);
+      });
       var explanation = root.querySelector('.explain-content');
       var previous = explanation.querySelector('.recommendation-math');
       var formula = root.querySelector('#recoSub > span');
@@ -1846,6 +1979,26 @@ html:not(.psu-boot-active) details[open] > :not(summary),
       observer.observe(root, { childList: true, subtree: true, characterData: true });
     }
     refresh();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', setup, { once: true });
+  else setup();
+})();
+
+/* 推荐数值真实变化时做一次局部反馈；不滚动数字，不修改结果。 */
+(function () {
+  function setup() {
+    var target = document.getElementById('recoBig');
+    if (!target) return;
+    var last = target.textContent;
+    new MutationObserver(function () {
+      var value = target.textContent;
+      if (value === last) return;
+      last = value;
+      if (matchMedia('(prefers-reduced-motion: reduce)').matches || document.documentElement.classList.contains('psu-boot-active')) return;
+      target.classList.remove('psu-ui-feedback');
+      void target.offsetWidth;
+      target.classList.add('psu-ui-feedback');
+    }).observe(target, { childList: true, subtree: true, characterData: true });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', setup, { once: true });
   else setup();
@@ -1911,6 +2064,11 @@ html:not(.psu-boot-active) details[open] > :not(summary),
 </header>
 
 <div class="wrap">
+  <section class="page-intro" aria-label="计算器介绍">
+    <p class="eyebrow">POWER SUPPLY CALCULATOR</p>
+    <h2>为你的配置，选好电源。</h2>
+    <p>选择硬件，即时查看整机功耗与推荐瓦数。</p>
+  </section>
 
   <div class="layout">
 
@@ -1922,10 +2080,15 @@ html:not(.psu-boot-active) details[open] > :not(summary),
         <!-- 这一栏没有序号：它不是「第 1 步」，而是说明。原来这里放了个「?」，
              和前面的 /// 分区标记挤在一起读成「/// ? 使用方法」，很脏。
              分区标记本身就足以表明这是一个分区。 -->
-        <h2>使用方法<span class="hint">3 步</span>
+        <h2>选择硬件<span class="hint">按配置填写</span>
           <button id="btnHideGuide" class="card-toggle" type="button" aria-label="关闭引导"></button>
         </h2>
         <div class="card-body">
+          <div class="guide-actions">
+            <button id="btnQuickStart" class="primary">载入示例配置</button>
+          </div>
+
+          <details class="guide-help"><summary>使用帮助</summary>
           <ol class="guide-steps">
             <li>
               <span class="gi" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/><circle cx="9" cy="7" r="2" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="2" fill="currentColor" stroke="none"/><circle cx="8" cy="17" r="2" fill="currentColor" stroke="none"/></svg></span>
@@ -1940,10 +2103,6 @@ html:not(.psu-boot-active) details[open] > :not(summary),
               <b>查风险</b><span>按提示调整</span>
             </li>
           </ol>
-
-          <div class="guide-actions">
-            <button id="btnQuickStart" class="primary">载入示例配置</button>
-          </div>
 
           <details class="glossary">
             <summary>术语</summary>
@@ -1965,7 +2124,7 @@ html:not(.psu-boot-active) details[open] > :not(summary),
               <dt>80 PLUS 金牌 / 铂金 / 钛金</dt>
               <dd>电源效率等级，不代表额定瓦数或整体品质。</dd>
             </dl>
-          </details>
+          </details></details>
         </div>
       </section>
 
@@ -1994,6 +2153,7 @@ html:not(.psu-boot-active) details[open] > :not(summary),
             <label>③ 型号 <span class="unit">（收录 Intel 10 代起 / AMD Zen 起）</span></label>
             <select id="cpuSelect"></select>
           </div>
+          <details class="advanced-options"><summary>高级设置 · 超频与功耗</summary><div>
           <div class="grid2">
             <div class="field">
               <label>超频模式</label>
@@ -2008,6 +2168,7 @@ html:not(.psu-boot-active) details[open] > :not(summary),
               <input type="number" id="cpuCustomW" min="35" max="600" step="5" placeholder="自动">
             </div>
           </div>
+          </div></details>
           <div id="cpuInfo" style="margin-top:10px"></div>
         </div>
       </section>
@@ -2032,6 +2193,7 @@ html:not(.psu-boot-active) details[open] > :not(summary),
             <label>④ AIC 厂商 / 板型 <span class="unit">（影响功耗墙与供电接口）</span></label>
             <select id="gpuAib"></select>
           </div>
+          <details class="advanced-options"><summary>高级设置 · 超频与自定义显卡</summary><div>
           <div class="grid2">
             <div class="field" style="margin-bottom:0">
               <label>显卡超频</label>
@@ -2050,6 +2212,7 @@ html:not(.psu-boot-active) details[open] > :not(summary),
             <label>手动功耗 <span class="unit">(W，仅未收录型号时生效)</span></label>
             <input type="number" id="gpuCustomW" min="10" max="1200" step="5" placeholder="自动">
           </div>
+          </div></details>
           <div id="gpuInfo" style="margin-top:10px"></div>
         </div>
       </section>
@@ -2338,14 +2501,14 @@ html:not(.psu-boot-active) details[open] > :not(summary),
 
 <div class="toast" id="toast"></div>
 
-<!-- ========================= 使用须知弹窗（用户主动打开）==========
+<!-- ========================= 使用须知弹窗（启动后展示，可选择不再提示）==========
      原「数据来源」卡片与显卡卡里的两段声明都搬到了这里，
      所以 id="sources" 与 id="aibCatalogNote" 依然存在 —— app.js 不需要改。
      顶栏的「数据声明」按钮可以随时重新打开。
      ==================================================================== -->
 <div class="modal-backdrop" id="disclaimerModal" hidden>
   <div class="modal-card" role="dialog" aria-modal="true"
-       aria-labelledby="dmTitle" aria-describedby="dmBody">
+       aria-labelledby="dmTitle" aria-describedby="dmSummary">
     <div class="modal-head">
       <span class="mark" role="img" aria-label="MSI LIGHTNING 闪电标记"></span>
       <span class="wordmark" role="img" aria-label="MSI LIGHTNING"></span>
@@ -2357,25 +2520,31 @@ html:not(.psu-boot-active) details[open] > :not(summary),
     </div>
 
     <div class="modal-body" id="dmBody">
+      <p class="modal-lead" id="dmSummary">开始前，了解这三点。</p>
       <ul class="usage-points">
         <li>功耗为估算，选型请结合厂商建议。</li>
         <li>部分板型与旧卡数据为推算，已标注来源。</li>
         <li>购买前请确认供电接口、尺寸与保修。</li>
       </ul>
       <details class="result-explain">
+        <summary>估算方法与使用范围</summary>
+        <p>规划功耗按各部件的功耗上限合计；场景预期功耗按所选用途折算；推荐瓦数包含余量。真实功耗会随软件负载、BIOS 设置、超频和温度变化。</p>
+        <p>本工具用于电源选型参考，不替代实际测量及厂商建议。80 PLUS 表示转换效率，不代表电源品质或额定功率。</p>
+      </details>
+      <details class="result-explain">
         <summary>数据来源与标记说明</summary>
-        <p>official：官方规格；review：评测；estimate：估算；leak：未经发布确认。</p>
+        <p>official：官方规格；review：评测数据；estimate：推算值；leak：未经发布确认。未发布型号的规格可能变化，不应作为购买依据。</p>
         <div class="note warn" id="aibCatalogNote"></div>
         <ul class="src-list" id="sources"></ul>
       </details>
       <details class="result-explain">
         <summary>旧卡与二手硬件说明</summary>
-        <p>部分已停产旧卡数据为估算。建议额外留一档功率余量，并确认成色与保修。</p>
+        <p>部分已停产旧卡与非公版板型的功耗为估算。二手硬件还需核对实际型号、维修情况、供电接口及保修；电源老化和不同 BIOS 的功耗限制可能影响选型，建议额外留一档余量。</p>
       </details>
     </div>
 
     <div class="modal-foot">
-      <label class="chk" for="dmNever" hidden>
+      <label class="chk" for="dmNever">
         <input type="checkbox" id="dmNever">
         <span>不再提示</span>
       </label>

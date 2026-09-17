@@ -161,7 +161,7 @@ if (!PUSH) {
 console.log('\n提交并推送');
 console.log('─'.repeat(60));
 run('git', ['-C', tmp, 'add', '-A'], { env });
-const msg = 'Update site: ROG 官方标志 + /// 分区标记 + CPU/GPU 世代筛选 + 声明弹窗';
+const msg = 'ui: simplify component layout, retain disclaimer and refine motion';
 run('git', ['-C', tmp, 'commit', '-m', msg], { env, stdio: 'inherit' });
 try {
   run('git', ['-C', tmp, 'push', 'origin', 'HEAD:main'], { env, stdio: 'inherit' });

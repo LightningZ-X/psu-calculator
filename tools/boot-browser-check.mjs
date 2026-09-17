@@ -153,7 +153,7 @@ export async function checkBootBrowser(root, executable) {
     check('收束后有完整黑场', s.elapsed < 4400 && s.focus === 0 && s.overlay === 'flex' && s.page === 0); await shot('05-blackout');
     s = await at(4700); check('4.4–5s 框架淡入，内容尚未填充', s.overlay === 'none' && s.page > 0 && s.page < 1 && s.fills.every(x => x === 0)); await shot('06-framework');
     s = await at(5500); check('5s 后内容错峰填入且声明仍等待', s.fills.some(x => x > 0) && s.fills.some(x => x === 0) && !s.modal); await shot('07-fill');
-    s = await at(6350); check('约 6.2s 清理完毕且不自动弹窗', !s.active && !s.inert && !s.fills.length && !s.modal && s.ends.length === 1 && Math.abs(s.ends[0] - 6200) < 300);
+    s = await at(6350); check('约 6.2s 清理完毕后展示精简声明', !s.active && !s.inert && !s.fills.length && s.modal && s.ends.length === 1 && Math.abs(s.ends[0] - 6200) < 300);
     await evaluate('window.__PSU_DISCLAIMER__.close()'); await shot('08-complete');
     check('启动、顶栏、声明使用同一截图提取标记', await evaluate(`
       ['.psu-boot-half', '.logo .mark', '.modal-head .mark'].every(s =>

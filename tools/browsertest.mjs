@@ -1057,7 +1057,7 @@ window.addEventListener('load', function () {
 
 /* ==========================================================================
  *  数据声明弹窗专项
- *  ⚠️ 这一轮**故意不带** ?nodisclaimer=1&noanim=1：弹窗默认关闭，仅由用户主动打开。
+ *  ⚠️ 这一轮**故意不带** ?nodisclaimer=1&noanim=1：启动结束后自动展示声明。
  *     其余所有用例都带这个参数把它关掉，否则它会盖住整页。
  * ========================================================================*/
 console.log('\n数据声明弹窗检查（不带 ?nodisclaimer=1&noanim=1）');
@@ -1073,13 +1073,13 @@ function m(name, cond, extra) { window.__M.push((cond ? 'PASS' : 'FAIL') + ' | '
 function $(id) { return document.getElementById(id); }
 window.addEventListener('error', function (e) { window.__M.push('FAIL | 未捕获的 JS 错误 | ' + e.message); });
 
-setTimeout(function () {
+setTimeout(async function () {
   try {
     var md = $('disclaimerModal');
     /* role / aria-modal / aria-labelledby 挂在内层的 .modal-card 上
        （#disclaimerModal 只是遮罩层），所以要从遮罩里往下找。 */
     var card = md.querySelector('[role="dialog"]');
-    m('首次打开不自动弹出声明', md && md.hidden);
+    m('首次打开自动展示精简声明', md && !md.hidden);
     document.querySelector('.usage-open').click();
     m('推荐区使用须知入口可打开弹窗', !md.hidden);
     m('弹窗详情默认折叠', Array.from(md.querySelectorAll('details')).every(d => !d.open));
@@ -1109,6 +1109,7 @@ setTimeout(function () {
     /* 关闭路径 */
     m('弹窗关闭按钮存在', !!$('dmClose'));
     $('dmClose').click();
+    await new Promise(resolve => setTimeout(resolve, 220));
     m('点关闭后弹窗隐藏', md.hidden === true);
     m('关闭后恢复页面滚动', !document.body.classList.contains('modal-open'));
     m('关闭后仍可从顶栏重开', !!$('btnDisclaimer'));
@@ -1117,12 +1118,16 @@ setTimeout(function () {
 
     /* 遮罩点击关闭 */
     md.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    await new Promise(resolve => setTimeout(resolve, 220));
     m('点遮罩关闭弹窗', md.hidden === true);
 
     $('btnDisclaimer').click();
-    m('不再自动弹窗后隐藏旧偏好选项', $('dmNever').closest('label').hidden);
+    m('保留不再提示选项', !$('dmNever').closest('label').hidden);
+    $('dmNever').checked = true;
     $('dmOk').click();
+    await new Promise(resolve => setTimeout(resolve, 220));
     m('知道了关闭弹窗', md.hidden);
+    m('记住不再提示偏好', localStorage.getItem('psu-calc-2026-v1-disclaimer') === window.HWDB.meta.version);
 
 
     /* 其余用例都会带 ?nodisclaimer=1&noanim=1，验证抑制开关本身有效 */
