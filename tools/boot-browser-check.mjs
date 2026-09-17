@@ -139,7 +139,12 @@ export async function checkBootBrowser(root, executable) {
     check('斜切合拢结束后保持稳定，切线消失', s.cut === 0 && s.slices.every(x => x === 'matrix(1, 0, 0, 1, 0, 0)'));
     await shot('02-slash-settled');
     s = await at(2050); check('细线展开中', s.line.startsWith('matrix(') && s.line !== 'matrix(1, 0, 0, 1, 0, 0)'); await shot('03-line');
-    s = await at(2950); check('三格进度按先后推进', s.ticks[0] > s.ticks[1] && s.ticks[1] > s.ticks[2]); await shot('04-ticks');
+    s = await at(2950);
+    // 首帧合成可能滞后；在第二格应推进的窗口内有界采样。
+    for (let i = 0; i < 10 && !(s.ticks[0] > s.ticks[1] && s.ticks[1] > s.ticks[2]) && s.elapsed < 3170; i++) {
+      await pause(20); s = await snapshot();
+    }
+    check('三格进度按先后推进', s.ticks[0] > s.ticks[1] && s.ticks[1] > s.ticks[2]); await shot('04-ticks');
     s = await at(4220);
     // Observe the blackout before 4.4s, allowing the compositor to finish its current frame.
     for (let i = 0; i < 6 && s.focus !== 0 && s.elapsed < 4350; i++) {

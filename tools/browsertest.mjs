@@ -432,7 +432,11 @@ setTimeout(function () {
 
     // 冗长说明收纳（只作用于配置列，结果列不动）
     var clamped = document.querySelectorAll('.col-config .note.note-collapsible');
-    t('配置列长说明已收纳', clamped.length > 0, clamped.length + ' 块');
+    var uncollapsedLong = Array.from(document.querySelectorAll('.col-config .note')).filter(function (n) {
+      return n.textContent.trim().length >= 90 && !n.closest('.glossary, .banner') &&
+        !n.querySelector('dl, table, ul, ol') && !n.classList.contains('note-collapsible');
+    });
+    t('配置列无未收纳的长说明', uncollapsedLong.length === 0, uncollapsedLong.length + ' 块未收纳');
     t('结果列说明未被折叠（那是结论的一部分）',
       document.querySelectorAll('.col-result .note.note-collapsible').length === 0);
 
