@@ -1124,6 +1124,36 @@ html:not(.psu-boot-active) details[open] > :not(summary),
   }
 }
 
+/* 结论优先：详情由用户展开，打印保留完整报告。 */
+.result-fold > summary { display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 14px 0; }
+.result-fold > summary h2 .hint { margin-left: 10px; font-size: var(--fs-xs); font-weight: 400; color: var(--text-3); }
+.result-fold > summary h2 { margin: 0; font-size: var(--fs-h); }
+.result-fold > summary::after, .result-explain > summary::after { content: '＋'; margin-left: auto; color: var(--text-3); }
+.result-fold[open] > summary::after, .result-explain[open] > summary::after { content: '−'; }
+.result-fold > summary, .result-explain > summary { list-style: none; }
+.result-fold > summary::-webkit-details-marker, .result-explain > summary::-webkit-details-marker { display: none; }
+.result-explain { margin: 10px 0; color: var(--text-3); font-size: var(--fs-sm); }
+.result-explain > summary { display: flex; gap: 10px; cursor: pointer; padding: 8px 0; }
+.explain-content { display: grid; gap: 8px; padding: 8px 0; }
+.result-explain .meta { display: flex; flex-wrap: wrap; gap: 6px; }
+.fold-status { font-size: var(--fs-xs); color: var(--text-3); font-weight: 400; }
+.usage-notice { margin: 14px 0 0; color: var(--text-3); font-size: var(--fs-xs); }
+.usage-open { padding: 0; border: 0; background: none; font-size: inherit; text-decoration: underline; min-height: 0; }
+.usage-points { padding-left: 20px; margin: 0 0 18px; line-height: 1.8; }
+.modal-foot .chk[hidden] { display: none; }
+#issues .issue.ok .d, #issues .issue.info:has(b:first-child) > div > .d { display: none; }
+#issues .issue details > summary { cursor: pointer; }
+#issues .issue details > summary b { display: inline; }
+#upgradeBox > .note:last-child:not(.accent) { display: none; }
+#upgradeBox > .empty, #adviceBox > .empty { display: none; }
+.hero > div { padding-top: 12px; padding-bottom: 12px; }
+@media print {
+  .result-fold > summary { display: block !important; }
+  .result-fold > summary::after, .result-explain > summary::after, .usage-notice { display: none !important; }
+  #issues .issue .d { display: block !important; }
+  details.result-fold > .card-body, details.result-explain > div { display: block !important; }
+}
+
 /* 尊重系统的「减少动态效果」设置 */
 @media (prefers-reduced-motion: reduce) {
   .psu-boot { display: none !important; }
@@ -1229,7 +1259,7 @@ html:not(.psu-boot-active) details[open] > :not(summary),
  *    3. 把配置列里冗长的 .note 说明收成两行 + ⓘ 展开（结果列的说明不动，
  *       因为那是"答案的一部分"，折叠它反而有害）
  *    4. 移动端底部常驻条，同步显示推荐瓦数
- *    5. 数据声明弹窗（打开页面时自动出现，顶栏按钮可重开）
+ *    5. 使用须知弹窗（仅由顶栏或推荐区入口主动打开）
  *
  *  在 head 加载以决定首帧；DOMContentLoaded 初始化时 app.js 已渲染 DOM。
  * ==========================================================================*/
@@ -1557,12 +1587,7 @@ html:not(.psu-boot-active) details[open] > :not(summary),
      声明都搬进了这里，所以 id="sources" / id="aibCatalogNote" 都还在原位
      （只是换了父节点），app.js 一行都不用改。
 
-     抑制规则（两者之一成立就不弹）：
-       · URL 带 ?nodisclaimer=1 —— 给截图 / OG 图 / 回归测试用，
-         否则弹窗会盖住整页，基线比对和预览图全废
-       · localStorage 里记住了同一个数据版本 —— 用户勾了「不再提示」。
-         按「数据版本」而不是布尔值记，是为了数据库升版后能再提示一次。 */
-  var DM_KEY = 'psu-calc-2026-v1-disclaimer';
+     用户主动打开，不在首次访问或动画结束后弹出。 */
 
   function setupDisclaimer() {
     var m = $('disclaimerModal');
@@ -1572,18 +1597,7 @@ html:not(.psu-boot-active) details[open] > :not(summary),
     var body = $('dmBody');
     var okBtn = $('dmOk');
     var xBtn = $('dmClose');
-    var never = $('dmNever');
     var lastFocus = null;
-
-    function dbVersion() {
-      var d = window.HWDB;
-      return (d && d.meta && d.meta.version) || '1';
-    }
-    function suppressed() {
-      if (/[?&]nodisclaimer=1(&|$)/.test(location.search)) return true;
-      if (location.hash === '#nodisclaimer') return true;
-      try { return localStorage.getItem(DM_KEY) === dbVersion(); } catch (e) { return false; }
-    }
 
     function isOpen() { return !m.hidden; }
 
@@ -1598,10 +1612,6 @@ html:not(.psu-boot-active) details[open] > :not(summary),
 
     function close() {
       if (!isOpen()) return;
-      // 勾了「不再提示」才记；没勾就下次打开还提示 —— 声明不能被动消失
-      if (never && never.checked) {
-        try { localStorage.setItem(DM_KEY, dbVersion()); } catch (e) {}
-      }
       m.hidden = true;
       document.body.classList.remove('modal-open');
       if (lastFocus && lastFocus.focus) {
@@ -1611,6 +1621,7 @@ html:not(.psu-boot-active) details[open] > :not(summary),
     }
 
     openBtn.addEventListener('click', open);
+    document.querySelectorAll('.usage-open').forEach(function (button) { button.addEventListener('click', open); });
     if (okBtn) okBtn.addEventListener('click', close);
     if (xBtn) xBtn.addEventListener('click', close);
 
@@ -1623,7 +1634,7 @@ html:not(.psu-boot-active) details[open] > :not(summary),
     m.addEventListener('keydown', function (e) {
       if (e.key === 'Escape' || e.key === 'Esc') { close(); return; }
       if (e.key !== 'Tab') return;
-      var f = m.querySelectorAll('button, input, [href], select, textarea, [tabindex]:not([tabindex="-1"])');
+      var f = m.querySelectorAll('button, input, summary, [href], select, textarea, [tabindex]:not([tabindex="-1"])');
       var list = Array.prototype.filter.call(f, function (el) {
         return !el.disabled && el.offsetParent !== null;
       });
@@ -1632,14 +1643,6 @@ html:not(.psu-boot-active) details[open] > :not(summary),
       if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
       else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     });
-
-    if (!suppressed()) {
-      if (document.documentElement.classList.contains('psu-boot-active')) {
-        document.addEventListener('psu:boot-end', function () {
-          if (!suppressed()) open();
-        }, { once: true });
-      } else open();
-    }
 
     // 供自动化测试 / 其他脚本调用
     window.__PSU_DISCLAIMER__ = { open: open, close: close, isOpen: isOpen };
@@ -1797,6 +1800,55 @@ html:not(.psu-boot-active) details[open] > :not(summary),
   });
   reduced.addEventListener('change', clear);
   window.addEventListener('beforeprint', clear);
+})();
+
+/* 结果分层只整理呈现，不改计算；保留用户主动展开的风险详情。 */
+(function () {
+  function setup() {
+    var root = document.querySelector('.col-result');
+    if (!root) return;
+    var states = new Map();
+    var observer = new MutationObserver(refresh);
+    function refresh() {
+      observer.disconnect();
+      var explanation = root.querySelector('.explain-content');
+      var previous = explanation.querySelector('.recommendation-math');
+      var formula = root.querySelector('#recoSub > span');
+      if (formula) {
+        if (previous) previous.remove();
+        formula.classList.add('recommendation-math'); explanation.appendChild(formula);
+      } else if (!root.querySelector('#recoSub b') && previous) previous.remove();
+      root.querySelectorAll('.result-fold').forEach(function (fold) {
+        var summary = fold.querySelector('summary'), status = summary.querySelector('.fold-status');
+        if (!status) { status = document.createElement('span'); status.className = 'fold-status'; summary.appendChild(status); }
+        var upgrade = fold.querySelector('#upgradeBox');
+        var advice = fold.querySelector('#adviceBox');
+        if (upgrade) {
+          var values = upgrade.querySelectorAll('dd');
+          status.textContent = values.length ? '余量 ' + values[0].textContent : '待选配置';
+        } else if (advice) {
+          var count = advice.querySelectorAll('.issue').length;
+          status.textContent = count ? count + ' 条建议' : '待选配置';
+        }
+      });
+      root.querySelectorAll('#issues .issue:not(.error):not(.ok)').forEach(function (issue) {
+        if (issue.querySelector('details')) return;
+        var content = issue.querySelector(':scope > div'), title = content && content.querySelector('b');
+        if (!title || title.textContent === '尚未选择硬件') return;
+        var key = issue.className + ':' + title.textContent;
+        var details = document.createElement('details'), summary = document.createElement('summary');
+        summary.appendChild(title); details.appendChild(summary);
+        while (content.firstChild) details.appendChild(content.firstChild);
+        details.open = states.get(key) === true;
+        details.addEventListener('toggle', function () { states.set(key, details.open); });
+        content.appendChild(details);
+      });
+      observer.observe(root, { childList: true, subtree: true, characterData: true });
+    }
+    refresh();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', setup, { once: true });
+  else setup();
 })();
 
 </script>
@@ -2141,7 +2193,7 @@ html:not(.psu-boot-active) details[open] > :not(summary),
           <div class="reco-label">推荐电源</div>
           <div class="big" id="recoBig">— W</div>
           <div class="sub" id="recoSub"></div>
-          <div class="meta" id="recoMeta"></div>
+          <p class="usage-notice">估算结果，仅供选型参考 · <button type="button" class="usage-open">使用须知</button></p>
         </div>
 
         <!-- 辅助数字：规划 / 预期 / 瞬时峰值 -->
@@ -2149,26 +2201,30 @@ html:not(.psu-boot-active) details[open] > :not(summary),
           <div>
             <div class="k">规划功耗（峰值合计）</div>
             <div class="v accent" id="heroPower">0<small> W</small></div>
-            <div class="u" id="heroPowerNote">各部件功耗上限之和</div>
+
           </div>
           <div>
             <div class="k">场景预期功耗</div>
             <div class="v blue" id="heroExpected">0<small> W</small></div>
-            <div class="u" id="heroExpectedNote">按场景负载系数折算</div>
+
           </div>
           <div>
             <div class="k">瞬时峰值（估算）</div>
             <div class="v warn" id="heroTransient">0<small> W</small></div>
-            <div class="u" id="heroTransientNote">含显卡功率尖峰与硬盘启动</div>
+
           </div>
         </div>
+
+        <details class="result-explain"><summary>计算说明</summary><div class="explain-content"><div class="u" id="heroPowerNote">各部件功耗上限之和</div>
+<div class="u" id="heroExpectedNote">按场景负载系数折算</div>
+<div class="u" id="heroTransientNote">含显卡功率尖峰与硬盘启动</div></div></details>
 
         <!-- 三档推荐 -->
         <section class="card">
           <h2>电源推荐方案<span class="hint" id="psuPickHint"></span></h2>
           <div class="card-body">
             <div class="psu-picks" id="psuPicks"></div>
-            <div id="psuPickNote" style="margin-top:11px"></div>
+            <details class="result-explain"><summary>选型依据</summary><div class="meta" id="recoMeta"></div><div id="psuPickNote" style="margin-top:11px"></div></details>
           </div>
         </section>
 
@@ -2179,14 +2235,14 @@ html:not(.psu-boot-active) details[open] > :not(summary),
         </section>
 
         <!-- 升级建议 -->
-        <section class="card">
-          <h2>升级空间</h2>
+        <details class="card result-fold">
+          <summary><h2>升级空间</h2></summary>
           <div class="card-body" id="upgradeBox"></div>
-        </section>
+        </details>
 
         <!-- 智能建议 -->
-        <section class="card">
-          <h2>配置平衡建议</h2>
+        <details class="card result-fold">
+          <summary><h2>配置平衡建议</h2></summary>
           <div class="card-body">
             <div class="field">
               <label>整机预算 <span class="unit">(元，选填)</span></label>
@@ -2194,16 +2250,16 @@ html:not(.psu-boot-active) details[open] > :not(summary),
             </div>
             <div id="adviceBox" style="margin-top:11px"></div>
           </div>
-        </section>
+        </details>
 
         <!-- 功耗明细 -->
-        <section class="card">
-          <h2>功耗明细<span class="hint">含来源与置信度</span></h2>
+        <details class="card result-fold">
+          <summary><h2>功耗明细<span class="hint">含来源与置信度</span></h2></summary>
           <div class="card-body tight">
             <!-- 窄屏必须能横向滚动，否则右侧的瓦数/来源列会被裁掉且无法触达 -->
             <div class="table-scroll"><table class="detail" id="detailTable"></table></div>
           </div>
-        </section>
+        </details>
 
         <!-- 导出 -->
         <section class="card">
@@ -2282,7 +2338,7 @@ html:not(.psu-boot-active) details[open] > :not(summary),
 
 <div class="toast" id="toast"></div>
 
-<!-- ========================= 数据声明弹窗（打开页面时自动出现）==========
+<!-- ========================= 使用须知弹窗（用户主动打开）==========
      原「数据来源」卡片与显卡卡里的两段声明都搬到了这里，
      所以 id="sources" 与 id="aibCatalogNote" 依然存在 —— app.js 不需要改。
      顶栏的「数据声明」按钮可以随时重新打开。
@@ -2301,44 +2357,29 @@ html:not(.psu-boot-active) details[open] > :not(summary),
     </div>
 
     <div class="modal-body" id="dmBody">
-      <section>
-        <h3>功耗为估算值</h3>
-        <p>
-          数据来自官方规格、评测或估算，均标注来源。实际功耗随负载与设置变化，<b>选型仍需参考厂商建议</b>。标为 <span class="conf leak">leak</span> 的信息未经发布确认。
-        </p>
-      </section>
-
-      <section>
-        <h3>显卡板型与主板</h3>
-        <p>
-          显卡板型影响功耗与供电接口；系统主板另行校验 CPU 插槽兼容性。
-        </p>
-      </section>
-
-      <section>
-        <h3>AIC 板型数据的可靠性</h3>
+      <ul class="usage-points">
+        <li>功耗为估算，选型请结合厂商建议。</li>
+        <li>部分板型与旧卡数据为推算，已标注来源。</li>
+        <li>购买前请确认供电接口、尺寸与保修。</li>
+      </ul>
+      <details class="result-explain">
+        <summary>数据来源与标记说明</summary>
+        <p>official：官方规格；review：评测；estimate：估算；leak：未经发布确认。</p>
         <div class="note warn" id="aibCatalogNote"></div>
-      </section>
-
-      <section>
-        <h3>旧卡与二手硬件</h3>
-        <p>
-          部分已停产旧卡的数据为估算。建议额外留一档功率余量，并确认二手硬件的成色与保修。
-        </p>
-      </section>
-
-      <section>
-        <h3>数据来源</h3>
         <ul class="src-list" id="sources"></ul>
-      </section>
+      </details>
+      <details class="result-explain">
+        <summary>旧卡与二手硬件说明</summary>
+        <p>部分已停产旧卡数据为估算。建议额外留一档功率余量，并确认成色与保修。</p>
+      </details>
     </div>
 
     <div class="modal-foot">
-      <label class="chk" for="dmNever">
+      <label class="chk" for="dmNever" hidden>
         <input type="checkbox" id="dmNever">
         <span>不再提示</span>
       </label>
-      <button type="button" class="primary" id="dmOk">开始使用</button>
+      <button type="button" class="primary" id="dmOk">知道了</button>
     </div>
   </div>
 </div>

@@ -153,7 +153,7 @@ export async function checkBootBrowser(root, executable) {
     check('收束后有完整黑场', s.elapsed < 4400 && s.focus === 0 && s.overlay === 'flex' && s.page === 0); await shot('05-blackout');
     s = await at(4700); check('4.4–5s 框架淡入，内容尚未填充', s.overlay === 'none' && s.page > 0 && s.page < 1 && s.fills.every(x => x === 0)); await shot('06-framework');
     s = await at(5500); check('5s 后内容错峰填入且声明仍等待', s.fills.some(x => x > 0) && s.fills.some(x => x === 0) && !s.modal); await shot('07-fill');
-    s = await at(6350); check('约 6.2s 清理完毕并打开声明', !s.active && !s.inert && !s.fills.length && s.modal && s.ends.length === 1 && Math.abs(s.ends[0] - 6200) < 300);
+    s = await at(6350); check('约 6.2s 清理完毕且不自动弹窗', !s.active && !s.inert && !s.fills.length && !s.modal && s.ends.length === 1 && Math.abs(s.ends[0] - 6200) < 300);
     await evaluate('window.__PSU_DISCLAIMER__.close()'); await shot('08-complete');
     check('启动、顶栏、声明使用同一截图提取标记', await evaluate(`
       ['.psu-boot-half', '.logo .mark', '.modal-head .mark'].every(s =>
@@ -234,6 +234,24 @@ export async function checkBootBrowser(root, executable) {
       return box.width > 0 && box.height > 0;
     })()`));
     await shot('local-file-logo');
+    check('升级、建议和明细默认折叠，功耗解释独立收纳', await evaluate(`(() => {
+      const folds = [...document.querySelectorAll('.result-fold')];
+      return folds.length === 3 && folds.every(d => !d.open) &&
+        ['heroPowerNote', 'heroExpectedNote', 'heroTransientNote'].every(id => document.getElementById(id).closest('details:not([open])'));
+    })()`));
+    await evaluate(`document.querySelector('.usage-open').click()`);
+    check('须知只有三条主说明，详情默认折叠', await evaluate(`!document.querySelector('#disclaimerModal').hidden && document.querySelectorAll('.usage-points li').length === 3 && [...document.querySelectorAll('#dmBody details')].every(d => !d.open)`));
+    await pause(300);
+    await shot('concise-notice');
+    await evaluate(`window.__PSU_DISCLAIMER__.close(); document.querySelector('.result-fold').open = true; document.querySelector('#btnQuickStart').click();`);
+    await pause(300);
+    check('更换配置保留用户展开状态', await evaluate(`document.querySelector('.result-fold').open`));
+    check('严重风险正文不被折叠，一般风险有详情入口', await evaluate(`[...document.querySelectorAll('#issues .error')].every(e => !e.querySelector('details')) && [...document.querySelectorAll('#issues .warn')].every(e => e.querySelector('details'))`));
+    await evaluate(`document.querySelector('.result-fold').open = false`);
+    await shot('concise-results');
+    await send('Emulation.setEmulatedMedia', { media: 'print' });
+    check('打印展开功耗明细', await evaluate(`getComputedStyle(document.querySelector('#detailTable')).display === 'table' && document.querySelector('#detailTable').getBoundingClientRect().height > 0`));
+    await send('Emulation.setEmulatedMedia', { media: '' });
     check('连续切换选项触发局部反馈', await evaluate(`(() => {
       const el = document.querySelector('select');
       el.dispatchEvent(new Event('change', { bubbles: true }));

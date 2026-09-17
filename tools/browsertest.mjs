@@ -1057,7 +1057,7 @@ window.addEventListener('load', function () {
 
 /* ==========================================================================
  *  数据声明弹窗专项
- *  ⚠️ 这一轮**故意不带** ?nodisclaimer=1&noanim=1：弹窗必须在打开页面时自动出现。
+ *  ⚠️ 这一轮**故意不带** ?nodisclaimer=1&noanim=1：弹窗默认关闭，仅由用户主动打开。
  *     其余所有用例都带这个参数把它关掉，否则它会盖住整页。
  * ========================================================================*/
 console.log('\n数据声明弹窗检查（不带 ?nodisclaimer=1&noanim=1）');
@@ -1079,7 +1079,10 @@ setTimeout(function () {
     /* role / aria-modal / aria-labelledby 挂在内层的 .modal-card 上
        （#disclaimerModal 只是遮罩层），所以要从遮罩里往下找。 */
     var card = md.querySelector('[role="dialog"]');
-    m('打开页面时自动弹出声明', md && !md.hidden);
+    m('首次打开不自动弹出声明', md && md.hidden);
+    document.querySelector('.usage-open').click();
+    m('推荐区使用须知入口可打开弹窗', !md.hidden);
+    m('弹窗详情默认折叠', Array.from(md.querySelectorAll('details')).every(d => !d.open));
     m('弹窗是 role=dialog + aria-modal',
       !!card && card.getAttribute('aria-modal') === 'true',
       card ? card.getAttribute('role') + '/' + card.getAttribute('aria-modal') : '未找到 dialog');
@@ -1116,15 +1119,11 @@ setTimeout(function () {
     md.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
     m('点遮罩关闭弹窗', md.hidden === true);
 
-    /* 勾了「不再提示」才写入 localStorage */
     $('btnDisclaimer').click();
-    m('重开后「不再提示」默认未勾选', $('dmNever').checked === false);
-    $('dmNever').checked = true;
+    m('不再自动弹窗后隐藏旧偏好选项', $('dmNever').closest('label').hidden);
     $('dmOk').click();
-    var stored = null;
-    try { stored = localStorage.getItem('psu-calc-2026-v1-disclaimer'); } catch (e) {}
-    m('勾选「不再提示」后记住了当前数据版本', stored === (window.HWDB.meta.version),
-      String(stored) + ' vs ' + window.HWDB.meta.version);
+    m('知道了关闭弹窗', md.hidden);
+
 
     /* 其余用例都会带 ?nodisclaimer=1&noanim=1，验证抑制开关本身有效 */
     m('window.__PSU_DISCLAIMER__ 调试接口已暴露',
