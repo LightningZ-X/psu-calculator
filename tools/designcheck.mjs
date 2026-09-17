@@ -5,6 +5,7 @@
  * ==========================================================================*/
 import fs from 'node:fs';
 import path from 'node:path';
+import { checkBootMotion } from './boot-motion-check.mjs';
 
 const root = process.cwd();
 const css = fs.readFileSync(path.join(root, 'assets', 'style.css'), 'utf8');
@@ -44,8 +45,14 @@ ck('分区标记是三条斜杠 ///（对照奥创真实界面）',
    !!markerRule && (markerRule[0].match(/linear-gradient\(/g) || []).length === 3,
    markerRule ? (markerRule[0].match(/linear-gradient\(/g) || []).length + ' 条' : '规则缺失');
 
-ck('无 CSS 动画', !/animation\s*:/.test(cssCode));
-ck('无 keyframes', !/@keyframes/.test(cssCode));
+const motionErrors = checkBootMotion(css);
+ck('仅允许有限启动动画白名单 / 无越界缓动 / 保留减少动态效果', !motionErrors.length, motionErrors.join(' | '));
+ck('白名单能拦截未知名称、无限循环、越界缓动和非合成属性', [
+  css.replace('@keyframes psu-page-in', '@keyframes unexpected'),
+  css.replace('psu-page-in .6s linear both', 'psu-page-in .6s linear infinite'),
+  css.replace('cubic-bezier(.4, 0, .2, 1)', 'cubic-bezier(.4, 0, .2, 1.2)'),
+  css.replace('from { opacity: 0; }', 'from { width: 0; }')
+].every(s => checkBootMotion(s).length > 0));
 // 浮层阴影（下拉/抽屉/toast）是允许的；禁止的是平面卡片与外发光
 const glows = [...cssCode.matchAll(/box-shadow:\s*([^;]+)/g)]
   .map(m => m[1].replace(/!important/g, '').trim())

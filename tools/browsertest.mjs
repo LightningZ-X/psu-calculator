@@ -9,6 +9,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { checkBootMotion } from './boot-motion-check.mjs';
+import { checkBootBrowser } from './boot-browser-check.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, '..');
@@ -16,12 +18,12 @@ const SRC = path.join(root, 'index.html');
 const TMP = path.join(root, '_browsertest.html');
 
 const EDGE_CANDIDATES = [
+  process.env.CHROME_PATH || '',
   'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
-  'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
-  process.env.CHROME_PATH || ''
+  'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe'
 ];
 const edge = EDGE_CANDIDATES.find(p => p && fs.existsSync(p));
-if (!edge) { console.error('未找到 Edge / Chrome，跳过浏览器测试'); process.exit(0); }
+if (!edge) { console.error('未找到 Edge / Chrome，请设置 CHROME_PATH'); process.exit(1); }
 
 /* ------------------------------------------------------------ 测试脚本 -- */
 const TEST = `
@@ -435,10 +437,10 @@ setTimeout(function () {
       document.querySelectorAll('.col-result .note.note-collapsible').length === 0);
 
     /* 数据声明：原来的「数据来源」独立卡片已撤掉，改到打开页面时的声明弹窗里。
-       本轮 URL 带了 ?nodisclaimer=1（不带的话弹窗会盖住整页，
+       本轮 URL 带了 ?nodisclaimer=1&noanim=1（不带的话弹窗会盖住整页，
        所有布局 / 可见性断言都会失真），所以这里只验证抑制开关与搬迁结果；
        弹窗本身由文件末尾的独立用例验证。 */
-    t('?nodisclaimer=1 可抑制声明弹窗',
+    t('?nodisclaimer=1&noanim=1 可抑制声明弹窗',
       !!$('disclaimerModal') && $('disclaimerModal').hidden === true,
       $('disclaimerModal') ? 'hidden=' + $('disclaimerModal').hidden : '节点不存在');
     t('「数据来源」已从页面移入弹窗（不再是独立卡片）',
@@ -557,7 +559,9 @@ const PROFILE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'psu-prof-'));
 const PROFILE_ARGS = ['--user-data-dir=' + PROFILE_DIR];
 process.on('exit', () => { try { fs.rmSync(PROFILE_DIR, { recursive: true, force: true }); } catch (e) {} });
 
-const html = fs.readFileSync(SRC, 'utf8');
+// Existing functional tests deliberately skip the intro; its real timeline has separate coverage below.
+const readTestPage = () => fs.readFileSync(SRC, 'utf8').replace('<head>', '<head><script>window.__PSU_NOANIM = true;</script>');
+const html = readTestPage();
 fs.writeFileSync(TMP, html.replace('</body>', TEST + '</body>'), 'utf8');
 
 let dom = '';
@@ -565,11 +569,11 @@ try {
   dom = execFileSync(edge, [
     '--headless=new', '--disable-gpu', '--no-sandbox', ...PROFILE_ARGS,
     '--virtual-time-budget=9000', '--dump-dom',
-    /* ?nodisclaimer=1 跳过「数据声明弹窗」——
+    /* ?nodisclaimer=1&noanim=1 跳过「数据声明弹窗」——
        弹窗是 position:fixed + body.modal-open{overflow:hidden}，
        开着的话会盖住整页，让所有布局与可见性断言失真。
        弹窗本身由文件末尾的独立用例验证。 */
-    'file:///' + TMP.replace(/\\/g, '/') + '?nodisclaimer=1'
+    'file:///' + TMP.replace(/\\/g, '/') + '?nodisclaimer=1&noanim=1'
   ], { encoding: 'utf8', maxBuffer: 40 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] });
 } catch (e) {
   console.error('无头浏览器执行失败:', e.message);
@@ -579,7 +583,7 @@ try {
 fs.unlinkSync(TMP);
 
 const m = /<pre id="RESULT">([\s\S]*?)<\/pre>/.exec(dom);
-if (!m) { console.error('未取到测试结果，页面可能未正常初始化'); process.exit(1); }
+if (!m) { console.error('未取到测试结果，页面可能未正常初始化；可用 CHROME_PATH 指定独立 Chromium'); process.exit(1); }
 
 const lines = m[1].trim().split('\n').map(s =>
   s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').replace(/&quot;/g, '"'));
@@ -611,7 +615,7 @@ if (!fs.existsSync(STANDALONE)) {
   console.log('\u2500'.repeat(56));
 
   /* 产物是否已过期：源文件比产物新就说明忘了重新构建 */
-  const srcFiles = ['index.html', 'assets/style.css', 'assets/rog-eye.png',
+  const srcFiles = ['index.html', 'assets/style.css', 'assets/lightning-mark.png', 'assets/lightning-wordmark.png', 'favicon.svg',
     'js/db-cpus.js', 'js/db-aib.js', 'js/db.js', 'js/engine.js', 'js/app.js', 'js/ui.js']
     .map(f => path.join(root, f));
   const newestSrc = Math.max(...srcFiles.map(f => fs.statSync(f).mtimeMs));
@@ -636,7 +640,7 @@ if (!fs.existsSync(STANDALONE)) {
     saDom = execFileSync(edge, [
       '--headless=new', '--disable-gpu', '--no-sandbox', ...PROFILE_ARGS,
       '--virtual-time-budget=9000', '--dump-dom',
-      'file:///' + isoFile.replace(/\\/g, '/') + '?nodisclaimer=1'
+      'file:///' + isoFile.replace(/\\/g, '/') + '?nodisclaimer=1&noanim=1'
     ], { encoding: 'utf8', maxBuffer: 40 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] });
   } catch (e) {
     console.log('  \u2717 无头浏览器执行失败: ' + e.message);
@@ -828,7 +832,8 @@ dcheck('尊重 prefers-reduced-motion', /prefers-reduced-motion/.test(css));
 /* -------------------------------------------------------- 奥创令牌 ------ */
 dcheck('ROG 红主强调色已定义', /--rog:\s*#ff0033/.test(css));
 dcheck('圆角收到 ≤4px', /--radius:\s*2px/.test(css));
-dcheck('无装饰性呼吸动画', !/animation:\s*\w/.test(css));
+const motionErrors = checkBootMotion(css);
+dcheck('仅允许有限启动动画白名单 / 无 infinite 与越界缓动', !motionErrors.length, motionErrors.join(' | '));
 dcheck('浅色主题覆盖同名变量（未增删变量名）', /html\[data-theme="light"\]/.test(css));
 const rootVars = (css.slice(0, css.indexOf('html[data-theme="light"]')).match(/--[a-z0-9-]+:/g) || [])
   .map(s => s.replace(':', '')).sort();
@@ -860,7 +865,7 @@ let mobFail = 0;
   const inject = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>vp</title>
 <style>html,body{margin:0}iframe{border:0;display:block}</style></head>
 <body>
-<iframe id="f" src="index.html?nodisclaimer=1" width="${MOBILE_W}" height="844"></iframe>
+<iframe id="f" src="index.html?nodisclaimer=1&noanim=1" width="${MOBILE_W}" height="844"></iframe>
 <script>
 window.addEventListener('load', function () {
   setTimeout(function () {
@@ -989,7 +994,7 @@ console.log('\u2500'.repeat(56));
 let layFail = 0;
 {
   const probe = path.join(root, '_probe-layout.html');
-  const src = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  const src = readTestPage();
   const inject = `<script>
 window.addEventListener('load', function () {
   setTimeout(function () {
@@ -1048,10 +1053,10 @@ window.addEventListener('load', function () {
 
 /* ==========================================================================
  *  数据声明弹窗专项
- *  ⚠️ 这一轮**故意不带** ?nodisclaimer=1：弹窗必须在打开页面时自动出现。
+ *  ⚠️ 这一轮**故意不带** ?nodisclaimer=1&noanim=1：弹窗必须在打开页面时自动出现。
  *     其余所有用例都带这个参数把它关掉，否则它会盖住整页。
  * ========================================================================*/
-console.log('\n数据声明弹窗检查（不带 ?nodisclaimer=1）');
+console.log('\n数据声明弹窗检查（不带 ?nodisclaimer=1&noanim=1）');
 console.log('\u2500'.repeat(56));
 
 let dmFail = 0;
@@ -1117,7 +1122,7 @@ setTimeout(function () {
     m('勾选「不再提示」后记住了当前数据版本', stored === (window.HWDB.meta.version),
       String(stored) + ' vs ' + window.HWDB.meta.version);
 
-    /* 其余用例都会带 ?nodisclaimer=1，验证抑制开关本身有效 */
+    /* 其余用例都会带 ?nodisclaimer=1&noanim=1，验证抑制开关本身有效 */
     m('window.__PSU_DISCLAIMER__ 调试接口已暴露',
       !!window.__PSU_DISCLAIMER__ && typeof window.__PSU_DISCLAIMER__.open === 'function');
   } catch (e) {
@@ -1129,7 +1134,7 @@ setTimeout(function () {
   document.body.appendChild(p);
 }, 900);
 <\/script>`;
-  fs.writeFileSync(probe, fs.readFileSync(SRC, 'utf8').replace('</body>', inject + '</body>'), 'utf8');
+  fs.writeFileSync(probe, readTestPage().replace('</body>', inject + '</body>'), 'utf8');
 
   let dom = '';
   try {
@@ -1163,7 +1168,7 @@ setTimeout(function () {
  *  表现是「标志变成一块红矩形 + 按钮掉回浏览器默认样式」。
  *  这种失败**不会报错**，只能靠「后面那条规则到底生效没有」来发现。
  *  所以这里同时钉住两件事：
- *    · ROG 之眼确实渲染出来了（mask 生效 / 图片加载成功，不是一块实心方块）
+ *    · MSI LIGHTNING 闪电确实渲染出来了（mask 生效 / 图片加载成功，不是一块实心方块）
  *    · 样式表尾部的规则仍然生效（解析没有被截断）
  * ========================================================================*/
 console.log('\n品牌标志与样式表完整性检查');
@@ -1194,7 +1199,7 @@ try {
     var r = mark.getBoundingClientRect();
     out.push('MARK_SIZE=' + Math.round(r.width) + 'x' + Math.round(r.height));
   }
-  /* 字标：官方 REPUBLIC OF GAMERS 图形。窄屏会被隐藏，这里在宽视口下断言它可见 */
+  /* 字标：MSI LIGHTNING 截图提取字标。窄屏会被隐藏，这里在宽视口下断言它可见 */
   var wm = document.querySelector('.logo .wordmark');
   if (!wm) { out.push('WORDMARK=missing'); }
   else {
@@ -1236,14 +1241,14 @@ setTimeout(function () {
   document.getElementById('L').textContent = out.join('\\n');
 }, 600);
 <\/script>`;
-  fs.writeFileSync(probe, fs.readFileSync(SRC, 'utf8').replace('</body>', inject + '</body>'), 'utf8');
+  fs.writeFileSync(probe, readTestPage().replace('</body>', inject + '</body>'), 'utf8');
 
   let dom = '';
   try {
     dom = execFileSync(edge, ['--headless=new', '--disable-gpu', '--no-sandbox',
       '--allow-file-access-from-files', ...PROFILE_ARGS,
       '--virtual-time-budget=9000', '--dump-dom',
-      'file:///' + probe.replace(/\\/g, '/') + '?nodisclaimer=1'],
+      'file:///' + probe.replace(/\\/g, '/') + '?nodisclaimer=1&noanim=1'],
       { encoding: 'utf8', maxBuffer: 40 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] });
   } catch (e) { console.log('  \u2717 渲染失败: ' + e.message.slice(0, 60)); logoFail++; }
   fs.unlinkSync(probe);
@@ -1263,12 +1268,12 @@ setTimeout(function () {
   /* 230 是当前值。给一点余量，但不能低太多 ——
      低于这个量级基本就是样式表被从中间截断了。 */
   chk('首页样式表解析完整（未被静默截断）', rules >= 200, rules + ' 条规则');
-  chk('顶栏标志是用官方之眼图形 + CSS mask 上色',
+  chk('顶栏标志是用LIGHTNING 闪电图形 + CSS mask 上色',
     val('MARK_MASK') === 'set' && val('MARK_BG') !== 'rgba(0, 0, 0, 0)',
     'mask=' + val('MARK_MASK') + ' bg=' + val('MARK_BG'));
   chk('顶栏标志尺寸正常（没有被 mask 撑成一整块）',
     /^\d+x\d+$/.test(val('MARK_SIZE')) && parseInt(val('MARK_SIZE'), 10) > 0, val('MARK_SIZE'));
-  chk('Rog 字标 REPUBLIC OF GAMERS 已渲染',
+  chk('MSI LIGHTNING 字标 已渲染',
     val('WORDMARK_MASK') === 'set', val('WORDMARK_MASK') + ' ' + val('WORDMARK_SIZE'));
   /* 字标是细笔画定制字形，低于 120px 就开始糊 —— 顶栏里必须给它足够宽度 */
   chk('字标宽度足够看清定制字形（≥120px）',
@@ -1287,7 +1292,7 @@ setTimeout(function () {
 <pre id="L">x</pre><script>
 setTimeout(function () {
   var o = [];
-  /* 404 页显示的是官方纵向锁定版：图形在上、字标在下，两张图都要真的加载出来 */
+  /* 404 页显示的是MSI LIGHTNING 纵向组合：图形在上、字标在下，两张图都要真的加载出来 */
   var imgs = document.querySelectorAll('.lockup img');
   o.push('IMG_COUNT=' + imgs.length);
   var okAll = imgs.length === 2, sizes = [];
@@ -1331,7 +1336,7 @@ setTimeout(function () {
     console.log('  ' + (ok ? '\u2713' : '\u2717') + ' ' + label + (extra ? '  [' + extra + ']' : ''));
   };
 
-  chk4('404 页显示官方纵向锁定版（图形 + 字标两张图）',
+  chk4('404 页显示MSI LIGHTNING 纵向组合（图形 + 字标两张图）',
     v4('IMG_COUNT') === '2', v4('IMG_COUNT') + ' 张');
   chk4('404 页两张图都真的加载出来了（不是 alt 文字 / 也不是一块实心红）',
     v4('IMG_OK') === 'true', v4('IMG_SIZES'));
@@ -1351,4 +1356,5 @@ setTimeout(function () {
 }
 
 console.log('');
-process.exit((fail || saFail || deployFail || mobFail || layFail || dmFail || logoFail) ? 1 : 0);
+const bootFail = await checkBootBrowser(root, edge);
+process.exit((fail || saFail || deployFail || mobFail || layFail || dmFail || logoFail || bootFail) ? 1 : 0);

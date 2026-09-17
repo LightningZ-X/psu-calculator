@@ -46,10 +46,10 @@ JS_ORDER.forEach(src => {
 if (!fs.existsSync(path.join(root, 'favicon.svg'))) {
   problems.push('favicon.svg 不存在（单文件版需要内联它）');
 }
-// ROG 之眼的 PNG 会被 CSS 的 mask 引用，必须一起内联
-['rog-eye.png', 'rog-wordmark.png'].forEach(f => {
+// MSI LIGHTNING 透明 PNG 会被 CSS 的 mask 引用，必须一起内联。
+['lightning-mark.png', 'lightning-wordmark.png'].forEach(f => {
   if (!fs.existsSync(path.join(root, 'assets', f))) {
-    problems.push('assets/' + f + ' 不存在（先运行 node tools/build-logo.mjs）');
+    problems.push('assets/' + f + ' 不存在（需要经用户授权提取的标志文件）');
   }
 });
 
@@ -81,24 +81,13 @@ if (problems.length) {
 }
 
 /* --------------------------------------------------------------- 内联 */
-/* 0. CSS 里引用的图片必须换成 data URI。
-      样式表被内联进 <style> 之后，url(rog-eye.png) 会相对 dist/ 解析而 404，
-      结果是 logo 变成一块纯色方块（mask 加载失败时不裁切，整个元素被填满）。 */
-const dataUriOf = f => 'data:image/png;base64,' +
-  fs.readFileSync(path.join(root, 'assets', f)).toString('base64');
-const IMG_MAP = { 'url(rog-eye.png)': 'url(' + dataUriOf('rog-eye.png') + ')' ,
-                  'url(rog-wordmark.png)': 'url(' + dataUriOf('rog-wordmark.png') + ')' };
-let cssInlined = css;
-Object.entries(IMG_MAP).forEach(([from, to]) => { cssInlined = cssInlined.split(from).join(to); });
-const notInlined = Object.keys(IMG_MAP).filter(k => css.indexOf(k) >= 0 && cssInlined.indexOf(k) >= 0);
-if (css.indexOf('url(rog-eye.png)') < 0 || css.indexOf('url(rog-wordmark.png)') < 0) {
-  console.error('✗ style.css 里没有找到 url(rog-eye.png) / url(rog-wordmark.png)，' +
-                'logo 会在单文件版里失效');
-  process.exit(1);
-}
-if (notInlined.length) {
-  console.error('✗ 以下图片引用没有被内联: ' + notInlined.join(', '));
-  process.exit(1);
+/* Logo 遮罩已内嵌在源 CSS 中，网页和单文件版共用同一数据。 */
+const cssInlined = css;
+for (const part of ['mark', 'wordmark']) {
+  const data = fs.readFileSync(path.join(root, 'assets', 'lightning-' + part + '.png')).toString('base64');
+  if (!css.includes('data:image/png;base64,' + data)) {
+    throw new Error('CSS 中的 LIGHTNING 遮罩与素材不一致: ' + part);
+  }
 }
 
 // 1. 样式
@@ -119,24 +108,11 @@ if (fs.existsSync(faviconPath)) {
 }
 
 // 2. 脚本（保持顺序，用独立 <script> 块以免作用域互相污染）
-const jsBlock = jsSources.map(j =>
-  '<!-- ' + j.file + ' -->\n<script>\n' + j.code + '\n</script>'
-).join('\n');
-
-// 3. 替换掉原来那一组 script 标签
-const firstScript = '<script src="' + JS_ORDER[0] + '"></script>';
-const lastScript = '<script src="' + JS_ORDER[JS_ORDER.length - 1] + '"></script>';
-const startIdx = html.indexOf(firstScript);
-const endIdx = html.indexOf(lastScript);
-if (startIdx === -1 || endIdx === -1) {
-  console.error('✗ 无法定位脚本块，index.html 结构可能已变化');
-  process.exit(1);
+// 原位内联，保留 ui.js 的 head 首帧判断及 body 中的数据/计算加载顺序。
+for (const j of jsSources) {
+  html = html.replace('<script src="' + j.file + '"></script>',
+    () => '<!-- ' + j.file + ' -->\n<script>\n' + j.code + '\n</script>');
 }
-const blockStart = html.lastIndexOf('<!--', startIdx) !== -1 &&
-                   html.slice(html.lastIndexOf('<!--', startIdx), startIdx).includes('加载顺序')
-  ? html.lastIndexOf('<!--', startIdx)
-  : startIdx;
-html = html.slice(0, blockStart) + jsBlock + html.slice(endIdx + lastScript.length);
 
 /* ----------------------------------------------------- 加上离线标记 */
 html = html.replace(
@@ -169,11 +145,12 @@ checks.push(['无残留本地图标引用', !localRefPatterns[1].test(built)]);
 checks.push(['无残留 <script src>', !/<script[^>]+src=/.test(built)]);
 checks.push(['favicon 已内联为 data URI', built.indexOf('data:image/svg+xml;base64,') > 0]);
 checks.push(['无残留 favicon.svg 引用', built.indexOf('href="favicon.svg"') === -1]);
-checks.push(['ROG 之眼已内联为 data URI', built.indexOf('data:image/png;base64,') > 0]);
-checks.push(['无残留 rog-eye.png 相对引用', built.indexOf('url(rog-eye.png)') === -1]);
-checks.push(['无残留 rog-wordmark.png 相对引用', built.indexOf('url(rog-wordmark.png)') === -1]);
+checks.push(['MSI LIGHTNING 图形已内联为 data URI', built.indexOf('data:image/svg+xml;base64,') > 0]);
+checks.push(['无残留 lightning-mark.png 相对引用', built.indexOf('url(lightning-mark.png)') === -1]);
+checks.push(['无残留 lightning-wordmark.png 相对引用', built.indexOf('url(lightning-wordmark.png)') === -1]);
 checks.push(['logo 仍用 mask 引用 logo 图（未变成死引用）',
-  /mask-image:\s*url\(data:image\/png;base64,/.test(built)]);
+  ['mark', 'wordmark'].every(part => built.includes('mask-image: var(--lightning-' + part + ')') &&
+    built.includes('--lightning-' + part + ': url("data:image/png;base64,'))]);
 // SEO 元信息必须完整保留
 checks.push(['title 已保留', /<title>[^<]+<\/title>/.test(built)]);
 checks.push(['meta description 已保留', /name="description"[^>]+content="[^"]{20,}"/.test(built)]);
