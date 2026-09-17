@@ -65,8 +65,19 @@
 </script>
 
 <link rel="stylesheet" href="assets/style.css">
+<!-- 禁用 JS 时必须把启动遮罩藏掉，否则永久黑屏（#boot 的显示完全依赖 JS 收尾） -->
+<noscript><style>#boot{display:none}</style></noscript>
 </head>
 <body>
+
+<!-- ==================================================== 启动遮罩（Phase A）
+     必须静态写在 <body> 第一行：若靠 JS 注入，首帧会先闪一下正文内容。
+     内容用站点自有的「三条斜杠」签名（纯 CSS 矩形 + skew，不使用任何品牌图形）。
+     节奏来自实测量化（见 改版方案/05-动效规范.md）：硬切出现 → 静止约 550ms → 硬切离开。
+     aria-hidden：内部无文本、无可聚焦元素，对辅助技术完全不可见。 -->
+<div id="boot" aria-hidden="true">
+  <span class="boot-mark"><i></i><i></i><i></i></span>
+</div>
 
 <!-- 页面内容由 JavaScript 渲染，这里为禁用 JS 的访问者与部分爬虫提供兜底说明 -->
 <noscript>

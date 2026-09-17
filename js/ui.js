@@ -417,10 +417,100 @@
       else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     });
 
-    if (!suppressed()) open();
+    /* 首访的自动弹出**延后**到启动序列结束之后再执行（见 setupBoot）——
+       参考录屏里启动屏期间不会叠弹窗。这里只登记「本次需不需要弹」。 */
+    var needed = !suppressed();
 
     // 供自动化测试 / 其他脚本调用
     window.__PSU_DISCLAIMER__ = { open: open, close: close, isOpen: isOpen };
+    return { needed: needed, open: open };
+  }
+
+  /* --------------------------------------------------------- 动效开关 ----
+     与 ?nodisclaimer=1 同一套约定：URL 参数优先，其次是给自动化用的
+     window.__PSU_NOANIM（脚本执行前就能读到），最后尊重系统的「减少动态效果」。
+     三者任一成立 → 一步都不播，而不是「加速播」。 */
+  function animDisabled() {
+    try {
+      if (/(?:^|[?&])noanim=1(?:&|$)/.test(location.search)) return true;
+    } catch (e) { /* file:// 等场景忽略 */ }
+    if (window.__PSU_NOANIM) return true;
+    try {
+      if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        return true;
+      }
+    } catch (e) { /* 老浏览器忽略 */ }
+    return false;
+  }
+
+  /* ------------------------------------------------ 启动序列（Phase A）--
+     实测依据（参考录屏 8.286s→8.809s）：那一屏静止约 523ms，进出各 ≤25ms 的硬切。
+     本实现只借用「硬切 + 约 550ms 停留」这两个**参数**，画面自行设计（见 style.css 的 #boot）。
+     时间轴：T0 遮罩已在首帧 → T1 静止 550ms → T2 90ms 硬切离开 → T3 交接给声明弹窗。
+     任意 click / keydown / touchstart 立即跳到 T3；总时长 640ms（≤900ms 上限）。 */
+  var SPLASH_MS = 550;
+
+  function setupBoot(afterBoot) {
+    var el = $('boot');
+    var root = document.documentElement;
+    var finished = false;
+    var timers = [];
+
+    function clearTimers() {
+      timers.forEach(function (t) { clearTimeout(t); });
+      timers = [];
+    }
+    function unbind() {
+      document.removeEventListener('click', onInput, true);
+      document.removeEventListener('keydown', onInput, true);
+      document.removeEventListener('touchstart', onInput, true);
+    }
+    function settle(instant) {
+      root.classList.remove('is-booting');
+      root.dataset.boot = 'done';
+      if (instant && el) { el.classList.remove('is-out'); el.classList.add('is-done'); }
+      if (afterBoot) afterBoot();
+    }
+    /* 完全不播（?noanim=1 / reduced-motion / 遮罩节点缺失）：首帧即「已完成」 */
+    function skipAll() {
+      if (finished) return;
+      finished = true; clearTimers(); unbind();
+      if (el) el.classList.add('is-done');
+      settle(true);
+    }
+    /* 用户中途催促：立刻结束，不等那 90ms 过渡 */
+    function skipNow() {
+      if (finished) return;
+      finished = true; clearTimers(); unbind();
+      settle(true);
+    }
+    function onInput() { skipNow(); }
+
+    if (!el || animDisabled()) { skipAll(); return; }
+
+    root.dataset.boot = 'running';
+    root.classList.add('is-booting');
+
+    document.addEventListener('click', onInput, true);
+    document.addEventListener('keydown', onInput, true);
+    document.addEventListener('touchstart', onInput, true);
+
+    // bfcache 返回（浏览器后退）：页面是恢复的，不该再播一次
+    window.addEventListener('pageshow', function (e) { if (e.persisted) skipNow(); });
+
+    timers.push(setTimeout(function () {          // T1：静止 550ms
+      if (finished) return;
+      unbind();
+      if (el) el.classList.add('is-out');         // T2：90ms 硬切离开
+      root.classList.remove('is-booting');        // T3：先解锁滚动
+      root.dataset.boot = 'done';
+      timers.push(setTimeout(function () {        // T3 收尾：移出渲染树后才开声明弹窗
+        if (finished) return;
+        finished = true;
+        if (el) el.classList.add('is-done');
+        if (afterBoot) afterBoot();
+      }, 90));
+    }, SPLASH_MS));
   }
 
   /* ------------------------------------------------------------ 启动 --- */
@@ -431,7 +521,12 @@
       setupActiveHighlight();
       collapseNotes();
       setupMobileBar();
-      setupDisclaimer();
+      var disclaimer = setupDisclaimer();
+
+      // 启动序列：跑完（或直接降级）之后，才让首访的声明弹窗出现
+      setupBoot(function () {
+        if (disclaimer && disclaimer.needed) disclaimer.open();
+      });
 
       // 控件值变化 → 刷新摘要
       // 用捕获阶段监听，不影响 app.js 自己的监听器

@@ -45,11 +45,11 @@ const printHtml = loadedHtml.replace(
 
 /* 移动端：无头 Edge 有 ~504px 的最小布局视口，
    必须用 iframe 才能得到真实的 390px（媒体查询按 iframe 宽度生效）。
-   注意 iframe 的 src 要自己带 ?nodisclaimer=1 —— 外层包装页上的参数传不进 iframe，
-   否则拍出来的「移动端布局」其实是盖在弹窗上面的那一层。 */
+   注意 iframe 的 src 要自己带 ?nodisclaimer=1&noanim=1 —— 外层包装页上的参数传不进 iframe，
+   否则拍出来的「移动端布局」其实是盖在弹窗 / 启动遮罩上面的那一层。 */
 const mobileWrapper = `<!DOCTYPE html><html><head><meta charset="UTF-8">
 <style>html,body{margin:0;background:#121212}iframe{border:0;display:block}</style></head>
-<body><iframe src="_shot-loaded.html?nodisclaimer=1" width="390" height="1500"></iframe></body></html>`;
+<body><iframe src="_shot-loaded.html?nodisclaimer=1&amp;noanim=1" width="390" height="1500"></iframe></body></html>`;
 
 const files = {
   '_shot-empty.html': idx,
@@ -70,8 +70,12 @@ function shot(htmlFile, outName, w, h, waitMs, noDisclaimer) {
   const out = path.join(outDir, outName);
   let url = 'file:///' + path.join(root, htmlFile).replace(/\\/g, '/');
   /* 默认跳过数据声明弹窗，否则它会盖住整页（正是我们要看的东西反而看不见）。
-     要拍弹窗本身时传 noDisclaimer = false。 */
-  if (noDisclaimer !== false) url += '?nodisclaimer=1';
+     要拍弹窗本身时传 noDisclaimer = false。
+     动效一律关掉（noanim=1）：启动遮罩同样会盖住整页，否则截图基线会全是黑屏。 */
+  const params = [];
+  if (noDisclaimer !== false) params.push('nodisclaimer=1');
+  params.push('noanim=1');
+  url += '?' + params.join('&');
   try {
     execFileSync(edge, ['--headless=new', '--disable-gpu', '--no-sandbox',
       '--hide-scrollbars', '--allow-file-access-from-files',
