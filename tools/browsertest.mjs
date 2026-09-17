@@ -569,7 +569,7 @@ try {
        弹窗是 position:fixed + body.modal-open{overflow:hidden}，
        开着的话会盖住整页，让所有布局与可见性断言失真。
        弹窗本身由文件末尾的独立用例验证。 */
-    'file:///' + TMP.replace(/\\/g, '/') + '?nodisclaimer=1&noanim=1'
+    'file:///' + TMP.replace(/\\/g, '/') + '?nodisclaimer=1'
   ], { encoding: 'utf8', maxBuffer: 40 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] });
 } catch (e) {
   console.error('无头浏览器执行失败:', e.message);
@@ -636,7 +636,7 @@ if (!fs.existsSync(STANDALONE)) {
     saDom = execFileSync(edge, [
       '--headless=new', '--disable-gpu', '--no-sandbox', ...PROFILE_ARGS,
       '--virtual-time-budget=9000', '--dump-dom',
-      'file:///' + isoFile.replace(/\\/g, '/') + '?nodisclaimer=1&noanim=1'
+      'file:///' + isoFile.replace(/\\/g, '/') + '?nodisclaimer=1'
     ], { encoding: 'utf8', maxBuffer: 40 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] });
   } catch (e) {
     console.log('  \u2717 无头浏览器执行失败: ' + e.message);
@@ -860,7 +860,7 @@ let mobFail = 0;
   const inject = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>vp</title>
 <style>html,body{margin:0}iframe{border:0;display:block}</style></head>
 <body>
-<iframe id="f" src="index.html?nodisclaimer=1&amp;noanim=1" width="${MOBILE_W}" height="844"></iframe>
+<iframe id="f" src="index.html?nodisclaimer=1" width="${MOBILE_W}" height="844"></iframe>
 <script>
 window.addEventListener('load', function () {
   setTimeout(function () {
@@ -928,7 +928,7 @@ window.addEventListener('load', function () {
       '--headless=new', '--disable-gpu', '--no-sandbox', ...PROFILE_ARGS, '--hide-scrollbars',
       '--allow-file-access-from-files',
       '--virtual-time-budget=10000', '--dump-dom',
-      'file:///' + probe.replace(/\\/g, '/') + '?noanim=1'
+      'file:///' + probe.replace(/\\/g, '/')
     ], { encoding: 'utf8', maxBuffer: 40 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] });
   } catch (e) {
     console.log('  \u2717 窄屏渲染失败: ' + e.message);
@@ -1019,7 +1019,7 @@ window.addEventListener('load', function () {
     dom = execFileSync(edge, [
       '--headless=new', '--disable-gpu', '--no-sandbox', '--hide-scrollbars', ...PROFILE_ARGS,
       '--window-size=1440,900', '--virtual-time-budget=7000', '--dump-dom',
-      'file:///' + probe.replace(/\\/g, '/') + '?noanim=1'
+      'file:///' + probe.replace(/\\/g, '/')
     ], { encoding: 'utf8', maxBuffer: 40 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] });
   } catch (e) {
     console.log('  \u2717 渲染失败: ' + e.message.slice(0, 50));
@@ -1136,7 +1136,7 @@ setTimeout(function () {
     dom = execFileSync(edge, [
       '--headless=new', '--disable-gpu', '--no-sandbox', ...PROFILE_ARGS,
       '--virtual-time-budget=9000', '--dump-dom',
-      'file:///' + probe.replace(/\\/g, '/') + '?noanim=1'
+      'file:///' + probe.replace(/\\/g, '/')
     ], { encoding: 'utf8', maxBuffer: 40 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] });
   } catch (e) {
     console.log('  \u2717 渲染失败: ' + e.message.slice(0, 60));
@@ -1243,7 +1243,7 @@ setTimeout(function () {
     dom = execFileSync(edge, ['--headless=new', '--disable-gpu', '--no-sandbox',
       '--allow-file-access-from-files', ...PROFILE_ARGS,
       '--virtual-time-budget=9000', '--dump-dom',
-      'file:///' + probe.replace(/\\/g, '/') + '?nodisclaimer=1&noanim=1'],
+      'file:///' + probe.replace(/\\/g, '/') + '?nodisclaimer=1'],
       { encoding: 'utf8', maxBuffer: 40 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] });
   } catch (e) { console.log('  \u2717 渲染失败: ' + e.message.slice(0, 60)); logoFail++; }
   fs.unlinkSync(probe);
