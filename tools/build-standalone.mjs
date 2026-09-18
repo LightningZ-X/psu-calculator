@@ -18,6 +18,7 @@ const OUT_NAME = '整机功耗计算器.html';
 /* ------------------------------------------------------------------ 读取 */
 const read = p => fs.readFileSync(path.join(root, p), 'utf8');
 let html = read('index.html');
+html = html.replace('data-src="assets/lightningz-boot-v2.mp4"', 'data-src="data:video/mp4;base64,' + fs.readFileSync(path.join(root, 'assets/lightningz-boot-v2.mp4')).toString('base64') + '"');
 
 const css = read('assets/style.css');
 const JS_ORDER = ['js/db-cpus.js', 'js/db-aib.js', 'js/db.js', 'js/engine.js', 'js/app.js', 'js/ui.js'];

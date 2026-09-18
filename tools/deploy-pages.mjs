@@ -47,7 +47,7 @@ const DIRS = ['assets', 'js'];
 /* assets / js 里只有这些会被浏览器请求；工具产出的其它东西不发布。
    ⚠️ 别漏了 js —— 这个白名单同时作用于两个目录，
    漏掉的直接后果是「一个 js 都没发布」，然后页面上线即白屏。 */
-const ASSET_ALLOW = f => /\.(css|js|png|svg|ico|webp|jpe?g|woff2?)$/i.test(f);
+const ASSET_ALLOW = f => /\.(css|js|png|svg|ico|webp|jpe?g|woff2?|mp4)$/i.test(f);
 
 const run = (cmd, args, opts = {}) =>
   execFileSync(cmd, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], ...opts });
@@ -161,7 +161,7 @@ if (!PUSH) {
 console.log('\n提交并推送');
 console.log('─'.repeat(60));
 run('git', ['-C', tmp, 'add', '-A'], { env });
-const msg = 'ui: simplify component layout, retain disclaimer and refine motion';
+const msg = 'ui: publish approved LightningZ V2 startup animation';
 run('git', ['-C', tmp, 'commit', '-m', msg], { env, stdio: 'inherit' });
 try {
   run('git', ['-C', tmp, 'push', 'origin', 'HEAD:main'], { env, stdio: 'inherit' });
