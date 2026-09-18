@@ -1,7 +1,7 @@
 /* ============================================================================
  *  发布到 GitHub Pages
  * ----------------------------------------------------------------------------
- *  目标站点：https://lightningz-msi.github.io/-/  （仓库 LightningZ-MSI/-，
+ *  目标站点：https://lightningz-x.github.io/-/  （仓库 LightningZ-X/-，
  *  分支 main，GitHub Pages 从分支根目录发布）
  *
  *  为什么要有这个脚本，而不是直接把整个项目推上去：
@@ -30,8 +30,8 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, '..');
 
-const REPO = 'https://github.com/LightningZ-MSI/-.git';
-const SITE = 'https://lightningz-msi.github.io/-/';
+const REPO = 'https://github.com/LightningZ-X/-.git';
+const SITE = 'https://lightningz-x.github.io/-/';
 const PUSH = process.argv.includes('--push');
 
 /* ------------------------------------------------------- 发布白名单 ------ */
