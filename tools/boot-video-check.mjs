@@ -67,14 +67,14 @@ export async function checkBootBrowser(root, executable) {
       document.addEventListener('psu:boot-end', () => window.__bootEvents.push(performance.now() - window.__bootAt));
       if (location.search.includes('testFlag=1')) window.__PSU_NOANIM = true;
     ` });
-    const state = () => evaluate(`(() => { const v=document.querySelector('.psu-boot-video'); return {active:document.documentElement.classList.contains('psu-boot-active'), time:v.currentTime, width:v.videoWidth, muted:v.muted, inert:document.querySelectorAll('[inert]').length, ends:window.__bootEvents.length, modal:!document.querySelector('#disclaimerModal').hidden}; })()`);
+    const state = () => evaluate(`(() => { const v=document.querySelector('.psu-boot-canvas'); return {active:document.documentElement.classList.contains('psu-boot-active'), time:+v.dataset.frame||0, width:v.width, height:v.height, inert:document.querySelectorAll('[inert]').length, ends:window.__bootEvents.length, modal:!document.querySelector('#disclaimerModal').hidden}; })()`);
     const open = async (query='?nodisclaimer=1') => {
       await evaluate('try {sessionStorage.clear();localStorage.clear()} catch(e){}');
       await send('Page.navigate',{url:base+query});
       for(let i=0;i<100;i++){if(await evaluate(`document.readyState==='complete' && !!document.querySelector('#cpuSelect')`))break;await pause(30);}
     };
     await open(); await pause(900);
-    let st=await state(); check('V2 muted video plays during locked startup',st.active && st.time>0 && st.width===1280 && st.muted && st.inert>0);
+    let st=await state(); check('Native animation plays during locked startup',st.active && st.width===1280 && st.height===720 && st.time>0 && st.inert>0);
     await pause(3700); st=await state();check('Ended restores calculator exactly once',!st.active && st.inert===0 && st.ends===1);
     check('Calculator keeps empty initial selection',await evaluate(`document.querySelector('#cpuSelect').value===''`));
     await send('Page.reload');await pause(400);check('Same session skips replay',!(await state()).active);
@@ -83,17 +83,17 @@ export async function checkBootBrowser(root, executable) {
     await open('?noanim=1&nodisclaimer=1');check('noanim bypass',!(await state()).active);
     await send('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});await open();check('Reduced motion bypass',!(await state()).active);
     await send('Emulation.setEmulatedMedia',{features:[]});
-    await open();await evaluate(`document.querySelector('.psu-boot-video').dispatchEvent(new Event('error'))`);st=await state();check('Media failure restores calculator',!st.active && st.inert===0);
+    await open('?noanim=1&nodisclaimer=1'); check('Native stage exists',!!await evaluate(`document.querySelector('.psu-boot-canvas')`));
     await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await open();await pause(800);
-    check('Mobile plays without overflow',await evaluate(`document.querySelector('.psu-boot-video').currentTime>0 && document.documentElement.scrollWidth<=innerWidth`));
+    check('Mobile plays without overflow',await evaluate(`+(document.querySelector('.psu-boot-canvas').dataset.frame||0)>0 && document.documentElement.scrollWidth<=innerWidth`));
     await pause(3800);check('Mobile completes',!(await state()).active);
     await open('?notice=1');await pause(4600);check('Disclaimer opens after video', (await state()).modal);
     for (const [width,height] of [[320,568],[390,844],[430,932],[844,390],[768,1024],[1440,900]]) {
       await send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:width<1000});
       await open('?nodisclaimer=1&geometry=1'); await pause(900);
-      const geometry=await evaluate(`(() => {const v=document.querySelector('.psu-boot-video').getBoundingClientRect(),o=document.querySelector('.psu-boot').getBoundingClientRect();return {ratio:v.width/v.height,cx:v.x+v.width/2,cy:v.y+v.height/2,ow:o.width,oh:o.height,vw:v.width,vh:v.height,sw:document.documentElement.scrollWidth,iw:innerWidth};})()`);
+      const geometry=await evaluate(`(() => {const v=document.querySelector('.psu-boot-canvas').getBoundingClientRect(),o=document.querySelector('.psu-boot').getBoundingClientRect();return {ratio:v.width/v.height,cx:v.x+v.width/2,cy:v.y+v.height/2,ow:o.width,oh:o.height,vw:v.width,vh:v.height,sw:document.documentElement.scrollWidth,iw:innerWidth};})()`);
       console.log(width,height,geometry);
-      check('Proportional centered video '+width+'x'+height,Math.abs(geometry.ratio-16/9)<.002 && Math.abs(geometry.cx-width/2)<1 && Math.abs(geometry.cy-height/2)<1 && geometry.sw<=geometry.iw && (width>=height || Math.abs(geometry.vh-width)<1));
+      check('Proportional centered native stage '+width+'x'+height,Math.abs(geometry.ratio-(width<height?9/16:16/9))<.002 && Math.abs(geometry.cx-width/2)<1 && Math.abs(geometry.cy-height/2)<1 && geometry.sw<=geometry.iw && (width>=height || Math.abs(geometry.vw-Math.min(width,height*9/16))<2));
       if(width===390){const shot=await send('Page.captureScreenshot',{format:'png'});fs.writeFileSync(path.join(artifacts,'portrait.png'),Buffer.from(shot.data,'base64'));}
     }
     check('No browser exceptions',errors.length===0);
