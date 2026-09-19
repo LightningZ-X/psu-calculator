@@ -61,6 +61,7 @@ export async function checkBootBrowser(root, executable) {
     await send('Page.bringToFront');
     await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
     await send('Page.addScriptToEvaluateOnNewDocument', { source: `
+      if (location.search.includes('geometry=1')) sessionStorage.clear();
       window.__bootEvents = [];
       document.addEventListener('DOMContentLoaded', () => { window.__bootAt = performance.now(); });
       document.addEventListener('psu:boot-end', () => window.__bootEvents.push(performance.now() - window.__bootAt));
@@ -87,6 +88,14 @@ export async function checkBootBrowser(root, executable) {
     check('Mobile plays without overflow',await evaluate(`document.querySelector('.psu-boot-video').currentTime>0 && document.documentElement.scrollWidth<=innerWidth`));
     await pause(3800);check('Mobile completes',!(await state()).active);
     await open('?notice=1');await pause(4600);check('Disclaimer opens after video', (await state()).modal);
+    for (const [width,height] of [[320,568],[390,844],[430,932],[844,390],[768,1024],[1440,900]]) {
+      await send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:width<1000});
+      await open('?nodisclaimer=1&geometry=1'); await pause(900);
+      const geometry=await evaluate(`(() => {const v=document.querySelector('.psu-boot-video').getBoundingClientRect(),o=document.querySelector('.psu-boot').getBoundingClientRect();return {ratio:v.width/v.height,cx:v.x+v.width/2,cy:v.y+v.height/2,ow:o.width,oh:o.height,vw:v.width,vh:v.height,sw:document.documentElement.scrollWidth,iw:innerWidth};})()`);
+      console.log(width,height,geometry);
+      check('Proportional centered video '+width+'x'+height,Math.abs(geometry.ratio-16/9)<.002 && Math.abs(geometry.cx-width/2)<1 && Math.abs(geometry.cy-height/2)<1 && geometry.sw<=geometry.iw && (width>=height || Math.abs(geometry.vh-width)<1));
+      if(width===390){const shot=await send('Page.captureScreenshot',{format:'png'});fs.writeFileSync(path.join(artifacts,'portrait.png'),Buffer.from(shot.data,'base64'));}
+    }
     check('No browser exceptions',errors.length===0);
   } catch (e) { results.push({ name: e.stack, ok: false }); }
   finally {
