@@ -3,7 +3,7 @@
 目标：把本工具发布到公网，得到一个能发给别人的网址。**全程免费，不需要服务器。**
 
 > **站点地址已配置完毕**：所有 `example.com` 占位符都已替换为
-> `https://lightningz-msi.github.io/-/`，可以直接上传，无需再做替换。
+> `https://lightningz-x.github.io/-/`，可以直接上传，无需再做替换。
 > 若日后更换域名，需同步改 `index.html`（canonical / og:url / og:image / twitter:image 共 4 处）、
 > `sitemap.xml`（2 处）、`robots.txt`（1 处）；
 > 跑 `node tools/browsertest.mjs` 会检查是否还有残留。
@@ -18,7 +18,7 @@
 
 2. **新建仓库**
    - 点右上角 `+` → `New repository`
-   - Repository name 必须填 **`-`**（当前线上地址是 `lightningz-msi.github.io/-/`，
+   - Repository name 必须填 **`-`**（当前线上地址是 `lightningz-x.github.io/-/`，
      仓库名就是那个短横线；换别的名字地址会跟着变）
    - 选 **Public**（Pages 免费版需要公开仓库）
    - **不要**勾选 "Add a README file"
