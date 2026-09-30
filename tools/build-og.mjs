@@ -13,11 +13,26 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import { createRequire } from 'node:module';
 import { execFileSync } from 'node:child_process';
 
 const root = process.cwd();
 const edge = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'og-'));
+const require = createRequire(import.meta.url);
+
+/* 卡片上的四个数字一律从数据库算出来，不写死。
+   写死的代价已经出现过一次：数据扩到 71 款显卡 / 2386 个板型之后，
+   卡片还在印 66 / 2150 —— 而这是每一张分享卡片的底图，
+   发出去之后肉眼几乎不可能发现。 */
+const DB = require(path.join(root, 'js', 'db.js'));
+const N = {
+  cpu: DB.cpus.length,
+  gpu: DB.gpus.length,
+  aib: DB.aibs.length,
+  series: DB.aibSeries.length,
+  verified: (DB.aibCatalogMeta && DB.aibCatalogMeta.coverageVerifiedCount) || 0
+};
 
 /* ---------------------------------------------------------- 1. 抓真实界面 --
    用载入示例后的右栏（结论区）作为卡片配图，而不是画一个假界面。 */
@@ -111,11 +126,11 @@ const html = `<!DOCTYPE html>
     <h1>你这台电脑<br>该配<em>多大瓦数</em>的电源？</h1>
     <p class="sub">选好 CPU、显卡、主板即可算出整机功耗，<br>并直接给出该买多大瓦数的 ATX 3.1 电源。</p>
     <div class="facts">
-      <div class="fact"><span class="k">处理器型号</span><span class="fill"></span><span class="v">164</span></div>
-      <div class="fact"><span class="k">显卡型号</span><span class="fill"></span><span class="v">66</span></div>
-      <div class="fact"><span class="k">显卡板型（AIC）</span><span class="fill"></span><span class="v">2150</span></div>
+      <div class="fact"><span class="k">处理器型号</span><span class="fill"></span><span class="v">${N.cpu}</span></div>
+      <div class="fact"><span class="k">显卡型号</span><span class="fill"></span><span class="v">${N.gpu}</span></div>
+      <div class="fact"><span class="k">显卡板型（AIC）</span><span class="fill"></span><span class="v">${N.aib}</span></div>
       <div class="fact"><span class="k">世代覆盖已核实</span><span class="fill"></span>
-        <span class="v">26 <span class="dim">/ 86 个系列</span></span></div>
+        <span class="v">${N.verified} <span class="dim">/ ${N.series} 个系列</span></span></div>
     </div>
   </div>
   <div class="right">

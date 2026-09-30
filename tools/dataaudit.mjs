@@ -6,6 +6,7 @@
  *
  *  运行:  node tools/dataaudit.mjs
  * ==========================================================================*/
+import fs from 'node:fs';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -274,6 +275,27 @@ DB.gpus.forEach(g => {
     add(problems, `GPU ${g.id} 需要 ${need}W，但无对应电源候选`);
   }
 });
+
+/* ------------------------------------------------ 发布文案与数据库对账 --
+   index.html 的 meta 描述与结构化数据里印的计数，必须等于数据库的真实计数。
+   这类字面量漂移过：数据扩到 71 款显卡 / 2386 个板型之后，结构化数据里
+   还写着 66 款 / 2427 个板型（分享卡片上更早还印着 2150）。
+   错的是给搜索引擎和分享卡片看的文案，页面上看不见，靠人眼审不出来。 */
+const published = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+const real = {
+  cpu: DB.cpus.length, gpu: DB.gpus.length,
+  aib: DB.aibs.length, series: DB.aibSeries.length, vendors: vendors.length
+};
+const knownCounts = new Set(Object.values(real));
+for (const m of published.matchAll(/(\d+)\s*(款|个板型|家)/g)) {
+  if (!knownCounts.has(+m[1])) {
+    add(problems, `index.html 文案里的「${m[0]}」不是数据库计数` +
+      `（CPU ${real.cpu} / GPU ${real.gpu} / AIC ${real.aib} / 系列 ${real.series} / 厂商 ${real.vendors}）`);
+  }
+}
+[`${real.cpu} 款 CPU`, `${real.gpu} 款`, `${real.aib} 个板型`, `${real.vendors} 家`]
+  .filter(t => !published.includes(t))
+  .forEach(t => add(problems, `index.html 文案缺少最新计数，应包含「${t}」`));
 
 /* ------------------------------------------------------------- 汇总输出 -- */
 const C = { r: '\x1b[31m', y: '\x1b[33m', g: '\x1b[32m', d: '\x1b[2m', x: '\x1b[0m' };
