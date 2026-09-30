@@ -123,7 +123,7 @@ const html = `<!DOCTYPE html>
   </div>
   <div class="foot">
     <span>老卡也在库里：GTX 900 / 10 系、RTX 20 / 30 系、RX 500 / 5000 / 6000 系</span>
-    <span>lightningz-msi.github.io</span>
+    <span>lightningz-x.github.io</span>
   </div>
 </body></html>`;
 
