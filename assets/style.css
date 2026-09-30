@@ -1006,7 +1006,10 @@ html.psu-boot-pending body > :not(.psu-boot):not(script):not(noscript) { opacity
 .psu-boot-running .psu-boot-ticks i:nth-child(3) { animation-delay: 3.2s; }
 .psu-boot-reveal body > .top, .psu-boot-reveal body > .wrap,
 .psu-boot-reveal body > .mobile-bar { animation: psu-page-in .6s linear both; }
-.psu-boot-active .psu-boot-item { opacity: 0; }
+/* 卡片逐个弹出分两步：psu-boot-hold 先把它们压成不可见并排好各自的
+   --psu-boot-delay，psu-boot-fill 一到就依次播放 psu-content-in。
+   动画的填充状态会盖过 hold 的 opacity，所以两只类名同时挂着也不会打架。 */
+.psu-boot-hold .psu-boot-item { opacity: 0; }
 .psu-boot-fill .psu-boot-item { animation: psu-content-in .36s var(--ease) var(--psu-boot-delay, 0ms) both; }
 @keyframes psu-boot-focus {
   0%, 9.08% { opacity: 0; transform: translate(0, 0); }
@@ -1161,7 +1164,9 @@ html:not(.psu-boot-active) details[open] > :not(summary),
   .modal-head .wordmark { display: none; }
   .col-config .card { transition: border-color 200ms var(--ease), background-color 200ms var(--ease); }
   select, input { transition: border-color 180ms var(--ease), background-color 180ms var(--ease); }
-  .page-intro { animation: psu-ui-enter .22s var(--ease) both; }
+  /* .page-intro 不再自带入场动画：它现在和其余各块一样走 psu-boot-hold / psu-boot-fill。
+     留一条自己的 animation 会有两个后果 —— ① 动画盖过 hold 的 opacity:0，
+     于是关掉声明之前它就可见；② 收尾撤掉 psu-boot-fill 时它会重新播一遍。 */
 }
 @media (max-width: 640px) {
   .page-intro { padding: 14px 0 28px; }
@@ -1180,7 +1185,7 @@ html:not(.psu-boot-active) details[open] > :not(summary),
 /* 尊重系统的「减少动态效果」设置 */
 @media (prefers-reduced-motion: reduce) {
   .psu-boot { display: none !important; }
-  html.psu-boot-active body > :not(.psu-boot), .psu-boot-active .psu-boot-item {
+  html.psu-boot-active body > :not(.psu-boot), .psu-boot-hold .psu-boot-item {
     opacity: 1 !important; transform: none !important; animation: none !important;
   }
   *, *::before, *::after {
@@ -1197,7 +1202,7 @@ html:not(.psu-boot-active) details[open] > :not(summary),
 @media print {
   .psu-boot { display: none !important; }
   html.psu-boot-active, html.psu-boot-active body { overflow: visible !important; }
-  html.psu-boot-active body > :not(.psu-boot), .psu-boot-active .psu-boot-item {
+  html.psu-boot-active body > :not(.psu-boot), .psu-boot-hold .psu-boot-item {
     opacity: 1 !important; transform: none !important; animation: none !important;
   }
   :root {

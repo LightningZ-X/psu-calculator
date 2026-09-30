@@ -1127,7 +1127,7 @@ setTimeout(async function () {
     $('dmOk').click();
     await new Promise(resolve => setTimeout(resolve, 220));
     m('知道了关闭弹窗', md.hidden);
-    m('记住不再提示偏好', localStorage.getItem('psu-calc-2026-v1-disclaimer') === window.HWDB.meta.version);
+    m('记住不再提示偏好', sessionStorage.getItem('psu-calc-2026-v1-disclaimer') === window.HWDB.meta.version);
 
 
     /* 其余用例都会带 ?nodisclaimer=1&noanim=1，验证抑制开关本身有效 */
