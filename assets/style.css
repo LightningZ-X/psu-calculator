@@ -965,77 +965,23 @@ body.modal-open { overflow: hidden; }
   touch-action: none;
 }
 html.psu-boot-pending .psu-boot { display: flex; }
+/* 跳过提示：纯视觉。遮罩恒为黑底，与站点主题无关，所以这里用绝对色而不是主题 token。
+   动作本身是「点任意位置 / 按任意键」，由 js/ui.js 的捕获监听实现。 */
+.psu-boot-skip {
+  position: absolute; right: 24px; bottom: 20px;
+  font-size: var(--fs-xs); letter-spacing: .08em;
+  color: rgba(255, 255, 255, .42);
+}
 html.psu-boot-active, html.psu-boot-active body { overflow: hidden; }
 html.psu-boot-pending body > :not(.psu-boot):not(script):not(noscript) { opacity: 0; }
-.psu-boot-focus { width: min(240px, 64vw); text-align: center; opacity: 0; }
-.psu-boot-mark { position: relative; width: 58px; height: 110px; margin-inline: auto; }
-/* 上半沿切口向右上错开，下半向左下错开；切线从右上掠向左下后，两半滑合。
-   -37deg 切口穿过中心，与雷击方向一致；每半位移 7.5px。 */
-.psu-boot-half { position: absolute; inset: 0; background: currentColor;
-  -webkit-mask: var(--lightning-mark) center / contain no-repeat;
-          mask: var(--lightning-mark) center / contain no-repeat;
-}
-.psu-boot-half-a {
-  clip-path: polygon(0 0, 100% 0, 100% 30.1332%, 0 69.8668%);
-  --psu-slice-x: 6px; --psu-slice-y: -4.5px;
-}
-.psu-boot-half-b {
-  clip-path: polygon(0 69.8668%, 100% 30.1332%, 100% 100%, 0 100%);
-  --psu-slice-x: -6px; --psu-slice-y: 4.5px;
-}
-.psu-boot-mark::after {
-  content: ''; position: absolute; left: 50%; top: 50%; width: min(140vmax, 1800px); height: 10px;
-  background: currentColor; opacity: 0;
-  clip-path: polygon(0 40%, 45% 40%, 49% 0, 54% 40%, 100% 40%, 100% 60%, 54% 60%, 50% 100%, 45% 60%, 0 60%);
-  transform: translate(-50%, -50%) rotate(-37deg) translateX(50%) scaleX(0) translateX(-50%);
-  transform-origin: center;
-}
-.psu-boot-title { margin: 20px 0 24px; font-size: var(--fs-base); letter-spacing: .2em; }
-.psu-boot-meter { position: relative; height: 16px; }
-.psu-boot-line { height: 1px; background: currentColor; transform: scaleX(0); }
-.psu-boot-ticks { position: absolute; inset: 0; display: flex; justify-content: center; gap: 9px; }
-.psu-boot-ticks i { width: 3px; height: 14px; background: currentColor; opacity: 0; transform: skewX(-25deg); }
-.psu-boot-running .psu-boot-focus { animation: psu-boot-focus 4.4s linear both; }
-.psu-boot-running .psu-boot-half {
-  animation: psu-slice-lock .44s var(--ease) .4s both;
-}
-.psu-boot-running .psu-boot-mark::after { animation: psu-cut-trace .32s linear .52s both; }
-.psu-boot-running .psu-boot-line { animation: psu-boot-line 4.4s linear both; }
-.psu-boot-running .psu-boot-ticks i { animation: psu-boot-tick .4s linear 2.4s both; }
-.psu-boot-running .psu-boot-ticks i:nth-child(2) { animation-delay: 2.8s; }
-.psu-boot-running .psu-boot-ticks i:nth-child(3) { animation-delay: 3.2s; }
-.psu-boot-reveal body > .top, .psu-boot-reveal body > .wrap,
-.psu-boot-reveal body > .mobile-bar { animation: psu-page-in .6s linear both; }
+/* 启动动画已经从 DOM/CSS 版改成 Canvas 版（js/boot-animation.js），
+   原来那套靠 .psu-boot-focus / -mark / -half / -line / -ticks 拼出来的
+   分镜连同它的 6 个 keyframes 一并删除。这里只留 Canvas 需要的外框。 */
 /* 卡片逐个弹出分两步：psu-boot-hold 先把它们压成不可见并排好各自的
    --psu-boot-delay，psu-boot-fill 一到就依次播放 psu-content-in。
    动画的填充状态会盖过 hold 的 opacity，所以两只类名同时挂着也不会打架。 */
 .psu-boot-hold .psu-boot-item { opacity: 0; }
 .psu-boot-fill .psu-boot-item { animation: psu-content-in .36s var(--ease) var(--psu-boot-delay, 0ms) both; }
-@keyframes psu-boot-focus {
-  0%, 9.08% { opacity: 0; transform: translate(0, 0); }
-  9.09%, 81.82% { opacity: 1; transform: translate(0, 0); }
-  93.18%, 100% { opacity: 0; transform: translate(2px, -4px); }
-}
-@keyframes psu-slice-lock {
-  0%, 45% { transform: translate(var(--psu-slice-x), var(--psu-slice-y)); }
-  to { transform: translate(0, 0); }
-}
-@keyframes psu-cut-trace {
-  0% { opacity: 0; transform: translate(-50%, -50%) rotate(-37deg) translateX(50%) scaleX(0) translateX(-50%); }
-  4% { opacity: 1; transform: translate(-50%, -50%) rotate(-37deg) translateX(50%) scaleX(.08) translateX(-50%); }
-  25%, 48% { opacity: 1; transform: translate(-50%, -50%) rotate(-37deg) translateX(50%) scaleX(1) translateX(-50%); }
-  70%, 100% { opacity: 0; transform: translate(-50%, -50%) rotate(-37deg) translateX(50%) scaleX(1) translateX(-50%); }
-}
-@keyframes psu-boot-line {
-  0%, 36.36% { opacity: 1; transform: scaleX(0); }
-  54.54% { opacity: 1; transform: scaleX(1); }
-  54.55%, 100% { opacity: 0; transform: scaleX(1); }
-}
-@keyframes psu-boot-tick {
-  from { opacity: 0; transform: skewX(-25deg) translate(-2px, 4px); }
-  to { opacity: 1; transform: skewX(-25deg) translate(0, 0); }
-}
-@keyframes psu-page-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes psu-content-in {
   from { opacity: 0; transform: translate(-3px, 4px); }
   to { opacity: 1; transform: translate(0, 0); }

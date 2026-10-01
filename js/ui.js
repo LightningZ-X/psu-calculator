@@ -365,8 +365,13 @@
        「动画 → 说明 → 关掉 → 依次显现」。 */
     try { if (localStorage.getItem(preferenceKey) !== null) localStorage.removeItem(preferenceKey); } catch (e) {}
     function version() { return window.HWDB && window.HWDB.meta.version || '1'; }
+    /* hash 里现在还会放配置短码（#c=…），所以按 token 判断，
+       不能再拿 location.hash 跟 '#nodisclaimer' 整体比较。 */
+    function hashHas(token) {
+      return (location.hash || '').replace(/^#/, '').split('&').indexOf(token) !== -1;
+    }
     function suppressed() {
-      if (new URLSearchParams(location.search).get('nodisclaimer') === '1' || location.hash === '#nodisclaimer') return true;
+      if (new URLSearchParams(location.search).get('nodisclaimer') === '1' || hashHas('nodisclaimer')) return true;
       try { return sessionStorage.getItem(preferenceKey) === version(); } catch (e) { return false; }
     }
 
@@ -511,10 +516,17 @@
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', settleInitialLayout, { once: true });
   else settleInitialLayout();
-  var key = 'psu-boot-seen-native-v3';
+  /* 启动动画同一台机器上 24 小时内只放一次。
+     原来存 sessionStorage（每个新标签页都重来），开几个标签就要看几遍 4 秒黑屏；
+     但也不能永久记住 —— 那等于永远看不到。取 24 小时这个中间值。 */
+  var key = 'psu-boot-seen-native-v4';
+  var SEEN_TTL = 24 * 60 * 60 * 1000;
   var motion = window.matchMedia('(prefers-reduced-motion: reduce)');
   var seen = false;
-  try { seen = sessionStorage.getItem(key) === '1'; } catch (e) {}
+  try {
+    var seenAt = parseInt(localStorage.getItem(key), 10);
+    seen = !isNaN(seenAt) && (Date.now() - seenAt) < SEEN_TTL;
+  } catch (e) {}
 
   // 硬跳过：这些入口下连「就位隐藏」都不做，页面必须原样可用。
   if (window.__PSU_NOANIM || new URLSearchParams(location.search).get('noanim') === '1' ||
@@ -582,7 +594,7 @@
     clearTimers();
     clearItems();
     root.classList.remove('psu-boot-active', 'psu-boot-pending', 'psu-boot-running',
-      'psu-boot-reveal', 'psu-boot-hold', 'psu-boot-fill');
+      'psu-boot-hold', 'psu-boot-fill');
     releaseInput();
     detachInput();
     document.removeEventListener('psu:disclaimer-closed', onDisclaimerClosed);
@@ -590,7 +602,7 @@
     window.removeEventListener('beforeprint', onAbort);
     window.removeEventListener('pagehide', onAbort);
     document.removeEventListener('visibilitychange', onVisibility);
-    try { sessionStorage.setItem(key, '1'); } catch (e) {}
+    try { localStorage.setItem(key, String(Date.now())); } catch (e) {}
     if (dispatchEnd) document.dispatchEvent(new Event('psu:boot-end'));
   }
 

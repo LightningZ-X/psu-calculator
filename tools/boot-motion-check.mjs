@@ -1,5 +1,6 @@
-/* Shared narrow whitelist: both design and browser checks enforce the same contract. */
-export const BOOT_NAMES = ['psu-boot-focus', 'psu-slice-lock', 'psu-cut-trace', 'psu-boot-line', 'psu-boot-tick', 'psu-page-in', 'psu-content-in', 'psu-ui-enter', 'psu-ui-feedback'];
+/* Shared narrow whitelist: both design and browser checks enforce the same contract.
+   启动动画改成 Canvas 版之后，站点只剩这三条动效：逐块出现、浮层入场、交互反馈。 */
+export const BOOT_NAMES = ['psu-content-in', 'psu-ui-enter', 'psu-ui-feedback'];
 
 export function checkBootMotion(source) {
   const css = source.replace(/\/\*[\s\S]*?\*\//g, '');
@@ -14,9 +15,6 @@ export function checkBootMotion(source) {
   }
   // Only the exact finite forms used here are allowed; var() cannot hide a name or repeat count.
   const forms = new Set([
-    'psu-boot-focus 4.4s linear both', 'psu-boot-line 4.4s linear both',
-    'psu-slice-lock .44s var(--ease) .4s both', 'psu-cut-trace .32s linear .52s both',
-    'psu-boot-tick .4s linear 2.4s both', 'psu-page-in .6s linear both',
     'psu-content-in .36s var(--ease) var(--psu-boot-delay, 0ms) both',
     'psu-ui-enter .22s var(--ease) both', 'psu-ui-feedback .18s var(--ease) both',
     'none !important'
@@ -25,7 +23,6 @@ export function checkBootMotion(source) {
     const [, prop, raw] = m;
     const value = raw.trim().replace(/\s+/g, ' ');
     const ok = prop === 'animation' ? forms.has(value)
-      : prop === 'animation-delay' ? ['2.8s', '3.2s'].includes(value)
       : prop === 'animation-duration' ? value === '.001ms !important'
       : prop === 'animation-iteration-count' ? value === '1 !important' : false;
     if (!ok) errors.push('动画声明不在白名单: ' + prop + ': ' + value);

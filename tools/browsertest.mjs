@@ -620,6 +620,7 @@ if (!fs.existsSync(STANDALONE)) {
 
   /* 产物是否已过期：源文件比产物新就说明忘了重新构建 */
   const srcFiles = ['index.html', 'assets/style.css', 'assets/lightning-mark.png', 'assets/lightning-wordmark.png', 'favicon.svg',
+    'assets/apple-touch-icon.png',
     'js/db-cpus.js', 'js/db-aib.js', 'js/db.js', 'js/engine.js', 'js/app.js', 'js/ui.js']
     .map(f => path.join(root, f));
   const newestSrc = Math.max(...srcFiles.map(f => fs.statSync(f).mtimeMs));
