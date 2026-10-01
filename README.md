@@ -4,7 +4,7 @@
 
 纯 HTML + CSS + JavaScript，无框架、无构建步骤、无外部依赖。双击 `index.html` 就能离线跑。
 
-在线版：<https://lightningz-x.github.io/-/>
+在线版：<https://lightningz-x.github.io/>
 
 ## 版本历史
 

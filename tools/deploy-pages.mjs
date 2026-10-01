@@ -1,8 +1,10 @@
 /* ============================================================================
  *  发布到 GitHub Pages
  * ----------------------------------------------------------------------------
- *  目标站点：https://lightningz-x.github.io/-/  （仓库 LightningZ-X/-，
- *  分支 main，GitHub Pages 从分支根目录发布）
+ *  目标站点：https://lightningz-x.github.io/  （仓库 LightningZ-X/LightningZ-X.github.io，
+ *  账号的「用户站」仓库，分支 main，GitHub Pages 从分支根目录发布。
+ *  早先发布在仓库 LightningZ-X/- 下，网址是 https://lightningz-x.github.io/-/ ——
+ *  那个名字只是个没意义的短横线，念不出来也记不住，所以搬到了用户站根路径。）
  *
  *  为什么要有这个脚本，而不是直接把整个项目推上去：
  *    线上仓库是**只放可运行文件**的发布仓库（用户当初用网页版 "Add files via upload"
@@ -34,8 +36,8 @@ const root = path.join(__dirname, '..');
 const require = createRequire(import.meta.url);
 const DB = require(path.join(root, 'js', 'db.js'));
 
-const REPO = 'https://github.com/LightningZ-X/-.git';
-const SITE = 'https://lightningz-x.github.io/-/';
+const REPO = 'https://github.com/LightningZ-X/LightningZ-X.github.io.git';
+const SITE = 'https://lightningz-x.github.io/';
 const PUSH = process.argv.includes('--push');
 const PRUNE = process.argv.includes('--prune');
 
