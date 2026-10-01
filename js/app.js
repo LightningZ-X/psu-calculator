@@ -237,7 +237,9 @@
     if (!$('cpuBrand') || !$('cpuGen') || !$('cpuSelect')) return;
 
     Array.prototype.forEach.call($('cpuBrand').querySelectorAll('button'), function (b) {
-      b.className = (b.dataset.b === S.cpuBrand) ? 'on' : '';
+      var on = b.dataset.b === S.cpuBrand;
+      b.className = on ? 'on' : '';
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
     });
 
     if (!S.cpuBrand) S.cpuBrand = 'Intel';
@@ -375,6 +377,7 @@
       var isI = brandBtns[i].dataset.b === '__igpu__';
       var on = isI ? (S.gpuId === '__igpu__') : (brandBtns[i].dataset.b === S.gpuBrand && S.gpuId !== '__igpu__');
       brandBtns[i].className = on ? 'on' : '';
+      brandBtns[i].setAttribute('aria-pressed', on ? 'true' : 'false');
     }
 
     var gSel = $('gpuGen'), mSel = $('gpuModel'), aSel = $('gpuAib');
@@ -679,14 +682,24 @@
   }
 
   /* 重绘某一行的筛选按钮（按当前 psuF 高亮），点筛选后调用，
-     否则按钮永远停在「全部」上，用户点哪都没反馈。 */
+     否则按钮永远停在「全部」上，用户点哪都没反馈。
+     只建一次、之后原地改态：原来每次都重建整行 innerHTML，键盘用户的焦点
+     会跟着按钮一起被销毁。顺带把选中态写进 aria-pressed，读屏才听得出
+     当前筛的是哪一档。 */
   function renderPsuFilterRow(key) {
     var el = psuFilterRowEl(key);
     if (!el) return;
-    el.innerHTML = PSU_FILTER_SPECS[key].map(function (o) {
-      return '<button type="button" data-v="' + esc(o.v) + '"' +
-        (psuF[key] === o.v ? ' class="on"' : '') + '>' + esc(o.t) + '</button>';
-    }).join('');
+    var spec = PSU_FILTER_SPECS[key];
+    if (el.children.length !== spec.length) {
+      el.innerHTML = spec.map(function (o) {
+        return '<button type="button" data-v="' + esc(o.v) + '">' + esc(o.t) + '</button>';
+      }).join('');
+    }
+    Array.prototype.forEach.call(el.children, function (b) {
+      var on = b.dataset.v === psuF[key];
+      b.className = on ? 'on' : '';
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
   }
 
   function buildPsuFilters() {
@@ -1191,7 +1204,9 @@
 
       // 场景按钮态
       $('scenarios').querySelectorAll('.scenario').forEach(function (b) {
-        b.classList.toggle('on', b.dataset.sc === S.scenario);
+        var on = b.dataset.sc === S.scenario;
+        b.classList.toggle('on', on);
+        b.setAttribute('aria-pressed', on ? 'true' : 'false');
       });
       $('scenarioNote').innerHTML = '<b>' + esc(EN.SCENARIOS[S.scenario].label) + '：</b>' +
         esc(EN.SCENARIOS[S.scenario].desc) + '。负载系数 ' + EN.SCENARIOS[S.scenario].factor.toFixed(2) +
@@ -1358,6 +1373,39 @@
         toast('已下载 JSON 文件');
       }
     });
+
+    /* 一键提 Issue：纯前端拼 GitHub 的预填链接，不需要后端、不需要 token。
+       静态站没有别的手段能真正收到用户填的数据 —— 让他自己点一下提交即可。
+       链接过长时（浏览器和 GitHub 都有上限）退回复制 JSON，避免点下去打不开。 */
+    var ISSUE_REPO = 'https://github.com/LightningZ-X/psu-calculator';
+    var ISSUE_URL_MAX = 7000;
+    var typeLabels = {};
+    Array.prototype.forEach.call($('fbType').options, function (o) { typeLabels[o.value] = o.text; });
+
+    $('fbIssue').addEventListener('click', function () {
+      if (!feedback.length) { toast('先把要补的型号加进列表', true); return; }
+      writeHash();   // 让 body 里那条「我的配置」链接带上当前配置
+      var first = feedback[0];
+      var title = '[数据] ' + (typeLabels[first.type] || first.type) + '：' + first.name +
+        (feedback.length > 1 ? ' 等 ' + feedback.length + ' 条' : '');
+      var lines = [];
+      feedback.forEach(function (f) {
+        lines.push('- **' + (typeLabels[f.type] || f.type) + '**　' + f.name +
+          (f.watts ? '　' + f.watts + ' W' : '') + (f.note ? '　— ' + f.note : ''));
+      });
+      lines.push('');
+      lines.push('数据版本 ' + DB.meta.version + '（工具 v' + DB.meta.toolVersion + '）');
+      if (S.cpuId || S.gpuId || S.moboId) lines.push('我的配置：' + location.href);
+      var url = ISSUE_REPO + '/issues/new?title=' + encodeURIComponent(title) +
+        '&body=' + encodeURIComponent(lines.join('\n'));
+      if (url.length > ISSUE_URL_MAX) {
+        toast('内容太长，链接装不下，已改为复制 JSON', true);
+        $('fbCopy').click();
+        return;
+      }
+      window.open(url, '_blank', 'noopener');
+      toast('已打开 GitHub 提交页，确认后点提交');
+    });
   }
 
   /* ======================================================== 持久化 ==== */
@@ -1367,6 +1415,118 @@
     try {
       localStorage.setItem(LS_KEY, JSON.stringify({ s: S, feedback: feedback }));
     } catch (e) { /* 隐私模式下忽略 */ }
+    writeHash();
+  }
+
+  /* ================================================== 配置写进 URL ====
+     把配置压成短串塞进 hash：`#c=scenario=gaming&cpu=cu7-270kp&gpu=rtx5090…`
+     用 hash 而不是 query，是因为 hash 不会发给服务器，双击本地文件也能用。
+     键名直接沿用状态字段名（本来就短），值用数据库里的 id ——
+     人肉可读，链接出问题时一眼看得出是哪一项不对。
+     storage / extras / customItems 是数组与对象，塞不进 k=v，单独压成 j=<JSON>。 */
+  var CFG_COMPLEX = ['storage', 'extras', 'customItems'];
+
+  function cfgEmpty(v) {
+    if (v === '' || v === false || v === null || v === undefined || v === 0) return true;
+    if (Array.isArray(v)) return v.length === 0;
+    if (typeof v === 'object') return Object.keys(v).length === 0;
+    return false;
+  }
+
+  function encodeCfg() {
+    var def = defaultState();
+    var parts = [];
+    Object.keys(S).forEach(function (k) {
+      var v = S[k];
+      if (CFG_COMPLEX.indexOf(k) !== -1) return;
+      if (cfgEmpty(v) || v === def[k]) return;   // 与默认值相同的不写进链接
+      parts.push(k + '=' + encodeURIComponent(v));
+    });
+    var blob = {};
+    CFG_COMPLEX.forEach(function (k) {
+      if (cfgEmpty(S[k])) return;
+      if (JSON.stringify(S[k]) === JSON.stringify(def[k])) return;
+      blob[k] = S[k];
+    });
+    if (Object.keys(blob).length) parts.push('j=' + encodeURIComponent(JSON.stringify(blob)));
+    return parts.join('&');
+  }
+
+  /* 链接是用户能随手改的，所以只接受已知字段，并按默认值的类型还原：
+     不然 ramKits 会变成字符串、外来的键会直接污染状态。
+     数组一律限长，防止有人贴一条超长链接把页面塞爆。 */
+  function decodeCfg(str) {
+    var def = defaultState(), out = {};
+    String(str || '').split('&').forEach(function (kv) {
+      var i = kv.indexOf('=');
+      if (i < 0) return;
+      var k = decodeURIComponent(kv.slice(0, i));
+      var raw = kv.slice(i + 1);
+      if (k === 'j') {
+        try {
+          var blob = JSON.parse(decodeURIComponent(raw)) || {};
+          CFG_COMPLEX.forEach(function (key) {
+            var v = blob[key];
+            if (v == null) return;
+            if (key === 'extras') {
+              if (typeof v === 'object' && !Array.isArray(v)) out[key] = v;
+            } else if (Array.isArray(v)) {
+              out[key] = v.slice(0, 24);
+            }
+          });
+        } catch (e) { /* 坏掉的 j 段直接忽略 */ }
+        return;
+      }
+      if (!(k in def)) return;
+      var d = def[k];
+      if (typeof d === 'number') {
+        var n = parseFloat(raw);
+        if (!isNaN(n)) out[k] = n;
+      } else if (typeof d === 'boolean') {
+        out[k] = (raw === '1' || raw === 'true');
+      } else {
+        out[k] = raw;
+      }
+    });
+    return out;
+  }
+
+  /* 配置短码本身用 & 分隔键值对，所以必须把它取到 hash 末尾，
+     不能只截到第一个 &。`c=` 永远写在最后（writeHash 保证），
+     而 encodeURIComponent 会把值里的 & 转义掉，因此不会误截。 */
+  function cfgFromHash() {
+    var m = /(?:^|[#&])c=([\s\S]*)$/.exec(location.hash || '');
+    return m ? m[1] : '';
+  }
+
+  /* 写回地址栏。用 replaceState：不往后退历史里塞垃圾，也不触发页面重载。
+     file:// 与个别隐私模式下会被拒，必须 try 住。 */
+  var lastHash = null;
+  function writeHash() {
+    var cfg = encodeCfg();
+    var keepNd = /(?:^|[#&])nodisclaimer(?:&|$)/.test(location.hash || '');
+    var next = (cfg || keepNd)
+      ? '#' + (keepNd ? 'nodisclaimer' + (cfg ? '&' : '') : '') + (cfg ? 'c=' + cfg : '')
+      : '';
+    if (next === lastHash) return;
+    lastHash = next;
+    try {
+      history.replaceState(null, '', location.href.replace(/#.*$/, '') + next);
+    } catch (e) { /* file:// 或隐私模式：忽略，地址栏不同步不影响使用 */ }
+  }
+
+  function copyConfigLink() {
+    if (cfgEmpty(S.cpuId) && cfgEmpty(S.gpuId) && cfgEmpty(S.moboId)) {
+      toast('先选几件硬件，再来复制配置链接', true);
+      return;
+    }
+    writeHash();
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(location.href).then(function () { toast('配置链接已复制'); },
+        function () { toast('复制失败，请从地址栏手动复制', true); });
+    } else {
+      toast('请从地址栏复制当前链接');
+    }
   }
 
   function load() {
@@ -1518,6 +1678,26 @@
          现在：localStorage 有记录才恢复，否则就是干净的空态，
          示例配置改由 #btnQuickStart 显式载入。 */
       load();
+      /* 链接里的配置优先于本机存档：别人发来的链接，打开就该是发件人那套配置。
+         放在 normalizeCpuFilter / normalizeGpuFilter 之前，让那两道兜底照常生效
+         （旧链接里可能带着已经不存在的型号）。 */
+      var fromLink = decodeCfg(cfgFromHash());
+      Object.keys(fromLink).forEach(function (k) { S[k] = fromLink[k]; });
+      /* 页内改 hash 不会重载页面（把别人发的链接直接粘到地址栏就是这种情况），
+         所以额外听一次 hashchange。writeHash 用的是 replaceState，不触发该事件，不会自激。
+         先把状态复位到默认再套新配置，否则上一套里多出来的字段会残留。 */
+      window.addEventListener('hashchange', function () {
+        var next = cfgFromHash();
+        if (next === encodeCfg()) return;
+        var d = defaultState(), o = decodeCfg(next);
+        Object.keys(d).forEach(function (k) { S[k] = d[k]; });
+        Object.keys(o).forEach(function (k) { S[k] = o[k]; });
+        normalizeCpuFilter();
+        normalizeGpuFilter();
+        syncInputsFromState();
+        renderFeedback();
+        render();
+      });
       /* 从 localStorage 恢复出来的「筛选器 + 型号」可能对不上
          （比如上次是 Intel 12 代，这次数据库升版后那颗 CPU 改了世代）。
          修正只做这一次，交互期间不再插手，否则筛选器会按不动。 */
@@ -1559,29 +1739,40 @@
         resetState();
       });
 
-      /* 主题切换：图标 + 文字两个部分，文字在 .theme-label 里 */
+      /* 主题：<head> 里的内联脚本已经在首帧前定好了 data-theme
+         （用户存过就听用户的，否则跟随系统，都没有就保持 html 上的深色）。
+         这里只负责对齐按钮文案、处理切换，以及在用户没手动选过时跟随系统的实时变化。 */
       var themeBtn = $('btnTheme');
+      var themeMQ = window.matchMedia ? window.matchMedia('(prefers-color-scheme: light)') : null;
       function paintThemeBtn(theme) {
         var lab = themeBtn.querySelector('.theme-label');
         if (lab) lab.textContent = theme === 'dark' ? '浅色' : '深色';
       }
+      function storedTheme() {
+        try {
+          var v = localStorage.getItem(LS_KEY + '-theme');
+          return (v === 'light' || v === 'dark') ? v : null;
+        } catch (e) { return null; }
+      }
+      function applyTheme(t) {
+        document.documentElement.setAttribute('data-theme', t);
+        paintThemeBtn(t);
+      }
       themeBtn.addEventListener('click', function () {
-        var cur = document.documentElement.getAttribute('data-theme');
-        var next = cur === 'dark' ? 'light' : 'dark';
-        document.documentElement.setAttribute('data-theme', next);
-        paintThemeBtn(next);
+        var next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+        applyTheme(next);
         try { localStorage.setItem(LS_KEY + '-theme', next); } catch (e) {}
       });
-      try {
-        var th = localStorage.getItem(LS_KEY + '-theme');
-        if (th) {
-          document.documentElement.setAttribute('data-theme', th);
-          paintThemeBtn(th);
-        }
-      } catch (e) {}
+      applyTheme(document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark');
+      if (themeMQ && themeMQ.addEventListener) {
+        themeMQ.addEventListener('change', function () {
+          if (!storedTheme()) applyTheme(themeMQ.matches ? 'light' : 'dark');
+        });
+      }
 
       $('btnCsv').addEventListener('click', exportCsv);
       $('btnJson').addEventListener('click', exportJson);
+      $('btnLink').addEventListener('click', copyConfigLink);
       $('btnPdf').addEventListener('click', function () {
         toast('正在打开打印对话框，选择"另存为 PDF"');
         setTimeout(function () { window.print(); }, 320);

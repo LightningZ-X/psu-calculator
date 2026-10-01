@@ -110,6 +110,17 @@ if (fs.existsSync(faviconPath)) {
   if (html === before) problems.push('index.html 中未找到 favicon.svg 引用（可能已被移除）');
 }
 
+// 2b. apple-touch-icon 是 PNG，同样必须内联 —— 自检要求图标 href 一律是 data:
+const iconPath = path.join(root, 'assets', 'apple-touch-icon.png');
+if (fs.existsSync(iconPath)) {
+  const iconData = 'data:image/png;base64,' + fs.readFileSync(iconPath).toString('base64');
+  const before = html;
+  html = html.replace(/href="assets\/apple-touch-icon\.png"/g, 'href="' + iconData + '"');
+  if (html === before) problems.push('index.html 中未找到 apple-touch-icon.png 引用（可能已被移除）');
+} else {
+  problems.push('assets/apple-touch-icon.png 不存在（单文件版需要内联它）');
+}
+
 // 2. 脚本（保持顺序，用独立 <script> 块以免作用域互相污染）
 // 原位内联，保留 ui.js 的 head 首帧判断及 body 中的数据/计算加载顺序。
 for (const j of jsSources) {
@@ -148,6 +159,8 @@ checks.push(['无残留本地图标引用', !localRefPatterns[1].test(built)]);
 checks.push(['无残留 <script src>', !/<script[^>]+src=/.test(built)]);
 checks.push(['favicon 已内联为 data URI', built.indexOf('data:image/svg+xml;base64,') > 0]);
 checks.push(['无残留 favicon.svg 引用', built.indexOf('href="favicon.svg"') === -1]);
+checks.push(['apple-touch-icon 已内联为 data URI',
+  built.includes('rel="apple-touch-icon"') && built.indexOf('apple-touch-icon.png') === -1]);
 checks.push(['MSI LIGHTNING 图形已内联为 data URI', built.indexOf('data:image/svg+xml;base64,') > 0]);
 checks.push(['无残留 lightning-mark.png 相对引用', built.indexOf('url(lightning-mark.png)') === -1]);
 checks.push(['无残留 lightning-wordmark.png 相对引用', built.indexOf('url(lightning-wordmark.png)') === -1]);

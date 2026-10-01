@@ -35,7 +35,7 @@
 
 <!-- -------------------------------------------------------------- 图标 -- -->
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
-<link rel="apple-touch-icon" href="favicon.svg">
+<link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png">
 
 <!-- --------------------------------------------------------- 结构化数据 --
      帮助搜索引擎把这个页面识别为「免费在线工具」，可能出现在富媒体结果里 -->
@@ -64,6 +64,22 @@
 }
 </script>
 
+<!-- 首帧前把主题定下来：用户存过就听用户的，否则跟随系统。
+     必须排在样式表之前，否则浅色用户会先看到一帧深色（app.js 是最后一个脚本，
+     等它跑完再改就已经晚了）。键名与 app.js 的 LS_KEY + '-theme' 一致。 -->
+<script>
+(function () {
+  try {
+    var k = 'psu-calc-2026-v1-theme';
+    var t = localStorage.getItem(k);
+    if (t !== 'light' && t !== 'dark') {
+      t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
+    }
+    document.documentElement.setAttribute('data-theme', t);
+  } catch (e) { /* 隐私模式下保持 html 上的默认值 */ }
+})();
+</script>
+
 <link rel="stylesheet" href="assets/style.css">
 <!-- 首帧前决定是否播放；ui.js 的 DOM 初始化仍在 DOMContentLoaded、app.js 之后。 -->
 <script src="js/boot-animation.js"></script>
@@ -72,6 +88,10 @@
 <body>
 <div class="psu-boot" aria-hidden="true">
   <canvas class="psu-boot-canvas" width="1280" height="720" data-mark="assets/boot-mark.png" data-wordmark="assets/boot-wordmark.png"></canvas>
+  <!-- 纯视觉提示：跳过这个动作对所有输入方式都已可用（点任意处 / 按任意键），
+       所以这里不需要单独暴露给无障碍树，用 span 而不是 button 也顺便避免了
+       「aria-hidden 里放可聚焦元素」这个问题。 -->
+  <span class="psu-boot-skip">点击任意处跳过</span>
 </div>
 
 <!-- 页面内容由 JavaScript 渲染，这里为禁用 JS 的访问者与部分爬虫提供兜底说明 -->
@@ -185,7 +205,7 @@
       <section class="card">
         <h2><span class="idx">1</span>使用场景<span class="hint">按用途选择</span></h2>
         <div class="card-body">
-          <div class="scenarios" id="scenarios"></div>
+          <div class="scenarios" id="scenarios" role="group" aria-label="使用场景"></div>
           <div class="note" id="scenarioNote" style="margin-top:11px"></div>
         </div>
       </section>
@@ -196,7 +216,7 @@
         <div class="card-body">
           <div class="field">
             <label>① 品牌</label>
-            <div class="seg" id="cpuBrand"></div>
+            <div class="seg" id="cpuBrand" role="group" aria-label="CPU 品牌"></div>
           </div>
           <div class="field">
             <label>② 系列 / 世代 <span class="unit">（按上市年份由新到旧）</span></label>
@@ -232,7 +252,7 @@
         <div class="card-body">
           <div class="field">
             <label>① 品牌</label>
-            <div class="seg" id="gpuBrand"></div>
+            <div class="seg" id="gpuBrand" role="group" aria-label="显卡品牌"></div>
           </div>
           <div class="field">
             <label>② 世代 <span class="unit">（含 GTX 900 / 10 系等已停产老卡）</span></label>
@@ -372,15 +392,15 @@
         <div class="card-body">
           <div class="field">
             <label>① 按功率筛选</label>
-            <div class="seg" id="psuFilterWatt"></div>
+            <div class="seg" id="psuFilterWatt" role="group" aria-label="按功率筛选"></div>
           </div>
           <div class="field">
             <label>② 按 80PLUS 认证筛选</label>
-            <div class="seg" id="psuFilterEff"></div>
+            <div class="seg" id="psuFilterEff" role="group" aria-label="按 80PLUS 认证筛选"></div>
           </div>
           <div class="field">
             <label>③ 按规范筛选</label>
-            <div class="seg" id="psuFilterAtx"></div>
+            <div class="seg" id="psuFilterAtx" role="group" aria-label="按规范筛选"></div>
           </div>
           <div class="field">
             <label>电源型号（可不选）<span class="unit">选项含功率 / 认证 / 规范 / 供电接口</span></label>
@@ -481,13 +501,14 @@
         <section class="card">
           <h2>导出报告</h2>
           <div class="card-body">
-            <div class="grid3">
+            <div class="grid2">
               <button id="btnCsv" class="primary">导出 Excel (CSV)</button>
               <button id="btnPdf">导出 PDF（打印）</button>
               <button id="btnJson" class="ghost">导出配置 (JSON)</button>
+              <button id="btnLink" class="ghost">复制配置链接</button>
             </div>
             <div class="note" style="margin-top:11px">
-              CSV 可用 Excel / WPS 打开；PDF 请选择“另存为 PDF”。
+              配置链接可以直接发给别人，对方打开就是你这一套配置。CSV 可用 Excel / WPS 打开；PDF 请选择“另存为 PDF”。
             </div>
           </div>
         </section>
@@ -535,10 +556,11 @@
       <div class="grid2">
         <button id="fbAdd" class="primary">加入待提交列表</button>
         <button id="fbCopy" class="ghost">复制全部为 JSON</button>
+        <button id="fbIssue" class="ghost">一键提交到 GitHub</button>
       </div>
       <div id="fbList" style="margin-top:12px"></div>
       <div class="note" style="margin-top:11px">
-        内容仅保存在本机。复制 JSON 后发给维护者，不会自动提交。
+        内容只存在本机，不会自动上传。「一键提交到 GitHub」会打开一个预填好的提交页，确认后由你点提交。
       </div>
       </div>
     </section>

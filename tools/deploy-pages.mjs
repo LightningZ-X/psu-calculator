@@ -18,21 +18,26 @@
  *      是否都在发布清单里 —— 「漏传一个 js 文件」是这类静态站最典型的翻车方式。
  *
  *  用法：
- *    node tools/deploy-pages.mjs           # 预演
- *    node tools/deploy-pages.mjs --push    # 提交并推送
+ *    node tools/deploy-pages.mjs                 # 预演
+ *    node tools/deploy-pages.mjs --push          # 提交并推送
+ *    node tools/deploy-pages.mjs --push --prune  # 顺便删掉线上不在白名单里的孤儿文件
  * ==========================================================================*/
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import { createRequire } from 'node:module';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, '..');
+const require = createRequire(import.meta.url);
+const DB = require(path.join(root, 'js', 'db.js'));
 
 const REPO = 'https://github.com/LightningZ-X/-.git';
 const SITE = 'https://lightningz-x.github.io/-/';
 const PUSH = process.argv.includes('--push');
+const PRUNE = process.argv.includes('--prune');
 
 /* ------------------------------------------------------- 发布白名单 ------ */
 const FILES = [
@@ -121,6 +126,23 @@ plan.forEach(p => {
   fs.copyFileSync(p.from, dst);
 });
 
+/* sitemap 的 lastmod 每次发布自动按「源头最后一次提交的日期」写，省得忘了手改。
+   用提交日期而不是数据库的数据截止日：lastmod 的语义是「本页最后改动时间」，
+   拿数据截止日会把日期往回调。用提交日期还有个好处 —— 它只在真有新提交时才变，
+   否则每次跑发布都会产生一个只有日期不同的 diff，把「无需发布」的判断顶掉。
+   改的是克隆里的那一份，源文件不动。 */
+let srcDate = '';
+try { srcDate = run('git', ['-C', root, 'show', '-s', '--format=%cs', 'HEAD'], { env }).trim(); } catch (e) {}
+const smPath = path.join(tmp, 'sitemap.xml');
+if (srcDate && fs.existsSync(smPath)) {
+  const before = fs.readFileSync(smPath, 'utf8');
+  const after = before.replace(/(<lastmod>)[^<]*(<\/lastmod>)/, '$1' + srcDate + '$2');
+  if (after !== before) {
+    fs.writeFileSync(smPath, after, 'utf8');
+    console.log('  sitemap lastmod -> ' + srcDate + '（源头最后一次提交的日期）');
+  }
+}
+
 /* 线上多出来的文件（不在白名单里）要报出来，避免留下孤儿资源 */
 const existing = [];
 (function walk(d, base = '') {
@@ -144,8 +166,13 @@ if (!status.trim()) {
 }
 status.trim().split('\n').forEach(l => console.log('  ' + l));
 if (orphans.length) {
-  console.log('\n  线上存在但不在发布清单里的文件（本次不动它们）：');
-  orphans.forEach(f => console.log('    ' + f));
+  if (PRUNE) {
+    console.log('\n  --prune：删除线上这些不在发布清单里的文件');
+    orphans.forEach(f => { fs.rmSync(path.join(tmp, f), { force: true }); console.log('    - ' + f); });
+  } else {
+    console.log('\n  线上存在但不在发布清单里的文件（加 --prune 可删除）：');
+    orphans.forEach(f => console.log('    ' + f));
+  }
 }
 const stat = run('git', ['-C', tmp, 'diff', '--stat', 'HEAD'], { env });
 if (stat.trim()) console.log('\n' + stat.trim());
@@ -161,7 +188,15 @@ if (!PUSH) {
 console.log('\n提交并推送');
 console.log('─'.repeat(60));
 run('git', ['-C', tmp, 'add', '-A'], { env });
-const msg = 'ui: publish approved LightningZ V2 startup animation';
+/* 提交信息按实际变更生成，并带上源头提交号 —— 发布仓库的历史要能回溯到源码。
+   以前这里是一条写死的字符串，不管发布什么内容，历史里全是同一句话。 */
+const changed = run('git', ['-C', tmp, 'diff', '--cached', '--name-only'], { env })
+  .trim().split('\n').filter(Boolean);
+let srcSha = '';
+try { srcSha = run('git', ['-C', root, 'rev-parse', '--short', 'HEAD'], { env }).trim(); } catch (e) {}
+const shown = changed.slice(0, 5).join(', ') + (changed.length > 5 ? ' 等' : '');
+const msg = 'publish: ' + shown + '（' + changed.length + ' 个文件' +
+  (srcSha ? '，源头 ' + srcSha : '') + '，数据 ' + DB.meta.version + '）';
 run('git', ['-C', tmp, 'commit', '-m', msg], { env, stdio: 'inherit' });
 try {
   run('git', ['-C', tmp, 'push', 'origin', 'HEAD:main'], { env, stdio: 'inherit' });
