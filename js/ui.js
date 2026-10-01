@@ -551,7 +551,8 @@
   /* 测试侧从这里读选择器，省得两边各抄一份然后慢慢走散。 */
   window.__PSU_BOOT__ = {
     itemSelector: ITEM_SELECTOR,
-    items: function () { return Array.prototype.slice.call(document.querySelectorAll(ITEM_SELECTOR)); }
+    items: function () { return Array.prototype.slice.call(document.querySelectorAll(ITEM_SELECTOR)); },
+    replay: replayIntro
   };
   /* 同一会话里已经看过动画：这次不放黑幕，「关掉声明再逐个弹出」照常。
      刷新一下就整段失效，是这套东西最容易踩空的地方。 */
@@ -610,7 +611,7 @@
 
   /* 第一段收束：遮罩退场、框架淡入，把页面交给声明弹窗。
      卡片在这里就位（先压成不可见 + 排好各自的延时），但先不播放。 */
-  function enterDialogStage(event) {
+  function enterDialogStage(event, replayMode) {
     if (done || staged) return;
     staged = true;
     // 跳过手势不穿透到页面按钮或随后出现的声明弹窗。
@@ -632,6 +633,9 @@
       el.classList.add('psu-boot-item');
       el.style.setProperty('--psu-boot-delay', (i * STAGGER_MS) + 'ms');
     });
+    /* 手动重播不派发 psu:boot-end：那是「把声明弹窗叫起来」的信号，
+       重播只要视觉上的两段，别再把声明吵出来。 */
+    if (replayMode) { playFill(); return; }
     document.dispatchEvent(new Event('psu:boot-end'));
     var d = window.__PSU_DISCLAIMER__;
     if (d && d.isOpen()) document.addEventListener('psu:disclaimer-closed', onDisclaimerClosed);
@@ -677,6 +681,41 @@
     root.classList.add('psu-boot-running');
     stopAnimation = window.startLightningBoot(canvas, function () { enterDialogStage(null); });
   }
+
+  /* ---- 手动重播：点顶栏 logo。
+     只重放视觉上的两段（Canvas 开场 + 逐块显现），不重开声明弹窗，
+     也不动本会话的「已看过」标记 —— 那是按标签页的自然计次，和本功能无关。 */
+  function replayIntro() {
+    if (window.__PSU_NOANIM || motion.matches) return;
+    if (root.classList.contains('psu-boot-active') || root.classList.contains('psu-boot-hold')) return;
+    done = false;
+    staged = false;
+    root.classList.add('psu-boot-active', 'psu-boot-pending');
+    inputEvents.forEach(function (type) {
+      document.addEventListener(type, onSkip, { capture: true, passive: false });
+    });
+    motion.addEventListener('change', onMotion);
+    window.addEventListener('beforeprint', onAbort);
+    window.addEventListener('pagehide', onAbort);
+    document.addEventListener('visibilitychange', onVisibility);
+    later(function () { release(true); }, 10000);
+    var canvas = document.querySelector('.psu-boot-canvas');
+    if (canvas && window.startLightningBoot) {
+      holdInput();
+      root.classList.add('psu-boot-running');
+      stopAnimation = window.startLightningBoot(canvas, function () { enterDialogStage(null, true); });
+    } else {
+      enterDialogStage(null, true);
+    }
+  }
+
+  /* 事件委托。启动/重播期间 logo 的点击会被 onSkip 的捕获阶段先拦下
+     （stopImmediatePropagation 挡住后续冒泡），不会递归触发重播；
+     收尾后 onSkip 已摘除，这里才接管。 */
+  document.addEventListener('click', function (event) {
+    if (event.target && event.target.closest && event.target.closest('.logo')) replayIntro();
+  });
+
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
   else start();
 })();

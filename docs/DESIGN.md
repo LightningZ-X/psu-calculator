@@ -145,4 +145,4 @@ asrock.com 官网显卡产品页逐条抓取的型号表（104 行，格式「�
 2. 单文件产物冒烟测试与主测试共用同一个 `--user-data-dir`（`PROFILE_ARGS`），主测试写进 localStorage 的状态会留给单文件测试，所以「示例配置已计算」这条实际可能验证的是「状态恢复」而非「载入示例」。
 3. **404 页样式表被静默截断的根因没有定位**：最小复现里各种 mask 写法、引号、data URI 长度都正常。现在的规避是 404 页用 `<img>` 承载标志，并加了常驻断言（规则数 ≥200、尾部规则仍生效、mask 真的生效、图片真的加载、404 规则数 ≥11）。再遇到「某些规则整段失效但页面不报错」，先查这个方向。
 4. `tools/dataaudit.mjs` 有一条不阻断提醒：`air-stock-amd` 散热器没有 Intel 插槽（缺 LGA1851 / 1700 / 1200）。
-5. 资产与命名：品牌已换成 MSI LIGHTNING，但强调色 token 仍叫 `--rog`（全站 `var(--rog)` 用量已到 30 处上限，新增红色用法要先腾位置）。另外有三份文件在源码里已无任何引用点，却因为 `.svg` / `.mp4` 命中发布白名单而仍被推到线上：`assets/lightningz-boot-v2.mp4`（283 KB）、`assets/power-z-mark.svg`、`assets/power-z-wordmark.svg`。它们不影响访客加载（页面从不请求），只是仓库体积；要清就三份一起清。
+5. 资产与命名：品牌已换成 MSI LIGHTNING，但强调色 token 仍叫 `--rog`（全站 `var(--rog)` 用量已到 30 处上限，新增红色用法要先腾位置）。三份无引用的死资产（`lightningz-boot-v2.mp4`、`power-z-mark.svg`、`power-z-wordmark.svg`）已删除，`ASSET_ALLOW` 仍然放开 `.svg/.mp4` 是为了将来不因为加一种媒体类型就要改发布白名单。
