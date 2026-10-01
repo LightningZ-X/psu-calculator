@@ -516,16 +516,18 @@
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', settleInitialLayout, { once: true });
   else settleInitialLayout();
-  /* 启动动画同一台机器上 24 小时内只放一次。
-     原来存 sessionStorage（每个新标签页都重来），开几个标签就要看几遍 4 秒黑屏；
-     但也不能永久记住 —— 那等于永远看不到。取 24 小时这个中间值。 */
-  var key = 'psu-boot-seen-native-v4';
-  var SEEN_TTL = 24 * 60 * 60 * 1000;
+  /* 启动动画按「标签页」记一次：新开标签页会完整播一遍，同一标签页里
+     刷新（F5）不重播。
+     中途曾改成 localStorage + 24 小时「同一台机器只放一次」，结果是用户
+     打开网页看不到启动动画了 —— 对一个靠开场动画立住调性的站点来说，
+     「打开就有」比「少看几遍」重要得多，所以退回按标签页。
+     同时清掉那个 24 小时的旧标记，免得它继续压着动画不放。 */
+  var key = 'psu-boot-seen-native-v5';
   var motion = window.matchMedia('(prefers-reduced-motion: reduce)');
   var seen = false;
   try {
-    var seenAt = parseInt(localStorage.getItem(key), 10);
-    seen = !isNaN(seenAt) && (Date.now() - seenAt) < SEEN_TTL;
+    seen = sessionStorage.getItem(key) === '1';
+    localStorage.removeItem('psu-boot-seen-native-v4');
   } catch (e) {}
 
   // 硬跳过：这些入口下连「就位隐藏」都不做，页面必须原样可用。
@@ -602,7 +604,7 @@
     window.removeEventListener('beforeprint', onAbort);
     window.removeEventListener('pagehide', onAbort);
     document.removeEventListener('visibilitychange', onVisibility);
-    try { localStorage.setItem(key, String(Date.now())); } catch (e) {}
+    try { sessionStorage.setItem(key, '1'); } catch (e) {}
     if (dispatchEnd) document.dispatchEvent(new Event('psu:boot-end'));
   }
 

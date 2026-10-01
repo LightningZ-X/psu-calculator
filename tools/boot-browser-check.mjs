@@ -93,7 +93,20 @@ export async function checkBootBrowser(root, executable) {
       document.addEventListener('DOMContentLoaded', () => { window.__bootAt = performance.now(); });
       document.addEventListener('psu:boot-end', () => window.__bootEnds.push(performance.now() - window.__bootAt));
       if (location.search.includes('testFlag=1')) window.__PSU_NOANIM = true;
+      /* 采样「开场 Canvas 动画真的在放」。
+         补这个闩锁的原因：在此之前 40 条用例全都在断言「各块就位 / 弹窗 / 逐块显现」，
+         而这些在动画被整段跳过时**照样成立**（跳过只省掉 canvas 那一段，弹窗编排照旧），
+         所以「一打开网页动画没了」这类回归没有任何用例能发现，直到用户报上来。
+         ui.js 只在真播动画时才加 psu-boot-running。 */
+      window.__introSeen = false;
       (function sample() {
+        /* 这段是 addScriptToEvaluateOnNewDocument 注入的，第一次是同步跑的，
+           那时 documentElement 还是 null —— 不判空会当场抛异常，
+           整个 rAF 采样链就此死掉（表现为所有依赖采样的用例集体失败）。 */
+        const de = document.documentElement;
+        if (de && de.classList.contains('psu-boot-running')) window.__introSeen = true;
+        const cv = document.querySelector('.psu-boot-canvas');
+        if (cv && cv.getBoundingClientRect().width > 0) window.__introSeen = true;
         const marked = document.querySelectorAll('.psu-boot-item');
         if (marked.length) {
           window.__holdSeen = true;
@@ -139,6 +152,7 @@ export async function checkBootBrowser(root, executable) {
           e.tagName.toLowerCase() + '.' + String(e.getAttribute('class') || '').split(' ')[0]),
         holdSeen: !!window.__holdSeen,
         staggerSeen: !!window.__staggerSeen,
+        introSeen: !!window.__introSeen,
         ends: window.__bootEnds || [],
         overflow: root.scrollWidth > innerWidth
       };
@@ -179,6 +193,11 @@ export async function checkBootBrowser(root, executable) {
       s.modalVisible && s.marked > 0 && s.marked === s.itemCount && s.itemOpacity.every(v => v === 0),
       s.itemCount + ' 块 | ' + notShown(s));
     check('弹窗出现时页面已解除 inert', s.inert === 0);
+    /* 关键：确认开场那一段 Canvas 动画真的放了。
+       少了这条，即使动画被整段跳过（比如「已看过」标记一直压着不放），
+       上面几条也全部会通过。 */
+    check('开场真的在放：Canvas 闪电动画跑起来了（不是直接跳到声明）', s.introSeen === true,
+      'introSeen=' + s.introSeen);
     await shot('02-dialog');
 
     /* 就位名单必须覆盖页面上每一块真正会画东西的内容，否则弹窗背后会露出没藏住的块。
@@ -293,8 +312,9 @@ export async function checkBootBrowser(root, executable) {
     const hHeld = await waitFor(`window.__holdSeen === true`, 3000);
     s = await snapshot();
     check('同标签刷新：不重播启动动画，但各块同样先就位隐藏',
-      !s.active && s.overlay === 'none' && s.modalVisible && hHeld && s.marked === s.itemCount,
-      'held=' + hHeld + ' marked=' + s.marked);
+      !s.active && s.overlay === 'none' && s.modalVisible && hHeld && s.marked === s.itemCount &&
+      s.introSeen === false,
+      'held=' + hHeld + ' marked=' + s.marked + ' introSeen=' + s.introSeen);
     await evaluate('window.__PSU_DISCLAIMER__.close()');
     check('同标签刷新后关掉声明依然逐块出现', await waitFor(`window.__staggerSeen === true`, 5000));
     check('同标签刷新后同样收尾干净', await waitFor(settled, 6000));
@@ -308,7 +328,8 @@ export async function checkBootBrowser(root, executable) {
     const fHeld = await waitFor(`window.__holdSeen === true`, 12000);
     s = await snapshot();
     check('本地双击打开：启动照常播完并把各块就位',
-      fHeld && !s.active && s.modalVisible && s.marked === s.itemCount, 'marked=' + s.marked);
+      fHeld && !s.active && s.modalVisible && s.marked === s.itemCount && s.introSeen === true,
+      'marked=' + s.marked + ' introSeen=' + s.introSeen);
     await evaluate('window.__PSU_DISCLAIMER__.close()');
     check('本地双击打开：关掉声明依然逐块出现', await waitFor(`window.__staggerSeen === true`, 5000));
     check('本地双击打开：Logo 遮罩可解码且含可见像素', await evaluate(`(async () => {
@@ -335,6 +356,11 @@ export async function checkBootBrowser(root, executable) {
         if (await evaluate(`document.readyState === 'complete' && !!document.querySelector('#cpuSelect')`)) break;
         await pause(20);
       }
+      /* 这里只验证「两段照常 + 各块就位」，不断言开场动画是否重播：
+         单文件与上一段共用 file:// 的存储区，而这一段已经是在同一浏览器里
+         第 17 次页面加载，实测「清存储 + 重载」也拿不到稳定的结果。
+         单文件的动画本身已用全新 profile 单独验证过（startLightningBoot 是函数、
+         canvas 有尺寸、psu-boot-running 出现、无异常），那才是可靠的证据。 */
       const jHeld = await waitFor(`window.__holdSeen === true`, 12000);
       s = await snapshot();
       check('单文件产物：启动照常播完并把各块就位',
