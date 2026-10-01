@@ -176,8 +176,16 @@ if (orphans.length) {
     orphans.forEach(f => console.log('    ' + f));
   }
 }
-const stat = run('git', ['-C', tmp, 'diff', '--stat', 'HEAD'], { env });
-if (stat.trim()) console.log('\n' + stat.trim());
+/* 首次发布到空仓库时没有 HEAD（分支还没出生），直接 diff HEAD 会 fatal，
+   所以先探一下再说。 */
+let hasHead = true;
+try { run('git', ['-C', tmp, 'rev-parse', '--verify', 'HEAD'], { env }); } catch (e) { hasHead = false; }
+if (hasHead) {
+  const stat = run('git', ['-C', tmp, 'diff', '--stat', 'HEAD'], { env });
+  if (stat.trim()) console.log('\n' + stat.trim());
+} else {
+  console.log('\n  远端仓库还是空的：本次是首次发布，' + planned.size + ' 个文件全部新增。');
+}
 
 if (!PUSH) {
   console.log('\n（预演结束）确认无误后加 --push 正式发布：');
