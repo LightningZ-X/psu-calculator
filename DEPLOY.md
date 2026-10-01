@@ -7,6 +7,11 @@
 > 若日后更换域名，需同步改 `index.html`（canonical / og:url / og:image / twitter:image 共 4 处）、
 > `sitemap.xml`（2 处）、`robots.txt`（1 处）；
 > 跑 `node tools/browsertest.mjs` 会检查是否还有残留。
+>
+> **已自动化**：`.github/workflows/deploy.yml` 会在 push 到 `main` 时自动跑全套自检，
+> 然后调用 `tools/deploy-pages.mjs --push` 发布。前提是仓库 Settings → Secrets and
+> variables → Actions 里存了 `DEPLOY_TOKEN`（一个对 `LightningZ-X.github.io` 有写权限的 PAT）。
+> 没配 token 时它只跑检查、跳过发布并给 warning，不会让流程变红。
 
 ---
 

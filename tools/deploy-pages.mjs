@@ -40,6 +40,12 @@ const REPO = 'https://github.com/LightningZ-X/LightningZ-X.github.io.git';
 const SITE = 'https://lightningz-x.github.io/';
 const PUSH = process.argv.includes('--push');
 const PRUNE = process.argv.includes('--prune');
+/* CI（GitHub Actions）往另一个仓库推送时没有本机凭据，靠这个 token 认证；
+   本地没有它时照旧走本机 git 凭据管理器。token 只用来拼 clone URL，从不打印。 */
+const DEPLOY_TOKEN = process.env.DEPLOY_TOKEN || '';
+const CLONE_URL = DEPLOY_TOKEN
+  ? REPO.replace('https://', 'https://x-access-token:' + DEPLOY_TOKEN + '@')
+  : REPO;
 
 /* ------------------------------------------------------- 发布白名单 ------ */
 const FILES = [
@@ -115,7 +121,10 @@ const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'psu-pages-'));
 const env = { ...process.env, GIT_TERMINAL_PROMPT: '0' };
 console.log('\n克隆到 ' + tmp);
 try {
-  run('git', ['clone', '--depth', '1', REPO, tmp], { env, stdio: 'inherit' });
+  run('git', ['clone', '--depth', '1', CLONE_URL, tmp], { env, stdio: 'inherit' });
+  /* CI 上没有全局 git 身份，先给这个临时仓库配上才能提交 */
+  run('git', ['-C', tmp, 'config', 'user.name', 'LightningZ-X'], { env });
+  run('git', ['-C', tmp, 'config', 'user.email', 'yao080120@qq.com'], { env });
 } catch (e) {
   console.error('✗ 克隆失败（检查网络与 GitHub 凭据）');
   process.exit(1);

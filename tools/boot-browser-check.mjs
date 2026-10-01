@@ -235,6 +235,17 @@ export async function checkBootBrowser(root, executable) {
     check('呈现过程未擅自选 CPU', (await evaluate(`document.querySelector('#cpuSelect').value`)) === '');
     await shot('04-settled');
 
+    /* ---- A2. 点 logo 重播：两段照常跑完，但不把声明再吵出来 ---- */
+    await evaluate('window.__introSeen = false');
+    await evaluate(`document.querySelector('.logo').click()`);
+    const rIntro = await waitFor(`window.__introSeen === true`, 8000);
+    const rSettled = await waitFor(settled, 15000);
+    s = await snapshot();
+    check('点 logo 重播开场两段（不重开声明）',
+      rIntro && rSettled && !s.modalVisible && s.marked === 0 && !s.active && !s.hold,
+      'intro=' + rIntro + ' settled=' + rSettled + ' modal=' + s.modalVisible);
+    await shot('04b-replay');
+
     /* ------------------------------------- B. 顶栏重开声明不该再重播一遍动画 */
     await evaluate(`document.querySelector('#btnDisclaimer').click()`);
     await pause(60);
