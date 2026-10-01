@@ -88,7 +88,9 @@
 
 **会话偏好（不是永久偏好）**
 
-- 启动动画「已看过」存 localStorage `psu-boot-seen-native-v4`，存的是**时间戳**，24 小时内不再重播。早先存 sessionStorage，结果是每开一个新标签页都要再看一遍 4 秒黑屏；但也不能永久记住，那等于永远看不到。遮罩右下角有「点击任意处跳过」的纯视觉提示：跳过动作对所有输入方式都已可用（点任意位置 / 按任意键），所以那行提示用 `span` 且不进无障碍树，避免「aria-hidden 里放可聚焦元素」。
+- 启动动画「已看过」存 sessionStorage `psu-boot-seen-native-v5`：**按标签页**记一次，新开标签页会完整播一遍，同一标签页刷新不重播。曾经改成 localStorage + 24 小时「同一台机器只放一次」，结果是用户打开网页看不到动画了 —— 对一个靠开场动画立住调性的站点，「打开就有」比「少看几遍」重要得多，所以退回按标签页（并顺手清掉那个会继续压着动画的旧 localStorage 标记）。遮罩右下角有「点击任意处跳过」的纯视觉提示：跳过动作对所有输入方式都已可用（点任意位置 / 按任意键），所以那行提示用 `span` 且不进无障碍树，避免「aria-hidden 里放可聚焦元素」。
+- **这里踩过的坑，改动画前必读**：跳过 canvas 只省掉开场那一段，弹窗编排照旧 —— 所以当时 40 条启动用例**没有一条**能发现「动画被整段跳过」，它们全都在断言各块就位 / 弹窗 / 逐块显现，而这些在跳过后照样成立。现在 `tools/boot-browser-check.mjs` 用 `window.__introSeen` 闩锁（rAF 采样 `psu-boot-running` 类名与 canvas 实际宽度）在正常路径与 `file://` 上断言「开场真的在放」，并在同标签刷新那条上断言 `introSeen === false`。别删这几条。
+- 注入脚本（`Page.addScriptToEvaluateOnNewDocument`）第一次是**同步**执行的，那时 `documentElement` 还是 `null`：不要在里面无条件访问 `document.documentElement`，否则整个 rAF 采样链当场死掉，表现为所有依赖采样的用例集体失败。
 - 声明的「不再提示」存 sessionStorage `psu-calc-2026-v1-disclaimer`，存的是**数据版本号**而不是布尔值：数据库升版会再提示一次；取消勾选会真的清掉；旧 localStorage 键会被主动删除。
 
 ## 3. 数据置信度模型
