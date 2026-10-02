@@ -51,6 +51,102 @@
   var lastResult = null;
   var feedback = [];
 
+  /* ---- 外来状态净化 -------------------------------------------------------
+     两个来源都不可信：别人发来的 #c= 链接、本机 localStorage 存档。
+     所有外来状态必须先过这里：① 只认 defaultState() 认识的键，按默认值类型转换；
+     ② storage / customItems / extras 逐元素校形状、限条数、把数值夹进合理范围。
+
+     为什么非做不可：storage[].qty 与 customItems[].watts 会被直接拼进
+     innerHTML 的**属性位**（value="…"）。链接是别人发来的，不校验就等于
+     把「闭合属性再注入」的入口交出去。数值同理：一条 ramKits=1e9 的链接
+     足以让引擎算出荒谬结果。 */
+  /* 数值上限只能**比界面更宽**，绝不能更窄：
+     index.html 里 ramKits max=4 / fanQty max=12 / argbChannels max=12。
+     更窄的话，一份合法存档（例如用户手输过 12 条 ARGB）会被静默改小。 */
+  var NUM_LIMIT = { ramKits: [1, 8], fanQty: [0, 30], argbChannels: [0, 24] };
+  var NUM_STR = { cpuCustomW: [0, 3000], gpuCustomW: [0, 3000], budget: [0, 10000000] };
+
+  /* 判定「键是否真的在这个字典里」。不能用 `d[k]` 直接判：
+     constructor / __proto__ / toString 等继承键会让原型链查询返回真值，
+     白名单就被绕过去了（实测 scenario=constructor 会让 render 抛错）。 */
+  function hasOwn(dict, k) {
+    return !!dict && Object.prototype.hasOwnProperty.call(dict, k);
+  }
+
+  function clampNum(v, lo, hi, dflt) {
+    var n = typeof v === 'number' ? v : parseFloat(v);
+    if (!isFinite(n)) return dflt;
+    return Math.min(hi, Math.max(lo, n));
+  }
+
+  function sanitizeState(raw) {
+    var def = defaultState(), out = {};
+    if (!raw || typeof raw !== 'object') return out;
+    Object.keys(def).forEach(function (k) {
+      if (raw[k] === undefined) return;
+      var d = def[k], v = raw[k];
+      if (Array.isArray(d) || (d && typeof d === 'object')) return;   // 复合字段在下面单独处理
+      if (typeof d === 'number') {
+        var lim = NUM_LIMIT[k] || [0, 1000000];
+        out[k] = clampNum(v, lim[0], lim[1], d);
+      } else if (typeof d === 'boolean') {
+        out[k] = !!v;
+      } else {
+        var s = String(v).slice(0, 120);
+        if (NUM_STR[k] && s !== '') s = String(clampNum(s, NUM_STR[k][0], NUM_STR[k][1], 0));
+        /* scenario 是固定枚举，必须白名单，而且**必须用 hasOwnProperty**：
+           `SCENARIOS[s]` 是原型链查询，constructor / __proto__ / toString
+           这些继承键都是真值，会绕过去，让 render() 里的 .factor.toFixed 抛错。 */
+        if (k === 'scenario') {
+          out[k] = hasOwn(EN.SCENARIOS, s) ? s : def.scenario;
+          return;
+        }
+        out[k] = s;
+      }
+    });
+    if (Array.isArray(raw.storage)) {
+      out.storage = raw.storage.slice(0, 24).map(function (s) {
+        return { id: String((s && s.id) || '').slice(0, 64), qty: clampNum(s && s.qty, 1, 8, 1) };
+      });
+    }
+    if (Array.isArray(raw.customItems)) {
+      out.customItems = raw.customItems.slice(0, 24).map(function (c) {
+        return { label: String((c && c.label) || '').slice(0, 60), watts: clampNum(c && c.watts, 0, 5000, 0) };
+      });
+    }
+    if (raw.extras && typeof raw.extras === 'object' && !Array.isArray(raw.extras)) {
+      var ex = {};
+      Object.keys(raw.extras).slice(0, 40).forEach(function (k) {
+        var v = raw.extras[k], kk = String(k).slice(0, 40);
+        if (v === true) ex[kk] = 1;   // 引擎的 num(true) === 0，留 true 会「勾上了但不计功耗」
+        else if (typeof v === 'number' && isFinite(v)) ex[kk] = clampNum(v, 0, 64, 0);
+      });
+      out.extras = ex;
+    }
+    return out;
+  }
+
+  /* 反馈列表同样来自 localStorage，字段会进表格与 Issue 正文 */
+  function sanitizeFeedback(raw) {
+    if (!Array.isArray(raw)) return [];
+    return raw.slice(0, 50).map(function (f) {
+      return {
+        type: String((f && f.type) || '').slice(0, 24),
+        name: String((f && f.name) || '').slice(0, 80),
+        watts: (f && f.watts !== undefined && f.watts !== '') ? clampNum(f.watts, 0, 5000, 0) : '',
+        note: String((f && f.note) || '').slice(0, 200)
+      };
+    });
+  }
+
+  /* 把净化后的值逐键写回目标对象；不认识的键（含原型污染型的 __proto__）一律不落地 */
+  function applyClean(target, raw) {
+    var clean = sanitizeState(raw);
+    Object.keys(clean).forEach(function (k) {
+      if (Object.prototype.hasOwnProperty.call(target, k)) target[k] = clean[k];
+    });
+  }
+
   /* 中文名标注由数据层算好（aib.cnLabel），此处仅做兜底 */
   function cnLabel(a) {
     return a.cnLabel != null ? a.cnLabel : (a.cn ? '（' + a.cn + '）' : '');
@@ -501,7 +597,9 @@
         return t + ' — ' + (r.rgb ? 'RGB 灯条' : '无灯条');
       });
     $('ramSelect').addEventListener('change', function () { S.ramId = this.value; render(); });
-    $('ramKits').addEventListener('input', function () { S.ramKits = parseInt(this.value, 10) || 1; render(); });
+    /* HTML 的 max 并不阻止输入（手输 1000000 完全合法），所以这里必须自己夹：
+       否则规划功耗会显示 180 万瓦，而推荐值被引擎夹在 2000W，界面自相矛盾。 */
+    $('ramKits').addEventListener('input', function () { S.ramKits = clampNum(this.value, 1, 8, 1); render(); });
   }
 
   /* 主板变更后，给类型不匹配的内存在下拉里打上警示标记 */
@@ -544,7 +642,7 @@
       }, function (d) { return d.kind === 'HDD' ? '机械硬盘 HDD' : (d.kind === 'SATA' ? 'SATA SSD' : 'NVMe SSD'); });
       return '<div class="storage-row">' +
         '<select data-si="' + i + '" class="s-sel">' + opts + '</select>' +
-        '<input type="number" min="1" max="8" value="' + s.qty + '" data-qi="' + i + '" class="s-qty">' +
+        '<input type="number" min="1" max="8" value="' + esc(s.qty) + '" data-qi="' + i + '" class="s-qty">' +
         '<button class="del" data-di="' + i + '" title="移除">×</button></div>';
     }).join('');
 
@@ -572,7 +670,7 @@
       return f.model + '  ·  ' + f.size + 'mm  ·  ' + f.watts + 'W' + (f.argb ? '  ARGB' : '');
     });
     $('fanSelect').addEventListener('change', function () { S.fanId = this.value; render(); });
-    $('fanQty').addEventListener('input', function () { S.fanQty = parseInt(this.value, 10) || 0; render(); });
+    $('fanQty').addEventListener('input', function () { S.fanQty = clampNum(this.value, 0, 30, 0); render(); });
   }
 
   function initCase() {
@@ -608,7 +706,7 @@
       }
     });
 
-    $('argbChannels').addEventListener('input', function () { S.argbChannels = parseInt(this.value, 10) || 0; render(); });
+    $('argbChannels').addEventListener('input', function () { S.argbChannels = clampNum(this.value, 0, 24, 0); render(); });
 
     $('addCustomItem').addEventListener('click', function () {
       S.customItems.push({ label: '', watts: 0 });
@@ -622,7 +720,7 @@
     wrap.innerHTML = S.customItems.map(function (c, i) {
       return '<div class="storage-row" style="grid-template-columns:1fr 90px 32px">' +
         '<input type="text" data-cl="' + i + '" placeholder="设备名称" value="' + esc(c.label) + '">' +
-        '<input type="number" min="0" step="1" data-cw="' + i + '" placeholder="W" value="' + (c.watts || '') + '">' +
+        '<input type="number" min="0" step="1" data-cw="' + i + '" placeholder="W" value="' + esc(c.watts || '') + '">' +
         '<button class="del" data-cd="' + i + '">×</button></div>';
     }).join('');
     wrap.querySelectorAll('[data-cl]').forEach(function (el) {
@@ -1208,9 +1306,12 @@
         b.classList.toggle('on', on);
         b.setAttribute('aria-pressed', on ? 'true' : 'false');
       });
-      $('scenarioNote').innerHTML = '<b>' + esc(EN.SCENARIOS[S.scenario].label) + '：</b>' +
-        esc(EN.SCENARIOS[S.scenario].desc) + '。负载系数 ' + EN.SCENARIOS[S.scenario].factor.toFixed(2) +
-        ' 用于折算"场景预期功耗"；冗余系数 ' + EN.SCENARIOS[S.scenario].redundancy.toFixed(2) +
+      /* 再兜一层：即使白名单漏了（例如以后新增枚举字段），这里也不能让
+         render() 半路抛出去 —— 那会让结果区永久停止更新。 */
+      var sc = hasOwn(EN.SCENARIOS, S.scenario) ? EN.SCENARIOS[S.scenario] : EN.SCENARIOS.gaming;
+      $('scenarioNote').innerHTML = '<b>' + esc(sc.label) + '：</b>' +
+        esc(sc.desc) + '。负载系数 ' + sc.factor.toFixed(2) +
+        ' 用于折算"场景预期功耗"；冗余系数 ' + sc.redundancy.toFixed(2) +
         ' 用于计算推荐电源瓦数。';
 
       renderCpuInfo();
@@ -1341,7 +1442,7 @@
     box.innerHTML = '<table class="detail"><thead><tr><th>类别</th><th>型号</th><th>功耗</th><th>备注</th><th></th></tr></thead><tbody>' +
       feedback.map(function (f, i) {
         return '<tr><td>' + esc(f.type) + '</td><td class="nm">' + esc(f.name) + '</td>' +
-          '<td class="wt">' + (f.watts || '—') + '</td><td class="dt">' + esc(f.note || '') + '</td>' +
+          '<td class="wt">' + esc(f.watts || '—') + '</td><td class="dt">' + esc(f.note || '') + '</td>' +
           '<td><button class="del" data-fd="' + i + '">×</button></td></tr>';
       }).join('') + '</tbody></table>';
     box.querySelectorAll('[data-fd]').forEach(function (el) {
@@ -1535,8 +1636,8 @@
       if (!raw) return false;
       var d = JSON.parse(raw);
       if (d && d.s) {
-        Object.keys(S).forEach(function (k) { if (d.s[k] !== undefined) S[k] = d.s[k]; });
-        feedback = d.feedback || [];
+        applyClean(S, d.s);
+        feedback = sanitizeFeedback(d.feedback);
         return true;
       }
     } catch (e) { /* 忽略损坏数据 */ }
@@ -1682,16 +1783,20 @@
          放在 normalizeCpuFilter / normalizeGpuFilter 之前，让那两道兜底照常生效
          （旧链接里可能带着已经不存在的型号）。 */
       var fromLink = decodeCfg(cfgFromHash());
-      Object.keys(fromLink).forEach(function (k) { S[k] = fromLink[k]; });
+      applyClean(S, fromLink);
       /* 页内改 hash 不会重载页面（把别人发的链接直接粘到地址栏就是这种情况），
          所以额外听一次 hashchange。writeHash 用的是 replaceState，不触发该事件，不会自激。
          先把状态复位到默认再套新配置，否则上一套里多出来的字段会残留。 */
       window.addEventListener('hashchange', function () {
         var next = cfgFromHash();
+        /* hash 被清空、或被人塞成 #nodisclaimer 这类非配置值时，不能当作
+           「空配置」处理：下面会把状态重置为默认，render→save 随即把清空
+           写进 localStorage，静默毁掉本机配置。 */
+        if (!next) return;
         if (next === encodeCfg()) return;
         var d = defaultState(), o = decodeCfg(next);
         Object.keys(d).forEach(function (k) { S[k] = d[k]; });
-        Object.keys(o).forEach(function (k) { S[k] = o[k]; });
+        applyClean(S, o);
         normalizeCpuFilter();
         normalizeGpuFilter();
         syncInputsFromState();
@@ -1756,6 +1861,12 @@
       }
       function applyTheme(t) {
         document.documentElement.setAttribute('data-theme', t);
+        /* theme-color 的两条 media 查询只认系统偏好，站内手动切换后地址栏配色
+           会跟页面不一致 —— 这里直接按当前主题写死 content，并去掉 media 限制。 */
+        Array.prototype.forEach.call(document.querySelectorAll('meta[name="theme-color"]'), function (m) {
+          m.removeAttribute('media');
+          m.setAttribute('content', t === 'light' ? '#f5f5f5' : '#121212');
+        });
         paintThemeBtn(t);
       }
       themeBtn.addEventListener('click', function () {

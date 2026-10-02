@@ -45,11 +45,12 @@
      那会连 :focus-visible 的焦点环一起裁掉，键盘用户就看不到焦点了。 */
   a.home {
     display: inline-block; padding: 12px 28px;
-    background: #ff0033; color: #fff; font-weight: 700;
+    /* 白字在 #ff0033 上实测 3.96:1，14px 粗体未达大字号阈值，压深到 6.2:1 */
+    background: #c40028; color: #fff; font-weight: 700;
     text-decoration: none; font-size: 14px; border-radius: 2px;
   }
-  a.home:hover { background: #c40028; }
-  .hint { margin-top: 26px; font-size: 12.5px; color: #5a5a5a; }
+  a.home:hover { background: #a80021; }
+  .hint { margin-top: 26px; font-size: 12.5px; color: #8a8a8a; }
 </style>
 </head>
 <body>

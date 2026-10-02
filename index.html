@@ -125,6 +125,9 @@
       <button id="btnDisclaimer" class="ghost" aria-haspopup="dialog"
               aria-controls="disclaimerModal">数据声明</button>
       <button id="btnReset" class="ghost">重置</button>
+      <!-- 键盘可达的重播入口：logo 本身只挂鼠标点击，而它内部是 <h1>，
+           不能改成 role="button"（按钮角色不允许包含标题，会破坏标题语义）。 -->
+      <button id="btnReplayIntro" class="ghost">重播开场</button>
       <button id="btnTheme" class="ghost" aria-label="切换深浅主题">
         <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"
              stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">

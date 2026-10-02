@@ -713,7 +713,9 @@
      （stopImmediatePropagation 挡住后续冒泡），不会递归触发重播；
      收尾后 onSkip 已摘除，这里才接管。 */
   document.addEventListener('click', function (event) {
-    if (event.target && event.target.closest && event.target.closest('.logo')) replayIntro();
+    var t = event.target;
+    if (!t || !t.closest) return;
+    if (t.closest('.logo') || t.closest('#btnReplayIntro')) replayIntro();
   });
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
