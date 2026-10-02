@@ -1,6 +1,10 @@
 <!DOCTYPE html>
-<html lang="zh-CN" data-theme="dark">
+<html lang="zh-CN" data-theme="dark" class="no-js">
 <head>
+<!-- 没有 JS 时 <html> 会保留 class="no-js"，样式表据此把「填了也没用」的空表单
+     收起来，只留 <noscript> 的说明，免得看起来像页面坏了。
+     这一段必须排在样式表之前，否则会先闪一帧空壳表单。 -->
+<script>document.documentElement.classList.remove('no-js');</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
