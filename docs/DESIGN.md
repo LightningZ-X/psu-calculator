@@ -93,7 +93,44 @@
 - 注入脚本（`Page.addScriptToEvaluateOnNewDocument`）第一次是**同步**执行的，那时 `documentElement` 还是 `null`：不要在里面无条件访问 `document.documentElement`，否则整个 rAF 采样链当场死掉，表现为所有依赖采样的用例集体失败。
 - 声明的「不再提示」存 sessionStorage `psu-calc-2026-v1-disclaimer`，存的是**数据版本号**而不是布尔值：数据库升版会再提示一次；取消勾选会真的清掉；旧 localStorage 键会被主动删除。
 
-## 3. 数据置信度模型
+## 3. 状态、输入与检查契约
+
+**所有外来状态必须过净化层**
+
+两个来源都不可信：别人发来的 `#c=` 配置链接、本机 localStorage 存档。它们都要经过 `js/app.js` 的 `sanitizeState()` / `sanitizeFeedback()`，再由 `applyClean()` 逐键写回；三条入口分别是 `load()`、`#c=` 应用、`hashchange` 监听。
+
+- 只认 `defaultState()` 认识的键，值按默认值的类型转换；复合字段（`storage` / `customItems` / `extras`）逐元素校形状、限条数、夹数值范围。
+- 数值上限**只能比界面更宽，绝不能更窄** —— 更窄会把合法存档静默改小。`index.html` 里 `ramKits` max=4、`fanQty` max=12、`argbChannels` max=12，净化层取 8 / 30 / 24。
+- 枚举字段必须用 `Object.prototype.hasOwnProperty.call()` 判定，**不能用 `dict[k]`**：`constructor` / `__proto__` / `toString` 这些继承键都是真值，会绕过白名单，让 `render()` 抛错、结果区**永久停更**（`scenario` 上已实测复现，引擎侧同样要判）。
+- 外来值最终会进 HTML 属性位（`value="…"`），每个落点都要 `esc()`。`esc()` 转义 `& < > " '` 五个字符，用它就是完整的。
+
+**条数上限**
+
+`MAX_ROWS = 24`（`js/app.js`）是三处引用的同一个数：界面拒绝添加、净化层截断、提示文案。它存在的唯一理由是**链接长度**。界面拒绝是第一道，净化层的 `slice` 只是防手工构造链接的兜底 —— 曾经只有后者，结果是加到 25 条时链接与刷新会静默砍到 24 条，还被 `save()` 写回存档，数据真的丢失。
+
+**声明弹窗的 inert**
+
+`js/ui.js` 的 `holdBackground()` / `releaseBackground()` 在弹窗打开/关闭时给 `body` 子元素加解 `inert`。两个不能动的细节：只记录并解除**自己动过**的节点（启动序列另有一套 inert，各自无脑清空会互相解除）；解除必须排在**恢复焦点之前**，否则 `lastFocus` 还在 inert 子树里，`focus()` 会被拒绝、焦点就丢了。
+
+**没有 JS 时**
+
+`<html>` 默认带 `no-js` 类，`<head>` **最前面**的内联脚本摘掉它（脚本能跑就说明有 JS），`assets/style.css` 据此收起 `.layout` 与 `.top-actions`，只留 `<noscript>` 的说明。那段脚本必须排在样式表之前，否则会先闪一帧空壳表单。
+
+**无障碍不靠眼看**
+
+标签必须**程序化关联**：`label[for]` 或包裹式；`placeholder` 与 `title` 都不算标签。动态生成的行（硬盘、自定义设备）同样要带名称。`.logo` **不能**加 `role="button"` —— 它内部是 `<h1>`，按钮角色不允许包含标题，会同时破坏标题语义与 HTML 有效性；键盘入口是顶栏那枚 `#btnReplayIntro`（对应 `window.__PSU_BOOT__.replay`）。
+
+**三个检查的分工**
+
+| 工具 | 覆盖 | 在 CI 里 |
+|---|---|---|
+| `tools/securitycheck.mjs` | 注入、原型链绕过、数值夹紧、条数上限、输入后回复位 | 阻断 |
+| `tools/a11ycheck.mjs` | 控件名称（含动态行）、`aria-hidden` 可聚焦、分组名称、弹窗 inert、无 JS 兜底 | 阻断 |
+| `tools/browsertest.mjs` | 交互与启动全流程 | **非阻断** |
+
+`browsertest` 里有一批断言靠 rAF 采样「部分已出现 + 部分还没出现」的中间帧，在虚拟化的 runner 上会漏采样（单文件与 `file://` 那几节尤甚），属环境性失败而非产品缺陷：**真机上的 `node tools/browsertest.mjs` 才是它的正式闸门**，CI 里只作提示。另注意 `boot-browser-check` 里的 `inertBoot`：`s.inert` 会把弹窗自己加的隔离 inert 一起算进去，两者必须分开计量，否则「启动必须释放锁」与「弹窗必须隔离背景」会互相抵消。
+
+## 4. 数据置信度模型
 
 | 值 | 含义 | 界面呈现 |
 |---|---|---|
@@ -116,7 +153,7 @@
 - 规则生成条目 confidence 必须是 `estimate` 且 source 为空；手写条目 source 必须在来源表里。
 - 同厂商内功耗墙必须随定位单调递增，不允许主流款高过旗舰款。
 
-## 4. 数据核实状态
+## 5. 数据核实状态
 
 **已核实**
 
@@ -139,7 +176,7 @@ asrock.com 官网显卡产品页逐条抓取的型号表（104 行，格式「�
 
 标志素材的来源记在 `assets/lightning-source.md`（用户提供的截图，未声称为官方下载件）；品牌标志属商标，商用前自行确认授权。
 
-## 5. 已知遗留
+## 6. 已知遗留
 
 1. CPU 覆盖不含 LGA1151 / LGA1150 / AM3+ 等更早平台；显卡反过来覆盖到 GTX 900 与 RX 500，因为「我这块老卡多少瓦」是升级时最常见的问题。
 2. 单文件产物冒烟测试与主测试共用同一个 `--user-data-dir`（`PROFILE_ARGS`），主测试写进 localStorage 的状态会留给单文件测试，所以「示例配置已计算」这条实际可能验证的是「状态恢复」而非「载入示例」。
