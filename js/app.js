@@ -640,10 +640,12 @@
       var opts = optionsHtml(DB.storage, s.id, function (d) {
         return d.model + '  ·  ' + d.watts + 'W';
       }, function (d) { return d.kind === 'HDD' ? '机械硬盘 HDD' : (d.kind === 'SATA' ? 'SATA SSD' : 'NVMe SSD'); });
+      /* 动态行也必须给可访问名称：placeholder / title 都不算标签，
+         读屏用户在一行行「编辑框、编辑框、按钮」里根本分不清哪个是哪个。 */
       return '<div class="storage-row">' +
-        '<select data-si="' + i + '" class="s-sel">' + opts + '</select>' +
-        '<input type="number" min="1" max="8" value="' + esc(s.qty) + '" data-qi="' + i + '" class="s-qty">' +
-        '<button class="del" data-di="' + i + '" title="移除">×</button></div>';
+        '<select data-si="' + i + '" class="s-sel" aria-label="第 ' + (i + 1) + ' 行硬盘型号">' + opts + '</select>' +
+        '<input type="number" min="1" max="8" value="' + esc(s.qty) + '" data-qi="' + i + '" class="s-qty" aria-label="第 ' + (i + 1) + ' 行数量">' +
+        '<button class="del" data-di="' + i + '" title="移除" aria-label="移除第 ' + (i + 1) + ' 行硬盘">×</button></div>';
     }).join('');
 
     wrap.querySelectorAll('.s-sel').forEach(function (el) {
@@ -719,9 +721,9 @@
     if (!S.customItems.length) { wrap.innerHTML = ''; return; }
     wrap.innerHTML = S.customItems.map(function (c, i) {
       return '<div class="storage-row" style="grid-template-columns:1fr 90px 32px">' +
-        '<input type="text" data-cl="' + i + '" placeholder="设备名称" value="' + esc(c.label) + '">' +
-        '<input type="number" min="0" step="1" data-cw="' + i + '" placeholder="W" value="' + esc(c.watts || '') + '">' +
-        '<button class="del" data-cd="' + i + '">×</button></div>';
+        '<input type="text" data-cl="' + i + '" placeholder="设备名称" aria-label="第 ' + (i + 1) + ' 个自定义设备名称" value="' + esc(c.label) + '">' +
+        '<input type="number" min="0" step="1" data-cw="' + i + '" placeholder="W" aria-label="第 ' + (i + 1) + ' 个自定义设备功耗（瓦）" value="' + esc(c.watts || '') + '">' +
+        '<button class="del" data-cd="' + i + '" aria-label="移除第 ' + (i + 1) + ' 个自定义设备">×</button></div>';
     }).join('');
     wrap.querySelectorAll('[data-cl]').forEach(function (el) {
       el.addEventListener('input', function () { S.customItems[+el.dataset.cl].label = el.value; render(); });

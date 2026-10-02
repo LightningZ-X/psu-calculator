@@ -222,11 +222,11 @@
             <div class="seg" id="cpuBrand" role="group" aria-label="CPU 品牌"></div>
           </div>
           <div class="field">
-            <label>② 系列 / 世代 <span class="unit">（按上市年份由新到旧）</span></label>
+            <label for="cpuGen">② 系列 / 世代 <span class="unit">（按上市年份由新到旧）</span></label>
             <select id="cpuGen"></select>
           </div>
           <div class="field">
-            <label>③ 型号 <span class="unit">（收录 Intel 10 代起 / AMD Zen 起）</span></label>
+            <label for="cpuSelect">③ 型号 <span class="unit">（收录 Intel 10 代起 / AMD Zen 起）</span></label>
             <select id="cpuSelect"></select>
           </div>
           <details class="advanced-options"><summary>高级设置 · 超频与功耗</summary><div>
@@ -240,7 +240,7 @@
               </label>
             </div>
             <div class="field">
-              <label>自定义功耗 <span class="unit">(W，留空用建议值)</span></label>
+              <label for="cpuCustomW">自定义功耗 <span class="unit">(W，留空用建议值)</span></label>
               <input type="number" id="cpuCustomW" min="35" max="600" step="5" placeholder="自动">
             </div>
           </div>
@@ -258,15 +258,15 @@
             <div class="seg" id="gpuBrand" role="group" aria-label="显卡品牌"></div>
           </div>
           <div class="field">
-            <label>② 世代 <span class="unit">（含 GTX 900 / 10 系等已停产老卡）</span></label>
+            <label for="gpuGen">② 世代 <span class="unit">（含 GTX 900 / 10 系等已停产老卡）</span></label>
             <select id="gpuGen"></select>
           </div>
           <div class="field">
-            <label>③ 型号</label>
+            <label for="gpuModel">③ 型号</label>
             <select id="gpuModel"></select>
           </div>
           <div class="field">
-            <label>④ AIC 厂商 / 板型 <span class="unit">（影响功耗墙与供电接口）</span></label>
+            <label for="gpuAib">④ AIC 厂商 / 板型 <span class="unit">（影响功耗墙与供电接口）</span></label>
             <select id="gpuAib"></select>
           </div>
           <details class="advanced-options"><summary>高级设置 · 超频与自定义显卡</summary><div>
@@ -280,12 +280,12 @@
               </label>
             </div>
             <div class="field" style="margin-bottom:0">
-              <label>未收录型号（手动输入）</label>
+              <label for="gpuCustomName">未收录型号（手动输入）</label>
               <input type="text" id="gpuCustomName" placeholder="如：某品牌 RTX 5080 Ti">
             </div>
           </div>
           <div class="field" style="margin-top:10px">
-            <label>手动功耗 <span class="unit">(W，仅未收录型号时生效)</span></label>
+            <label for="gpuCustomW">手动功耗 <span class="unit">(W，仅未收录型号时生效)</span></label>
             <input type="number" id="gpuCustomW" min="10" max="1200" step="5" placeholder="自动">
           </div>
           </div></details>
@@ -298,7 +298,7 @@
         <h2><span class="idx">4</span>主板<span class="hint">自动校验插槽</span></h2>
         <div class="card-body">
           <div class="field">
-            <label>具体型号（芯片组 / 板型 / 供电）</label>
+            <label for="moboSelect">具体型号（芯片组 / 板型 / 供电）</label>
             <select id="moboSelect"></select>
           </div>
           <div id="moboInfo"></div>
@@ -311,11 +311,11 @@
         <div class="card-body">
           <div class="grid2">
             <div class="field">
-              <label>型号</label>
+              <label for="ramSelect">型号</label>
               <select id="ramSelect"></select>
             </div>
             <div class="field">
-              <label>套数 <span class="unit">(kit)</span></label>
+              <label for="ramKits">套数 <span class="unit">(kit)</span></label>
               <input type="number" id="ramKits" min="1" max="4" step="1" value="1">
             </div>
           </div>
@@ -340,16 +340,16 @@
         <h2><span class="idx">7</span>散热与风扇<span class="hint">风冷 / 水冷</span></h2>
         <div class="card-body">
           <div class="field">
-            <label>CPU 散热器</label>
+            <label for="coolerSelect">CPU 散热器</label>
             <select id="coolerSelect"></select>
           </div>
           <div class="grid2">
             <div class="field">
-              <label>机箱风扇型号</label>
+              <label for="fanSelect">机箱风扇型号</label>
               <select id="fanSelect"></select>
             </div>
             <div class="field">
-              <label>数量 <span class="unit">(只)</span></label>
+              <label for="fanQty">数量 <span class="unit">(只)</span></label>
               <input type="number" id="fanQty" min="0" max="12" step="1" value="3">
             </div>
           </div>
@@ -362,7 +362,7 @@
         <h2><span class="idx">8</span>机箱<span class="hint">尺寸校验</span></h2>
         <div class="card-body">
           <div class="field">
-            <label>型号</label>
+            <label for="caseSelect">型号</label>
             <select id="caseSelect"></select>
           </div>
           <div id="caseInfo"></div>
@@ -374,16 +374,16 @@
         <h2><span class="idx">9</span>其他与扩展<span class="hint">灯效与外设</span></h2>
         <div class="card-body">
           <div class="field">
-            <label>外接 ARGB 灯带通道数 <span class="unit">（按每通道 3-5W 估算）</span></label>
+            <label for="argbChannels">外接 ARGB 灯带通道数 <span class="unit">（按每通道 3-5W 估算）</span></label>
             <input type="number" id="argbChannels" min="0" max="12" step="1" value="0">
           </div>
           <div class="field">
             <label>扩展设备</label>
-            <div class="chk-grid" id="extrasGrid"></div>
+            <div class="chk-grid" id="extrasGrid" role="group" aria-label="扩展设备"></div>
           </div>
           <div class="field">
             <label>自定义设备 <span class="unit">（未收录的扩展卡等）</span></label>
-            <div id="customItems"></div>
+            <div id="customItems" role="group" aria-label="自定义设备"></div>
             <button id="addCustomItem" class="ghost" style="width:100%;margin-top:4px">添加自定义设备</button>
           </div>
         </div>
@@ -406,7 +406,7 @@
             <div class="seg" id="psuFilterAtx" role="group" aria-label="按规范筛选"></div>
           </div>
           <div class="field">
-            <label>电源型号（可不选）<span class="unit">选项含功率 / 认证 / 规范 / 供电接口</span></label>
+            <label for="psuSelect">电源型号（可不选）<span class="unit">选项含功率 / 认证 / 规范 / 供电接口</span></label>
             <select id="psuSelect"></select>
           </div>
           <div id="psuInfo"></div>
@@ -484,7 +484,7 @@
           <summary><h2>配置平衡建议</h2></summary>
           <div class="card-body">
             <div class="field">
-              <label>整机预算 <span class="unit">(元，选填)</span></label>
+              <label for="budgetInput">整机预算 <span class="unit">(元，选填)</span></label>
               <input type="number" id="budgetInput" min="0" step="500" placeholder="如 25000">
             </div>
             <div id="adviceBox" style="margin-top:11px"></div>
@@ -528,7 +528,7 @@
       <div class="card-body">
       <div class="grid3">
         <div class="field">
-          <label>类别</label>
+          <label for="fbType">类别</label>
           <select id="fbType">
             <option value="cpu">CPU</option>
             <option value="gpu">显卡 GPU</option>
@@ -544,16 +544,16 @@
           </select>
         </div>
         <div class="field">
-          <label>型号名称</label>
+          <label for="fbName">型号名称</label>
           <input type="text" id="fbName" placeholder="如：某品牌 RTX 5070 SUPER">
         </div>
         <div class="field">
-          <label>功耗 <span class="unit">(W，选填)</span></label>
+          <label for="fbWatts">功耗 <span class="unit">(W，选填)</span></label>
           <input type="number" id="fbWatts" min="0" step="1" placeholder="如 275">
         </div>
       </div>
       <div class="field">
-        <label>备注 / 数据来源链接 <span class="unit">(选填)</span></label>
+        <label for="fbNote">备注 / 数据来源链接 <span class="unit">(选填)</span></label>
         <input type="text" id="fbNote" placeholder="如：厂商规格页链接，或「基于 XX 评测实测 312W」">
       </div>
       <div class="grid2">
