@@ -153,6 +153,26 @@ try {
   } else {
     check('② 弹窗打开时背景整片 inert、弹窗自身可用', false, '弹窗没弹出，无法测量');
   }
+  /* ---- ③ 无 JS 时不该是一张填不了的空壳表单 ---- */
+  await send('Emulation.setScriptExecutionDisabled', { value: true });
+  await send('Page.navigate', { url: base + '?t=4' });
+  await pause(1200);
+  const noJs = await ev(`({ layout: getComputedStyle(document.querySelector('.layout')).display,
+    actions: getComputedStyle(document.querySelector('.top-actions')).display,
+    modal: document.querySelector('#disclaimerModal').hidden,
+    noscriptShown: !!document.querySelector('noscript') &&
+      getComputedStyle(document.querySelector('noscript')).display !== 'none' })`);
+  check('③ 无 JS 时收起空壳表单、弹窗不露、说明可见',
+    noJs.layout === 'none' && noJs.actions === 'none' && noJs.modal === true,
+    JSON.stringify(noJs));
+  await send('Emulation.setScriptExecutionDisabled', { value: false });
+  await send('Page.navigate', { url: base + '?t=5' });
+  await waitFor(`document.readyState === 'complete' && !!document.querySelector('#cpuSelect')`);
+  const withJs = await ev(`({ layout: getComputedStyle(document.querySelector('.layout')).display,
+    htmlClass: document.documentElement.className })`);
+  check('③ 有 JS 时布局必须正常显示（防止收起规则误伤）',
+    withJs.layout !== 'none' && withJs.htmlClass.indexOf('no-js') === -1,
+    JSON.stringify(withJs));
 } catch (e) {
   results.push({ name: '无障碍自检异常: ' + e.message, ok: false, detail: '' });
 } finally {

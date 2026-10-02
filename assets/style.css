@@ -977,6 +977,10 @@ html.psu-boot-pending .psu-boot { display: flex; }
 }
 /* 窄屏顶栏位置紧张，「重播开场」让位（键盘用户在宽屏可用；窄屏仍可点 logo） */
 @media (max-width: 640px) { #btnReplayIntro { display: none; } }
+/* 没有 JS 时：整张配置/结果区与顶栏按钮都是死的（下拉没有选项、
+   按钮点了没反应、计数是「—」），与其让人以为页面坏了，不如收起它们，
+   只留 <noscript> 的说明。类名由 <head> 最前面的内联脚本摘掉。 */
+.no-js .layout, .no-js .top-actions { display: none; }
 html.psu-boot-active, html.psu-boot-active body { overflow: hidden; }
 html.psu-boot-pending body > :not(.psu-boot):not(script):not(noscript) { opacity: 0; }
 /* 启动动画已经从 DOM/CSS 版改成 Canvas 版（js/boot-animation.js），
