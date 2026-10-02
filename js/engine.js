@@ -210,6 +210,7 @@
     var storageList = Array.isArray(cfg.storage) ? cfg.storage : [];
     var storageWatts = 0, storageSpinUp = 0, nvmeCount = 0, gen5Count = 0, hddCount = 0;
     storageList.forEach(function (s) {
+      if (!s) return;   // 公开纯函数：storage 里混进 null 不能整段抛错
       var drv = byId(HWDB.storage, s.id);
       if (!drv) return;
       var qty = Math.max(0, num(s.qty, 0));
@@ -305,7 +306,9 @@
        同时兼容性检查因 issues 为空而输出绿色「未检测到兼容性问题 · 均匹配」。 */
     var hasSelection = subtotal > 0;
 
-    var scenarioKey = SCENARIOS[cfg.scenario] ? cfg.scenario : 'gaming';
+    /* hasOwnProperty 而非 SCENARIOS[x]：constructor / __proto__ 这类继承键
+       是真值，会绕过白名单，后面 sc.factor 直接抛错（实测可复现）。 */
+    var scenarioKey = Object.prototype.hasOwnProperty.call(SCENARIOS, cfg.scenario) ? cfg.scenario : 'gaming';
     var sc = SCENARIOS[scenarioKey];
     var expected = round1(subtotal * sc.factor);
 
@@ -533,7 +536,10 @@
     var mobo = byId(HWDB.motherboards, cfg.moboId); if (mobo) total += mobo.price || 0;
     var ram = byId(HWDB.ram, cfg.ramId);
     if (ram) total += (ram.price || 0) * Math.max(1, num(cfg.ramKits, 1));
-    (cfg.storage || []).forEach(function (s) {
+    /* 与 calculate() 里那处一样要判数组：sumPrice 是公开纯函数，
+       调用方（含 __PSU_DEBUG）可能传 storage:5 或 [null]，不挡就整段抛错。 */
+    (Array.isArray(cfg.storage) ? cfg.storage : []).forEach(function (s) {
+      if (!s) return;
       var d = byId(HWDB.storage, s.id); if (d) total += (d.price || 0) * num(s.qty, 0);
     });
     var cooler = byId(HWDB.coolers, cfg.coolerId); if (cooler) total += cooler.price || 0;

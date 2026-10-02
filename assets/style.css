@@ -35,7 +35,9 @@
   --text:        #ffffff;
   --text-2:      #c8c8c8;
   --text-3:      #8a8a8a;
-  --text-4:      #5a5a5a;
+  /* 原值 #5a5a5a 在 #0a0a0a 上实测 2.87:1，而 .logo small / .unit /
+     .ac-issues 这些 11px 正文都在用它。抬到 4.8:1，与 --text-3 仍留层次差。 */
+  --text-4:      #7d7d7d;
 
   /* ROG 红：全局唯一强调色，克制使用 */
   --rog:         #ff0033;
@@ -85,7 +87,8 @@ html[data-theme="light"] {
   --text:        #111111;
   --text-2:      #333333;
   --text-3:      #5c5c5c;
-  --text-4:      #8a8a8a;
+  /* 原值 #8a8a8a 在 #f5f5f5 上实测 3.45:1，抬到 4.6:1 */
+  --text-4:      #6f6f6f;
 
   --rog:         #d40029;
   --rog-dim:     #a80020;
@@ -972,6 +975,8 @@ html.psu-boot-pending .psu-boot { display: flex; }
   font-size: var(--fs-xs); letter-spacing: .08em;
   color: rgba(255, 255, 255, .42);
 }
+/* 窄屏顶栏位置紧张，「重播开场」让位（键盘用户在宽屏可用；窄屏仍可点 logo） */
+@media (max-width: 640px) { #btnReplayIntro { display: none; } }
 html.psu-boot-active, html.psu-boot-active body { overflow: hidden; }
 html.psu-boot-pending body > :not(.psu-boot):not(script):not(noscript) { opacity: 0; }
 /* 启动动画已经从 DOM/CSS 版改成 Canvas 版（js/boot-animation.js），

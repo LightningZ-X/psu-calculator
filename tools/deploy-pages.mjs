@@ -86,7 +86,9 @@ DIRS.forEach(d => {
    逐个对照发布清单。 */
 const idx = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const refs = new Set();
-for (const m of idx.matchAll(/(?:src|href)="((?!https?:|data:|#|\/)[^"]+)"/g)) refs.add(m[1]);
+/* 属性名放宽到 data-*：canvas 的标志图走的是 data-mark / data-wordmark，
+   只认 src|href 会漏掉它们 —— 素材一旦改名，线上只丢开场动画而这里不报错。 */
+for (const m of idx.matchAll(/(?:src|href|data-[a-z-]+)="((?!https?:|data:|#|\/)[^"]+)"/g)) refs.add(m[1]);
 const planned = new Set(plan.map(p => p.rel));
 const missing = [...refs].filter(r => !planned.has(r) && fs.existsSync(path.join(root, r)));
 if (missing.length) {

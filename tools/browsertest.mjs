@@ -1351,7 +1351,8 @@ setTimeout(function () {
     v4('IMG_OK') === 'true', v4('IMG_SIZES'));
   chk4('404 页标志都带无障碍名称', v4('IMG_ALT_ALL') === 'true');
   chk4('404 页尾部的按钮样式生效（样式表没被截断）',
-    v4('LINK_BG') === 'rgb(255, 0, 51)' && v4('LINK_DECOR') === 'none',
+    /* #c40028：白字在 #ff0033 上只有 3.96:1，压深后 6.2:1 */
+    v4('LINK_BG') === 'rgb(196, 0, 40)' && v4('LINK_DECOR') === 'none',
     v4('LINK_BG') + ' / ' + v4('LINK_DECOR'));
   /* 本站是 GitHub Pages 的「项目子路径站点」（/‑/）。
      根绝对的 "/" 会跳到账号根 https://<user>.github.io/ —— 那是另一个地方；
