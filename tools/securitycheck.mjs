@@ -164,6 +164,19 @@ try {
   const persisted = await ev(`document.querySelectorAll('#storageList .storage-row').length`);
   check('⑤ 24 行在重载后从存档原样恢复（无静默丢数据）', persisted === 24, 'rows=' + persisted);
 
+  /* ---- ⑥ 载入示例配置不能残留上一次的状态 ---- */
+  await goto('&t=8');
+  await ev(`document.querySelector('#gpuOc').click()`);
+  await pause(200);
+  const ocOn = await ev(`document.querySelector('#gpuOc').checked`);
+  await ev(`document.querySelector('#btnQuickStart').click()`);
+  await pause(400);
+  const afterPreset = await ev(`({ oc: document.querySelector('#gpuOc').checked,
+    cpu: document.querySelector('#cpuSelect').value })`);
+  check('⑥ 载入示例后不残留上一次的显卡超频（曾漏掉 gpuOc）',
+    ocOn === true && afterPreset.oc === false,
+    'ocOn=' + ocOn + ' after=' + afterPreset.oc + ' cpu=' + afterPreset.cpu);
+
   check('全程无未捕获异常', errors.length === 0, errors.slice(0, 2).join(' / '));
 } catch (e) {
   results.push({ name: '安全自检异常: ' + e.message, ok: false, detail: '' });

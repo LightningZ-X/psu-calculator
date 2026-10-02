@@ -8249,7 +8249,13 @@ html:not(.psu-boot-active) details[open] > :not(summary),
   function applyPreset(name) {
     var p = PRESETS[name];
     if (!p) return;
-    S.cpuCustomW = ''; S.gpuCustomName = ''; S.gpuCustomW = ''; S.customItems = [];
+    /* 先整体回到默认态，再套预设的字段。
+       原来这里是手写的一份「要清空的字段」清单（cpuCustomW / gpuCustomName /
+       gpuCustomW / customItems），而这种清单**必然会漏** —— 实测就漏了 gpuOc：
+       用户上次开着「显卡超频」时载入示例，会按 AIC 的超频功耗墙算、冗余还要
+       ≥1.5，与文档里的示例基线不一致。改成全字段复位，以后加字段不会再漏。 */
+    var d = defaultState();
+    Object.keys(d).forEach(function (k) { S[k] = d[k]; });
     Object.keys(p).forEach(function (k) { S[k] = p[k]; });
     /* 预设会把筛选器彻底重置：示例里可能是 AMD 的 U 配 NVIDIA 的卡，
        如果留着用户上一次的「Intel / GTX 10 系」筛选，型号下拉里
