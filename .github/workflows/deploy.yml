@@ -40,6 +40,9 @@ jobs:
           # 注入与状态净化：这是阻断性闸门（不是下面那种非阻断的 E2E）
           node tools/securitycheck.mjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          # 无障碍：这类问题视觉上看不出来，只有测量守得住
+          node tools/a11ycheck.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: 重建单文件产物（供浏览器测试与离线版）
         shell: pwsh
