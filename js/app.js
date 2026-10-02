@@ -60,6 +60,13 @@
      innerHTML 的**属性位**（value="…"）。链接是别人发来的，不校验就等于
      把「闭合属性再注入」的入口交出去。数值同理：一条 ramKits=1e9 的链接
      足以让引擎算出荒谬结果。 */
+  /* storage / customItems 的条数上限。它存在的唯一理由是**链接长度**：
+     每一条都会进 #c= 的 j=<JSON>，条数一多链接就贴不进聊天框。
+     所以「界面拒绝添加」是第一道，净化层的截断只是防手工构造链接的兜底 ——
+     以前只有后者，结果是加到 25 条时链接与刷新会静默砍到 24 条，
+     而且 save() 会把砍完的结果写回存档，数据真的就没了。 */
+  var MAX_ROWS = 24;
+
   /* 数值上限只能**比界面更宽**，绝不能更窄：
      index.html 里 ramKits max=4 / fanQty max=12 / argbChannels max=12。
      更窄的话，一份合法存档（例如用户手输过 12 条 ARGB）会被静默改小。 */
@@ -105,12 +112,12 @@
       }
     });
     if (Array.isArray(raw.storage)) {
-      out.storage = raw.storage.slice(0, 24).map(function (s) {
+      out.storage = raw.storage.slice(0, MAX_ROWS).map(function (s) {
         return { id: String((s && s.id) || '').slice(0, 64), qty: clampNum(s && s.qty, 1, 8, 1) };
       });
     }
     if (Array.isArray(raw.customItems)) {
-      out.customItems = raw.customItems.slice(0, 24).map(function (c) {
+      out.customItems = raw.customItems.slice(0, MAX_ROWS).map(function (c) {
         return { label: String((c && c.label) || '').slice(0, 60), watts: clampNum(c && c.watts, 0, 5000, 0) };
       });
     }
@@ -623,6 +630,10 @@
        会让首访的空态带着一个 11W 的存储项。空态就该是空的。 */
     if (!Array.isArray(S.storage)) S.storage = [];
     $('addStorage').addEventListener('click', function () {
+      if (S.storage.length >= MAX_ROWS) {
+        toast('最多 ' + MAX_ROWS + ' 行；再多下去分享链接会过长', true);
+        return;
+      }
       var used = S.storage.map(function (s) { return s.id; });
       var next = DB.storage.filter(function (s) { return used.indexOf(s.id) === -1; })[0] || DB.storage[0];
       S.storage.push({ id: next.id, qty: 1 });
@@ -711,6 +722,10 @@
     $('argbChannels').addEventListener('input', function () { S.argbChannels = clampNum(this.value, 0, 24, 0); render(); });
 
     $('addCustomItem').addEventListener('click', function () {
+      if (S.customItems.length >= MAX_ROWS) {
+        toast('最多 ' + MAX_ROWS + ' 条；再多下去分享链接会过长', true);
+        return;
+      }
       S.customItems.push({ label: '', watts: 0 });
       render();
     });

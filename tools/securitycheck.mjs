@@ -143,6 +143,27 @@ try {
     st.cpu === 'cu7-270kp' && st.kits === '2' && st.rows === 1 && st.qty === '2',
     'cpu=' + st.cpu + ' kits=' + st.kits + ' qty=' + st.qty);
 
+  /* ---- ⑤ 条数上限：界面必须拒绝，而不是让链接/刷新静默截断 ---- */
+  const rows = Array.from({ length: 24 }, (_, i) => ({ id: 'ssd-990pro-2t', qty: 1 }));
+  await goto(base + '?nodisclaimer=1&noanim=1&t=6#c=cpuId=cu7-270kp&j='
+    + encodeURIComponent(JSON.stringify({ storage: rows, customItems: [{ label: 'x', watts: 5 }] })));
+  await waitFor(`document.querySelectorAll('#storageList .storage-row').length === 24`, 8000);
+  let before = await ev(`document.querySelectorAll('#storageList .storage-row').length`);
+  await ev(`document.querySelector('#addStorage').click()`);
+  await pause(200);
+  let after = await ev(`({ rows: document.querySelectorAll('#storageList .storage-row').length,
+    toast: (document.querySelector('.toast') || {}).textContent || '' })`);
+  check('⑤ 满 24 行时拒绝继续添加并提示（不是静默截断）',
+    before === 24 && after.rows === 24 && /最多/.test(after.toast),
+    'before=' + before + ' after=' + after.rows + ' toast=' + JSON.stringify(after.toast.slice(0, 18)));
+
+  /* 关键：再**不带配置链接**加载一次，让状态从 localStorage 恢复。
+     用带 #c= 的地址重载会从链接重新套用，根本证明不了存档没被截断后写回。 */
+  await goto('&t=7');
+  await waitFor(`document.querySelectorAll('#storageList .storage-row').length > 0`, 8000);
+  const persisted = await ev(`document.querySelectorAll('#storageList .storage-row').length`);
+  check('⑤ 24 行在重载后从存档原样恢复（无静默丢数据）', persisted === 24, 'rows=' + persisted);
+
   check('全程无未捕获异常', errors.length === 0, errors.slice(0, 2).join(' / '));
 } catch (e) {
   results.push({ name: '安全自检异常: ' + e.message, ok: false, detail: '' });
