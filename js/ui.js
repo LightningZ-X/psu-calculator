@@ -391,6 +391,24 @@
       try { never.checked = sessionStorage.getItem(preferenceKey) === version(); } catch (e) {}
     }
 
+    /* 弹窗打开时把背景整片标 inert。
+       已有的手写 Tab 陷阱只拦得住 Tab 键，拦不住读屏的虚拟光标 ——
+       它照样能读到底层那二十几个控件和整张配置表单，对屏幕阅读器用户来说
+       弹窗等于没生效。inert 才是真正的隔离。
+       只记录并解除自己动过的节点，免得和启动序列那套 inert 互相解除。 */
+    var inertNodes = [];
+    function holdBackground() {
+      Array.prototype.forEach.call(document.body.children, function (el) {
+        if (el === m || el.matches('script, noscript, style') || el.inert) return;
+        el.inert = true;
+        inertNodes.push(el);
+      });
+    }
+    function releaseBackground() {
+      inertNodes.forEach(function (el) { el.inert = false; });
+      inertNodes = [];
+    }
+
     function open(fromAuto) {
       if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; m.classList.remove('is-closing'); return; }
       if (isOpen()) return;
@@ -399,6 +417,7 @@
       lastFocus = document.activeElement;
       m.hidden = false;
       document.body.classList.add('modal-open');
+      holdBackground();
       if (body) body.scrollTop = 0;
       if (okBtn) { try { okBtn.focus({ preventScroll: true }); } catch (e) { okBtn.focus(); } }
       announce('psu:disclaimer-open');
@@ -417,6 +436,9 @@
         m.hidden = true;
         m.classList.remove('is-closing');
         document.body.classList.remove('modal-open');
+        /* 必须在恢复焦点之前解除：lastFocus 多半在背景里，
+           还带着 inert 的话 focus() 会被拒绝，焦点就丢了。 */
+        releaseBackground();
         if (lastFocus && lastFocus.focus) {
           try { lastFocus.focus({ preventScroll: true }); } catch (e) {}
         }

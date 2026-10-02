@@ -145,6 +145,16 @@ export async function checkBootBrowser(root, executable) {
             +c.opacity > 0.5 && r.width > 0 && r.height > 0;
         })(),
         inert: document.querySelectorAll('[inert]').length,
+        /* 弹窗打开时会给背景整片加 inert —— 那是它自己的隔离机制，正当。
+           而断言想表达的其实是「启动有没有留下 inert 锁」，所以把它减掉单列。
+           两套标记的对象都是 body 的直接子元素，可以直接相减。 */
+        inertBoot: document.querySelectorAll('[inert]').length - (function () {
+          var mm = document.querySelector('#disclaimerModal');
+          if (!mm || mm.hidden) return 0;
+          return Array.prototype.filter.call(document.body.children, function (el) {
+            return el !== mm && el.inert;
+          }).length;
+        })(),
         marked: document.querySelectorAll('.psu-boot-item').length,
         itemCount: items.length,
         itemOpacity: items.map(e => +getComputedStyle(e).opacity),
@@ -192,7 +202,7 @@ export async function checkBootBrowser(root, executable) {
       entered && !s.active && !s.pending && s.overlay === 'none' && s.hold && !s.fill &&
       s.modalVisible && s.marked > 0 && s.marked === s.itemCount && s.itemOpacity.every(v => v === 0),
       s.itemCount + ' 块 | ' + notShown(s));
-    check('弹窗出现时页面已解除 inert', s.inert === 0);
+    check('弹窗出现时页面已解除 inert', s.inertBoot === 0);
     /* 关键：确认开场那一段 Canvas 动画真的放了。
        少了这条，即使动画被整段跳过（比如「已看过」标记一直压着不放），
        上面几条也全部会通过。 */
@@ -229,7 +239,7 @@ export async function checkBootBrowser(root, executable) {
     const doneAll = await waitFor(settled, 6000);
     s = await snapshot();
     check('出现结束后全部落位、无启动状态残留',
-      doneAll && !s.active && !s.hold && !s.fill && s.marked === 0 && s.inert === 0 && allVisible(s),
+      doneAll && !s.active && !s.hold && !s.fill && s.marked === 0 && s.inertBoot === 0 && allVisible(s),
       'ends=' + s.ends.length + ' | ' + notSettled(s));
     check('psu:boot-end 恰好派发一次', s.ends.length === 1);
     check('呈现过程未擅自选 CPU', (await evaluate(`document.querySelector('#cpuSelect').value`)) === '');
@@ -264,7 +274,7 @@ export async function checkBootBrowser(root, executable) {
     const cDone = await waitFor(settled, 6000);
     s = await snapshot();
     check('抑制声明时最终无残留、各块全部可见',
-      cDone && s.marked === 0 && !s.hold && s.inert === 0 && allVisible(s), notSettled(s));
+      cDone && s.marked === 0 && !s.hold && s.inertBoot === 0 && allVisible(s), notSettled(s));
 
     /* ------------------------------------------------ D. 启动中点击即跳过 */
     await open('');
@@ -273,7 +283,7 @@ export async function checkBootBrowser(root, executable) {
     await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: 200, y: 200, button: 'left', clickCount: 1 });
     s = await snapshot();
     check('启动中点击立即进入声明阶段',
-      !s.active && !s.pending && s.hold && s.modal && s.inert === 0 && s.marked === s.itemCount,
+      !s.active && !s.pending && s.hold && s.modal && s.inertBoot === 0 && s.marked === s.itemCount,
       'elapsed=' + Math.round(s.elapsed) + 'ms');
     await evaluate('window.__PSU_DISCLAIMER__.close()');
     check('跳过启动后关掉声明依然逐块出现', await waitFor(`window.__staggerSeen === true`, 5000));
@@ -284,14 +294,14 @@ export async function checkBootBrowser(root, executable) {
       s = await snapshot();
       check(label + ' 完全跳过：不播启动、页面可用、一块内容都没被藏起来',
         !s.active && !s.pending && !s.hold && s.overlay === 'none' && s.page === 1 &&
-        s.inert === 0 && s.marked === 0 && !s.holdSeen && allVisible(s), notSettled(s));
+        s.inertBoot === 0 && s.marked === 0 && !s.holdSeen && allVisible(s), notSettled(s));
     }
 
     await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
     await open();
     s = await snapshot();
     check('系统减少动态效果：不播启动、也不隐藏任何内容',
-      !s.active && !s.hold && s.overlay === 'none' && s.inert === 0 && !s.holdSeen && allVisible(s));
+      !s.active && !s.hold && s.overlay === 'none' && s.inertBoot === 0 && !s.holdSeen && allVisible(s));
     await shot('reduced-motion');
     await send('Emulation.setEmulatedMedia', { features: [] });
 
@@ -305,7 +315,7 @@ export async function checkBootBrowser(root, executable) {
     fs.writeFileSync(path.join(artifacts, 'print.pdf'), Buffer.from(pdf.data, 'base64'));
     s = await snapshot();
     check('打印事件结束启动并释放页面',
-      !s.active && !s.pending && !s.hold && s.inert === 0 && allVisible(s));
+      !s.active && !s.pending && !s.hold && s.inertBoot === 0 && allVisible(s));
     await send('Emulation.setEmulatedMedia', { media: '' });
 
     /* ---------------------------------------------------------- G. 窄屏 */

@@ -130,10 +130,29 @@ try {
   check('① 动态行（硬盘 / 自定义设备）也有可访问名称', s.unnamed.length === 0,
     s.unnamed.length ? '未命名 ' + s.unnamed.length + ': ' + s.unnamed.slice(0, 6).join(', ') : '共 ' + s.total + ' 个控件');
 
-  /* ---- ② 声明弹窗的背景 inert ---- */
-  /* 尚未实现，这里刻意不放断言：留一条永远红的检查只会被忽略。
-     实现 ② 时在下面补上（打开弹窗 → header.top/.wrap 必须 inert 且弹窗自身可用，
-     关闭后必须解除）。 */
+  /* ---- ② 声明弹窗打开时背景 inert ---- */
+  /* 必须走「不带 nodisclaimer 的干净加载」：带抑制参数时弹窗根本不弹，测不到。
+     干净 profile + 无存储 ⇒ 弹窗必然自动打开。 */
+  await send('Page.navigate', { url: base + '?t=3' });
+  await waitFor(`document.readyState === 'complete' && !!document.querySelector('#cpuSelect')`);
+  const modalShown = await waitFor(`!document.querySelector('#disclaimerModal').hidden`, 15000);
+  if (modalShown) {
+    const open = await ev(`({ header: document.querySelector('header.top').inert === true,
+      wrap: document.querySelector('.wrap').inert === true,
+      modalUsable: document.querySelector('#disclaimerModal').inert === false,
+      focusOnOk: (document.activeElement || {}).id === 'dmOk' })`);
+    check('② 弹窗打开时背景整片 inert、弹窗自身可用',
+      open.header && open.wrap && open.modalUsable && open.focusOnOk, JSON.stringify(open));
+    await ev(`window.__PSU_DISCLAIMER__.close()`);
+    await waitFor(`document.querySelector('#disclaimerModal').hidden`, 8000);
+    await pause(500);
+    const after = await ev(`({ header: document.querySelector('header.top').inert === true,
+      wrap: document.querySelector('.wrap').inert === true })`);
+    check('② 关闭后 inert 解除（焦点归还才有意义）',
+      after.header === false && after.wrap === false, JSON.stringify(after));
+  } else {
+    check('② 弹窗打开时背景整片 inert、弹窗自身可用', false, '弹窗没弹出，无法测量');
+  }
 } catch (e) {
   results.push({ name: '无障碍自检异常: ' + e.message, ok: false, detail: '' });
 } finally {
