@@ -10,7 +10,7 @@
 
 <!-- ---------------------------------------------------------------- SEO -- -->
 <title>台式机功耗计算器 · 电源瓦数怎么选</title>
-<meta name="description" content="选好 CPU、显卡、主板就能算出整机功耗，并直接给出该买多大瓦数的电源。覆盖 164 款 CPU 与 RTX 50 到 GTX 900 的 71 款显卡、23 家 AIC 厂商 2386 个板型，含 ATX 3.1 与 12V-2x6 接口校验。">
+<meta name="description" content="选好 CPU、显卡、主板就能算出整机功耗，并直接给出该买多大瓦数的电源。覆盖 164 款 CPU 与 RTX 50 到 GTX 900 的 73 款显卡、23 家 AIC 厂商 2439 个板型，含 ATX 3.1 与 12V-2x6 接口校验。">
 <meta name="robots" content="index, follow">
 <link rel="canonical" href="https://lightningz-x.github.io/">
 
@@ -26,7 +26,7 @@
 <meta property="og:site_name" content="台式机功耗计算器">
 <meta property="og:locale" content="zh_CN">
 <meta property="og:title" content="台式机功耗计算器 · 电源瓦数怎么选">
-<meta property="og:description" content="选好 CPU、显卡、主板就能算出整机功耗，并直接给出该买多大瓦数的电源。164 款 CPU、71 款显卡、2386 个显卡板型，老平台也支持。">
+<meta property="og:description" content="选好 CPU、显卡、主板就能算出整机功耗，并直接给出该买多大瓦数的电源。164 款 CPU、73 款显卡、2439 个显卡板型，老平台也支持。">
 <meta property="og:url" content="https://lightningz-x.github.io/">
 <meta property="og:image" content="https://lightningz-x.github.io/assets/og-image.png">
 <meta property="og:image:width" content="1200">
@@ -34,7 +34,7 @@
 <meta property="og:image:alt" content="台式机功耗计算器">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="台式机功耗计算器 · 电源瓦数怎么选">
-<meta name="twitter:description" content="选好配置就能算出整机功耗，直接给出该买多大瓦数的电源。164 款 CPU、71 款显卡型号、23 家 AIC 厂商 2386 个板型。">
+<meta name="twitter:description" content="选好配置就能算出整机功耗，直接给出该买多大瓦数的电源。164 款 CPU、73 款显卡型号、23 家 AIC 厂商 2439 个板型。">
 <meta name="twitter:image" content="https://lightningz-x.github.io/assets/og-image.png">
 
 <!-- -------------------------------------------------------------- 图标 -- -->
@@ -60,7 +60,7 @@
     "电源瓦数推荐（ATX 3.1）",
     "CPU 与主板插槽兼容性校验",
     "CPU 三级筛选（品牌 / 系列世代 / 型号，164 款）",
-    "显卡四级筛选（品牌 / 世代 / 型号 / AIC 板型，71 款型号 · 2386 个板型 · 23 家厂商）",
+    "显卡四级筛选（品牌 / 世代 / 型号 / AIC 板型，73 款型号 · 2439 个板型 · 23 家厂商）",
     "显卡板型功耗墙区分（ROG Astral、SUPRIM、AORUS 等）",
     "老平台兼容：GTX 900 / 10 系、RTX 20 / 30 系、RX 500 / 5000 / 6000 系",
     "12V-2x6 / PCIe 8pin 接口数量校验"
@@ -147,7 +147,52 @@
   <section class="page-intro" aria-label="计算器介绍">
     <p class="eyebrow">POWER SUPPLY CALCULATOR</p>
     <h2>为你的配置，选好电源。</h2>
-    <p>选择硬件，即时查看整机功耗与推荐瓦数。</p>
+    <p>估算功耗、比较配置，看看升级后能否继续用现有电源。</p>
+  </section>
+
+  <section class="decision-toolbar" aria-label="配置工具">
+    <div class="decision-mode">
+      <div class="seg" id="calcMode" role="group" aria-label="计算模式">
+        <button type="button" data-mode="full" aria-pressed="true">完整配置</button>
+        <button type="button" data-mode="quick" aria-pressed="false">快速估算</button>
+      </div>
+      <p class="note" id="modeNote">填写具体硬件可检查接口、尺寸和安装兼容性。</p>
+    </div>
+    <div class="hardware-search">
+      <label for="hardwareSearch">搜索硬件型号</label>
+      <div class="search-controls">
+        <select id="searchCategory" aria-label="搜索硬件类别">
+          <option value="cpu">CPU</option><option value="gpu">显卡</option><option value="aib">显卡板型</option>
+          <option value="mobo">主板</option><option value="psu">电源</option>
+          <option value="ram">内存</option><option value="storage">存储</option><option value="cooler">散热器</option>
+          <option value="fan">风扇</option><option value="case">机箱</option>
+        </select>
+        <input type="search" id="hardwareSearch" maxlength="80" placeholder="如 9600X、5090 夜神、海韵" autocomplete="off" aria-controls="hardwareResults">
+      </div>
+      <p class="note" id="searchStatus" role="status"></p>
+      <div id="hardwareResults" class="search-results"></div>
+    </div>
+    <details class="plan-manager" id="planManager">
+      <summary>我的配置方案<span class="hint" id="planCount">0 / 12</span></summary>
+      <div class="plan-panel">
+        <div class="grid2">
+          <div class="field"><label for="planName">方案名称</label><input id="planName" type="text" maxlength="60" placeholder="如 现有电脑 / 升级方案"></div>
+          <div class="field"><label for="savedPlan">已保存方案</label><select id="savedPlan"><option value="">— 选择方案 —</option></select></div>
+        </div>
+        <div class="plan-actions">
+          <button id="savePlan" type="button" class="primary">另存新方案</button>
+          <button id="updatePlan" type="button">更新所选方案</button>
+          <button id="loadPlan" type="button">载入方案</button>
+          <button id="renamePlan" type="button">重命名</button>
+          <button id="deletePlan" type="button" class="ghost">删除方案</button>
+          <button id="undoPlanDelete" type="button" class="ghost" hidden>撤销删除</button>
+          <button id="backupPlans" type="button" class="ghost">备份全部方案</button>
+          <button id="importPlans" type="button" class="ghost">导入方案 / 配置</button>
+          <input id="planImportFile" type="file" accept=".json,application/json" aria-label="导入 JSON 配置文件" hidden>
+        </div>
+        <p class="note" id="planStatus" role="status">方案保存在此浏览器。载入会替换编辑区，请先另存当前配置；换设备前请备份。</p>
+      </div>
+    </details>
   </section>
 
   <div class="layout">
@@ -190,7 +235,7 @@
               <dt>规划功耗</dt>
               <dd>各部件功耗上限之和，用于电源选型。</dd>
               <dt>场景预期功耗</dt>
-              <dd>所选场景下的预计功耗，通常低于满载值。</dd>
+              <dd>按 CPU、显卡及其他部件的负载假设估算区间，是部件侧功耗，不是插座实测。</dd>
               <dt>瞬时峰值</dt>
               <dd>短时功率尖峰，电源需具备相应承受能力。</dd>
               <dt>TDP / 最大睿频功耗</dt>
@@ -447,7 +492,7 @@
 
           </div>
           <div>
-            <div class="k">场景预期功耗</div>
+            <div class="k">场景功耗区间 · 部件侧</div>
             <div class="v blue" id="heroExpected">0<small> W</small></div>
 
           </div>
@@ -459,14 +504,29 @@
         </div>
 
         <details class="result-explain"><summary>计算说明</summary><div class="explain-content"><div class="u" id="heroPowerNote">各部件功耗上限之和</div>
-<div class="u" id="heroExpectedNote">按场景负载系数折算</div>
+<div class="u" id="heroExpectedNote">按分项负载区间估算</div>
 <div class="u" id="heroTransientNote">含显卡功率尖峰与硬盘启动</div></div></details>
+
+        <section class="card decision-quality">
+          <h2>结果依据<span class="hint" id="completenessLabel"></span></h2>
+          <div class="card-body">
+            <div class="note" id="assumptionsNote"></div>
+            <div class="note" id="confidenceNote"></div>
+            <details class="result-explain"><summary>已检查与尚未检查</summary><div id="checkCoverage" class="coverage-list"></div></details>
+            <details class="result-explain"><summary>场景模型与插座功耗</summary><div id="loadModel" class="note"></div>
+              <label for="psuEfficiency">假设电源转换效率（%）</label>
+              <input type="number" id="psuEfficiency" min="60" max="99" value="90" step="1">
+              <p class="note" id="wallEstimate"></p>
+            </details>
+          </div>
+        </section>
 
         <!-- 三档推荐 -->
         <section class="card">
           <h2>电源推荐方案<span class="hint" id="psuPickHint"></span></h2>
           <div class="card-body">
             <div class="psu-picks" id="psuPicks"></div>
+            <details class="result-explain"><summary>查看全部合格候选 <span id="candidateCount"></span></summary><div class="candidate-list" id="allPsuCandidates"></div></details>
             <details class="result-explain"><summary>选型依据</summary><div class="meta" id="recoMeta"></div><div id="psuPickNote" style="margin-top:11px"></div></details>
           </div>
         </section>
@@ -478,6 +538,24 @@
         </section>
 
         <!-- 升级建议 -->
+        <section class="card" id="comparisonCard">
+          <h2>方案与升级对比<span class="hint">复用电源判断</span></h2>
+          <div class="card-body">
+            <div class="grid2">
+              <div class="field"><label for="compareBase">原配置</label><select id="compareBase"><option value="">当前配置</option></select></div>
+              <div class="field"><label for="compareTarget">对比配置</label><select id="compareTarget"><option value="">当前配置</option></select></div>
+            </div>
+            <details class="result-explain" id="upgradeSimulation"><summary>模拟更换 CPU / 显卡</summary>
+              <p class="note">以对比配置为基础，仅在这里模拟。载入升级方案后才会替换编辑区。</p>
+              <div class="field"><label for="upgradeCpu">升级 CPU</label><select id="upgradeCpu"><option value="">保持原 CPU</option></select></div>
+              <div class="field"><label for="upgradeGpu">升级显卡</label><select id="upgradeGpu"><option value="">保持原显卡</option></select></div>
+              <div class="field"><label for="upgradeAib">升级显卡板型</label><select id="upgradeAib"><option value="">公版 / 未指定</option></select></div>
+              <button type="button" id="applyUpgrade">载入升级方案</button>
+            </details>
+            <div id="compareOutput" aria-live="polite"></div>
+          </div>
+        </section>
+
         <details class="card result-fold">
           <summary><h2>升级空间</h2></summary>
           <div class="card-body" id="upgradeBox"></div>
@@ -638,6 +716,7 @@
 <!-- 加载顺序不可调换：db-cpus / db-aib 先注册数据，db.js 负责装配 -->
 <script src="js/db-cpus.js"></script>
 <script src="js/db-aib.js"></script>
+<script src="js/db-psus.js"></script>
 <script src="js/db.js"></script>
 <script src="js/engine.js"></script>
 <script src="js/app.js"></script>

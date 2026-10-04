@@ -1,6 +1,6 @@
 /* Shared narrow whitelist: both design and browser checks enforce the same contract.
-   启动动画改成 Canvas 版之后，站点只剩这三条动效：逐块出现、浮层入场、交互反馈。 */
-export const BOOT_NAMES = ['psu-content-in', 'psu-ui-enter', 'psu-ui-feedback'];
+   CSS 仅允许逐块出现、局部入场/退场与反馈；可中断交互由 ui.js 接续。 */
+export const BOOT_NAMES = ['psu-content-in', 'psu-ui-enter', 'psu-ui-exit', 'psu-ui-feedback'];
 
 export function checkBootMotion(source) {
   const css = source.replace(/\/\*[\s\S]*?\*\//g, '');
@@ -16,7 +16,8 @@ export function checkBootMotion(source) {
   // Only the exact finite forms used here are allowed; var() cannot hide a name or repeat count.
   const forms = new Set([
     'psu-content-in .36s var(--ease) var(--psu-boot-delay, 0ms) both',
-    'psu-ui-enter .22s var(--ease) both', 'psu-ui-feedback .18s var(--ease) both',
+    'psu-ui-enter .32s var(--motion-enter) both', 'psu-ui-exit .18s var(--motion-exit) both',
+    'psu-ui-feedback .18s var(--ease) both', 'none',
     'none !important'
   ]);
   for (const m of css.matchAll(/(?:^|[;{])\s*((?:-\w+-)?animation(?:-[\w-]+)?)\s*:\s*([^;}]+)/g)) {

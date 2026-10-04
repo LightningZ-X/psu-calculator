@@ -70,6 +70,10 @@
 
   --ease: cubic-bezier(.4, 0, .2, 1);
   --dur: 150ms;
+  /* 参考澎湃 OS 的跟手感；这些曲线为网页自行调校。 */
+  --motion-enter: cubic-bezier(.16, 1, .3, 1);
+  --motion-exit: cubic-bezier(.4, 0, 1, 1);
+  --motion-fast: cubic-bezier(.2, 0, .2, 1);
   --shadow-float: 0 8px 32px rgba(0, 0, 0, .6);
 }
 
@@ -299,11 +303,12 @@ details.section-collapse > summary::before {
    高度自然动画，且不需要事先知道内容有多高（由 js/ui.js 包的那层 .card-body-in 承载）。 */
 .col-config .card > .card-body {
   display: grid; grid-template-rows: 1fr;
-  transition: grid-template-rows 240ms var(--ease), opacity 170ms var(--ease);
+  transition: grid-template-rows 320ms var(--motion-enter), opacity 180ms var(--motion-fast);
 }
 .col-config .card > .card-body > .card-body-in { min-height: 0; overflow: hidden; }
 .col-config .card.is-collapsed > .card-body {
   grid-template-rows: 0fr; opacity: 0; pointer-events: none;
+  transition-duration: 220ms, 140ms;
 }
 
 /* 折叠开关 */
@@ -773,6 +778,7 @@ details.section-collapse > summary .hint {
 .modal-backdrop {
   position: fixed; inset: 0; z-index: 300;
   background: rgba(0, 0, 0, .74);
+  backdrop-filter: blur(8px);
   display: grid; place-items: center;
   padding: 20px; overflow-y: auto;
 }
@@ -996,23 +1002,35 @@ html.psu-boot-pending body > :not(.psu-boot):not(script):not(noscript) { opacity
   to { opacity: 1; transform: translate(0, 0); }
 }
 
-/* 交互反馈：短时、局部，只新增 transform / opacity 动效。 */
-button, .btn { transition: transform 120ms var(--ease), opacity 120ms var(--ease); }
-button:not(:disabled):active, .btn:not([aria-disabled="true"]):active {
-  transform: translateY(1px) scale(.98);
+/* 局部回弹不改变控件尺寸或文档布局；JS 从当前帧接续，CSS 保留降级路径。 */
+button, .btn {
+  transition: transform 320ms var(--motion-enter), opacity 180ms var(--motion-fast),
+    background-color 180ms var(--motion-fast), border-color 180ms var(--motion-fast), color 180ms var(--motion-fast);
 }
-#btnTheme .ico { transition: transform 220ms var(--ease); }
+html:not(.psu-motion-ready) button:not(:disabled):active,
+html:not(.psu-motion-ready) .btn:not([aria-disabled="true"]):active {
+  transform: scale(.975); transition-duration: 80ms;
+}
+#btnTheme .ico { transition: transform 380ms var(--motion-enter); }
 html[data-theme="light"] #btnTheme .ico { transform: rotate(180deg); }
+.switch .track::after { transition: transform 320ms var(--motion-enter), background-color 180ms var(--motion-fast); }
 .col-config .card > .card-body > .card-body-in {
-  transform: translateY(0); transition: transform 200ms var(--ease);
+  transform: translateY(0); transition: transform 320ms var(--motion-enter);
 }
-.col-config .card.is-collapsed > .card-body > .card-body-in { transform: translateY(-4px); }
+.col-config .card.is-collapsed > .card-body > .card-body-in { transform: translateY(-6px); }
 html:not(.psu-boot-active) details[open] > :not(summary),
-.modal-backdrop:not([hidden]) > .modal-card { animation: psu-ui-enter .22s var(--ease) both; }
+.modal-backdrop:not([hidden]) > .modal-card { animation: psu-ui-enter .32s var(--motion-enter) both; }
+.modal-backdrop.is-closing > .modal-card { animation: psu-ui-exit .18s var(--motion-exit) both; }
+html.psu-motion-ready details[open] > :not(summary),
+html.psu-motion-ready .modal-backdrop > .modal-card { animation: none; }
 .psu-ui-feedback { animation: psu-ui-feedback .18s var(--ease) both; }
 @keyframes psu-ui-enter {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(8px) scale(.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes psu-ui-exit {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(8px) scale(.98); }
 }
 @keyframes psu-ui-feedback {
   from { opacity: .65; transform: translateY(1px); }
@@ -1092,7 +1110,7 @@ html:not(.psu-boot-active) details[open] > :not(summary),
 .pick-specs > summary { cursor: pointer; padding: 4px 0; }
 .result-fold > summary::after, .result-explain > summary::after { transition: transform 180ms var(--ease); }
 .result-fold[open] > summary::after, .result-explain[open] > summary::after { content: '＋'; transform: rotate(45deg); }
-.storage-row, .custom-row { animation: psu-ui-enter .22s var(--ease) both; }
+.storage-row, .custom-row { animation: psu-ui-enter .32s var(--motion-enter) both; }
 @media (hover: hover) and (pointer: fine) {
   button:not(:disabled):hover { transform: translateY(-1px); }
   button:not(:disabled):active { transform: translateY(1px) scale(.98); }
@@ -1216,6 +1234,10 @@ html:not(.psu-boot-active) details[open] > :not(summary),
   .tag, .conf { border-color: #666 !important; color: #333 !important; }
   select, input { border: 1px solid #999; background: #fff !important; color: #000; }
   .table-scroll { overflow: visible !important; }
+  .decision-toolbar, #comparisonCard .field, #upgradeSimulation, .candidate-row button { display: none !important; }
+  .candidate-list { max-height: none !important; overflow: visible !important; }
+  .decision-quality details > *, .result-explain > .coverage-list, .result-explain > #allPsuCandidates { display: block !important; }
+  .comparison-table, .comparison-table tr, .candidate-row { break-inside: avoid; }
 
   .print-only { display: block !important; }
   a { color: #000; border-bottom: none; }
@@ -1235,4 +1257,43 @@ html:not(.psu-boot-active) details[open] > :not(summary),
     width: min(100vw, 56.25vh); width: min(100vw, 56.25dvh);
     aspect-ratio: 9 / 16;
   }
+}
+
+/* 配置管理与对比沿用平面分区、细分隔线和现有文字尺度。 */
+.decision-toolbar { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; padding: 18px 0; border-block: 1px solid var(--line); }
+.decision-toolbar > *, .search-controls > *, .comparison-table td { min-width: 0; }
+.decision-toolbar label { display: block; font-size: var(--fs-sm); color: var(--text-2); margin-bottom: 6px; }
+.decision-toolbar p { margin: 8px 0 0; }
+.search-controls { display: grid; grid-template-columns: 100px 1fr; gap: 8px; }
+.search-results { max-height: 320px; overflow-y: auto; }
+.search-results button { display: block; width: 100%; text-align: left; padding: 10px; border: 0; border-bottom: 1px solid var(--line); background: var(--bg-soft); white-space: normal; overflow-wrap: anywhere; }
+.search-results button:hover { background: var(--surface-2); }
+.plan-manager { grid-column: 1 / -1; }
+.plan-manager > summary { cursor: pointer; font-weight: 600; padding: 8px 0; }
+.plan-manager .hint { margin-left: 12px; }
+.plan-panel { padding-top: 14px; }
+.plan-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.coverage-list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 12px 0; font-size: var(--fs-sm); color: var(--text-2); }
+.decision-quality .note + .note { margin-top: 10px; }
+.decision-quality input { max-width: 140px; }
+.candidate-list { max-height: 300px; overflow-y: auto; }
+.candidate-row { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.candidate-row p { margin: 4px 0; color: var(--text-2); font-size: var(--fs-sm); }
+.candidate-row button { margin-top: 6px; }
+.hero .v.blue { font-size: clamp(20px, 3vw, 32px); overflow-wrap: anywhere; }
+.comparison-table { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); margin: 16px 0; }
+.comparison-table th, .comparison-table td { padding: 9px 6px; border-bottom: 1px solid var(--line); text-align: left; overflow-wrap: anywhere; }
+.comparison-table th { color: var(--text-2); font-weight: 600; }
+#compareOutput .note { margin-top: 10px; }
+#comparisonCard .grid2 { grid-template-columns: 1fr 1fr; }
+#comparisonCard .field { display: block; min-width: 0; }
+#comparisonCard .field > label { display: block; margin-bottom: 8px; }
+#comparisonCard .field > select { width: 100%; max-width: 100%; }
+html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: none; }
+.no-js .decision-toolbar { display: none; }
+@media (max-width: 640px) {
+  .decision-toolbar { grid-template-columns: 1fr; gap: 14px; }
+  #comparisonCard .grid2, .coverage-list { grid-template-columns: 1fr; }
+  .plan-actions button { flex: 1 1 140px; }
+  .comparison-table th, .comparison-table td { padding: 8px 4px; }
 }

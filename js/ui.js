@@ -410,7 +410,11 @@
     }
 
     function open(fromAuto) {
-      if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; m.classList.remove('is-closing'); return; }
+      if (closeTimer) {
+        clearTimeout(closeTimer); closeTimer = null; m.classList.remove('is-closing');
+        if (window.__PSU_MOTION__) window.__PSU_MOTION__.surface(m.querySelector('.modal-card'), true);
+        return;
+      }
       if (isOpen()) return;
       openedAuto = !!fromAuto;
       syncNever();
@@ -418,6 +422,7 @@
       m.hidden = false;
       document.body.classList.add('modal-open');
       holdBackground();
+      if (window.__PSU_MOTION__) window.__PSU_MOTION__.surface(m.querySelector('.modal-card'), true);
       if (body) body.scrollTop = 0;
       if (okBtn) { try { okBtn.focus({ preventScroll: true }); } catch (e) { okBtn.focus(); } }
       announce('psu:disclaimer-open');
@@ -432,8 +437,11 @@
         } catch (e) {}
       }
       function finishClose() {
+        if (m.hidden) return;
+        clearTimeout(closeTimer);
         closeTimer = null;
         m.hidden = true;
+        if (window.__PSU_MOTION__) window.__PSU_MOTION__.stop(m.querySelector('.modal-card'));
         m.classList.remove('is-closing');
         document.body.classList.remove('modal-open');
         /* 必须在恢复焦点之前解除：lastFocus 多半在背景里，
@@ -448,7 +456,8 @@
       if (matchMedia('(prefers-reduced-motion: reduce)').matches) finishClose();
       else {
         m.classList.add('is-closing');
-        closeTimer = setTimeout(finishClose, 160);
+        if (window.__PSU_MOTION__) window.__PSU_MOTION__.surface(m.querySelector('.modal-card'), false);
+        closeTimer = setTimeout(finishClose, 180);
       }
     }
 
@@ -563,6 +572,7 @@
   var ITEM_SELECTOR = [
     'header.top',
     '.page-intro',
+    '.decision-toolbar',
     '.col-config > .card',
     '.col-result .sticky-col > *:not(.print-only)',
     'details.section-collapse'
@@ -744,26 +754,154 @@
   else start();
 })();
 
-/* 用户改变选项后提供局部确认；不订阅结果重算，避免批量渲染闪烁。 */
+/* 参考澎湃 OS 的连续响应。独立呈现层：从当前帧接续，不改文本或计算结果。 */
 (function () {
+  'use strict';
   var reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+  var printing = false;
+  var active = new Map(), pressed = new Set(), folds = new Map();
+  var ENTER = 'cubic-bezier(.16, 1, .3, 1)', FAST = 'cubic-bezier(.2, 0, .2, 1)';
+  var EXIT = 'cubic-bezier(.4, 0, 1, 1)';
+  function enabled(surface) {
+    return !reduced.matches && !printing && !document.hidden && !matchMedia('print').matches &&
+      (surface || !document.documentElement.classList.contains('psu-boot-active'));
+  }
+  function stop(el) {
+    var old = active.get(el);
+    if (old) { active.delete(el); old.cancel(); }
+  }
+  function play(el, frames, duration, easing, done, hold) {
+    if (!el || typeof el.animate !== 'function') return;
+    stop(el);
+    var animation = el.animate(frames, { duration: duration, easing: easing, fill: 'forwards' });
+    active.set(el, animation);
+    animation.finished.then(function () {
+      if (active.get(el) !== animation) return;
+      if (hold) return;
+      active.delete(el); animation.cancel();
+      if (done) done();
+    }, function () { if (active.get(el) === animation) active.delete(el); });
+  }
+  function pulse(el) {
+    if (!enabled() || !el || !el.isConnected || !el.getClientRects().length) return;
+    var style = getComputedStyle(el), running = active.has(el);
+    play(el, [
+      { opacity: running ? style.opacity : .82, transform: running ? style.transform : 'translateY(3px)' },
+      { opacity: 1, transform: 'none' }
+    ], 280, ENTER);
+  }
+  function press(el) {
+    if (!enabled() || !el || el.disabled || el.getAttribute('aria-disabled') === 'true' || pressed.has(el)) return;
+    pressed.add(el);
+    play(el, [{ transform: getComputedStyle(el).transform }, { transform: 'scale(.975)' }], 80, FAST, null, true);
+  }
+  function release(el) {
+    if (!pressed.delete(el)) return;
+    if (!el.isConnected) { stop(el); return; }
+    if (!enabled()) { stop(el); return; }
+    // 小幅回弹采用有限关键帧；重入时采样当前 transform，避免跳回第一帧。
+    play(el, [
+      { transform: getComputedStyle(el).transform, offset: 0 },
+      { transform: 'scale(1.006)', offset: .58 },
+      { transform: 'scale(1)', offset: 1 }
+    ], 360, ENTER);
+  }
+  function releaseAll() { Array.from(pressed).forEach(release); }
+  function buttonFrom(event) { return event.target.closest && event.target.closest('button, .btn'); }
+  document.addEventListener('pointerdown', function (event) {
+    if (event.isPrimary && event.button === 0) press(buttonFrom(event));
+  });
+  document.addEventListener('pointerup', releaseAll);
+  document.addEventListener('pointercancel', releaseAll);
+  document.addEventListener('pointerout', function (event) {
+    var button = buttonFrom(event);
+    if (button && (!event.relatedTarget || !button.contains(event.relatedTarget))) release(button);
+  });
+  document.addEventListener('keydown', function (event) {
+    if (!event.repeat && (event.key === ' ' || event.key === 'Enter')) press(buttonFrom(event));
+  });
+  document.addEventListener('keyup', function (event) { if (event.key === ' ' || event.key === 'Enter') releaseAll(); });
+  window.addEventListener('blur', releaseAll);
+
+  function surface(el, opening) {
+    if (!el || !enabled(true)) return;
+    var current = getComputedStyle(el), running = active.has(el);
+    play(el, [
+      { opacity: running ? current.opacity : (opening ? 0 : 1),
+        transform: running ? current.transform : (opening ? 'translateY(12px) scale(.96)' : 'none') },
+      { opacity: opening ? 1 : 0, transform: opening ? 'none' : 'translateY(8px) scale(.98)' }
+    ], opening ? 340 : 180, opening ? ENTER : EXIT, null, !opening);
+  }
+  window.__PSU_MOTION__ = { surface: surface, stop: stop };
+
+  document.addEventListener('change', function (event) {
+    var input = event.target;
+    if (!input.matches || !input.matches('select, input[type="checkbox"], input[type="radio"], input[type="number"]')) return;
+    pulse(input.closest('.switch')?.querySelector('.track') || input);
+  });
+
+  // 原生 details 的最终结构不变；仅在过渡期间固定高度，快速反向从当前高度接续。
+  document.addEventListener('click', function (event) {
+    var summary = event.target.closest && event.target.closest('summary');
+    var el = summary && summary.parentElement;
+    if (!el || el.tagName !== 'DETAILS' || event.defaultPrevented ||
+        event.target.closest('button, a, input, select, textarea') || !enabled() || typeof el.animate !== 'function') return;
+    event.preventDefault();
+    var old = folds.get(el), opening = old ? !old.opening : !el.open;
+    var start = el.getBoundingClientRect().height;
+    var contentFrames = new Map();
+    if (old) Array.from(el.children).forEach(function (child) {
+      var style = getComputedStyle(child); contentFrames.set(child, { opacity: style.opacity, transform: style.transform });
+    });
+    if (old) old.restore();
+    stop(el);
+    var height = el.style.height, overflow = el.style.overflow, expanded = summary.getAttribute('aria-expanded');
+    var contents = Array.from(el.children).filter(function (child) { return child !== summary; });
+    var record = { opening: opening, restore: function () {
+      stop(el); contents.forEach(stop); el.style.height = height; el.style.overflow = overflow;
+      if (expanded === null) summary.removeAttribute('aria-expanded'); else summary.setAttribute('aria-expanded', expanded);
+      folds.delete(el);
+    }, finish: function () { record.restore(); el.open = opening; } };
+    if (!opening && el.contains(document.activeElement)) summary.focus({ preventScroll: true });
+    el.open = opening;
+    var end = el.getBoundingClientRect().height;
+    if (!opening) el.open = true;
+    summary.setAttribute('aria-expanded', String(opening));
+    el.style.overflow = 'hidden';
+    folds.set(el, record);
+    if (Math.abs(end - start) > 1000) { record.finish(); return; }
+    contents.forEach(function (child) {
+      play(child, [contentFrames.get(child) || { opacity: opening ? 0 : 1, transform: 'none' },
+        { opacity: opening ? 1 : 0, transform: opening ? 'none' : 'translateY(-4px)' }], opening ? 300 : 180, ENTER, null, !opening);
+    });
+    play(el, [{ height: start + 'px' }, { height: end + 'px' }], opening ? 340 : 220, opening ? ENTER : FAST, record.finish);
+  });
+
   function clear() {
+    Array.from(folds.values()).forEach(function (record) { record.finish(); });
+    active.forEach(function (animation) { animation.cancel(); }); active.clear(); pressed.clear();
     document.querySelectorAll('.psu-ui-feedback').forEach(function (el) { el.classList.remove('psu-ui-feedback'); });
   }
-  document.addEventListener('change', function (event) {
-    if (reduced.matches || document.documentElement.classList.contains('psu-boot-active')) return;
-    var input = event.target;
-    if (!input.matches('select, input[type="checkbox"], input[type="radio"], input[type="number"]')) return;
-    var target = input.closest('.switch') || input;
-    target.classList.remove('psu-ui-feedback');
-    void target.offsetWidth; // 重新触发有限动画；快速连续切换也只保留当前反馈。
-    target.classList.add('psu-ui-feedback');
-  });
-  document.addEventListener('animationend', function (event) {
-    if (event.animationName === 'psu-ui-feedback') event.target.classList.remove('psu-ui-feedback');
-  });
   reduced.addEventListener('change', clear);
-  window.addEventListener('beforeprint', clear);
+  document.addEventListener('visibilitychange', function () { if (document.hidden) clear(); });
+  window.addEventListener('beforeprint', function () { printing = true; clear(); });
+  window.addEventListener('afterprint', function () { printing = false; });
+
+  function setup() {
+    if (typeof document.documentElement.animate === 'function') document.documentElement.classList.add('psu-motion-ready');
+    ['recoBig', 'heroPower', 'heroExpected', 'heroTransient', 'answerChipValue'].forEach(function (id) {
+      var target = document.getElementById(id);
+      if (!target) return;
+      var last = target.textContent;
+      new MutationObserver(function () {
+        var value = target.textContent;
+        if (value === last) return;
+        last = value; pulse(target);
+      }).observe(target, { childList: true, subtree: true, characterData: true });
+    });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', setup, { once: true });
+  else setup();
 })();
 
 /* 结果分层只整理呈现，不改计算；保留用户主动展开的风险详情。 */
@@ -820,26 +958,6 @@
       observer.observe(root, { childList: true, subtree: true, characterData: true });
     }
     refresh();
-  }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', setup, { once: true });
-  else setup();
-})();
-
-/* 推荐数值真实变化时做一次局部反馈；不滚动数字，不修改结果。 */
-(function () {
-  function setup() {
-    var target = document.getElementById('recoBig');
-    if (!target) return;
-    var last = target.textContent;
-    new MutationObserver(function () {
-      var value = target.textContent;
-      if (value === last) return;
-      last = value;
-      if (matchMedia('(prefers-reduced-motion: reduce)').matches || document.documentElement.classList.contains('psu-boot-active')) return;
-      target.classList.remove('psu-ui-feedback');
-      void target.offsetWidth;
-      target.classList.add('psu-ui-feedback');
-    }).observe(target, { childList: true, subtree: true, characterData: true });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', setup, { once: true });
   else setup();

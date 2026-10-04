@@ -159,8 +159,9 @@ const current = captureAll();
 if (mode === '--capture') {
   fs.mkdirSync(path.dirname(BASE_PATH), { recursive: true });
   const doc = {
-    _comment: '计算层回归基线。任何改版都不得让这些数字发生变化。' +
+    _comment: '计算层回归基线。功能升级的计算口径变更必须先审阅差异并记录原因。' +
               '重新生成：node tools/baseline.mjs --capture',
+    _revisionNote: 'v3.0.0 保留方案 C 的场景区间、完整性和超频规则。2026.10.1 用户授权扩充电源与核对参数：新增25款电源，38款按厂家版本记录，33款旧资料待核并退出推荐。重抓前 baseline-diff 有8处字段差异：6处推荐候选瓦数变化及问题码数组新增PSU_PCIE_CABLES造成的2处移位；全部夹具的subtotal、expected、transient、逐项瓦数、recFloor/recIdeal、升级余量不变。接口线束与300/450/600W功率边界由psucheck独立覆盖；厂家事实见test/psu-spec-facts.json，审计边界见docs/HARDWARE-AUDIT-2026-10-04.md。',
     _capturedAt: new Date().toISOString().slice(0, 10),
     fixtures: FIXTURES,
     expected: current

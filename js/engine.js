@@ -33,6 +33,14 @@
 
   var STANDARD_WATTS = [450, 500, 550, 650, 750, 850, 1000, 1200, 1300, 1500, 1600, 2000];
 
+  // 场景系数是可解释的工程假设，不是实测或统计置信区间。
+  var LOAD_RANGES = {
+    office: { cpu: [0.08, 0.25], gpu: [0.03, 0.12], other: [0.35, 0.65] },
+    gaming: { cpu: [0.25, 0.65], gpu: [0.65, 1.00], other: [0.60, 1.00] },
+    creator: { cpu: [0.55, 1.00], gpu: [0.35, 1.00], other: [0.65, 1.00] },
+    extreme: { cpu: [0.90, 1.00], gpu: [0.90, 1.00], other: [0.90, 1.00] }
+  };
+
   /* ------------------------------------------------------------- 工具函数 - */
 
   function byId(list, id) {
@@ -76,13 +84,22 @@
     return /12V-?2x6|12VHPWR|16pin/i.test(connector || '');
   }
 
+  function required12v2x6(connector) {
+    if (!needs12v2x6(connector)) return 0;
+    var m = /(\d+)\s*[×x]\s*(?:12V-?2x6|12VHPWR|16pin)/i.exec(connector || '');
+    return m ? parseInt(m[1], 10) : 1;
+  }
+
   /* ============================================================ 主计算 ====
    * @param {Object} cfg 用户配置
    * @returns {Object}    完整计算结果
    * ======================================================================*/
   function calculate(cfg) {
     cfg = cfg || {};
-    var oc = !!cfg.overclock;
+    // 旧 API 的 overclock 仍兼容；显式分项开关优先。
+    var cpuOc = Object.prototype.hasOwnProperty.call(cfg, 'cpuOc') ? !!cfg.cpuOc : !!cfg.overclock;
+    var gpuOc = Object.prototype.hasOwnProperty.call(cfg, 'gpuOc') ? !!cfg.gpuOc : !!cfg.overclock;
+    var oc = cpuOc || gpuOc;
     var issues = [];
     var items = [];
 
@@ -92,7 +109,7 @@
     if (cpu) {
       // 锁频型号（Intel 非 K / 部分 X3D）无法通过倍频超频，超频开关对其无效
       var canOc = cpu.unlocked !== false;
-      cpuOcApplied = oc && canOc;
+      cpuOcApplied = cpuOc && canOc;
       if (cpuOcApplied) {
         cpuWatts = num(cfg.cpuCustomWatts, cpu.ocPeak);
         cpuDetail = '超频模式：' + (cfg.cpuCustomWatts
@@ -100,15 +117,20 @@
           : '解锁功耗墙 ' + cpu.maxTurbo + 'W → ' + cpuWatts + 'W');
       } else {
         cpuWatts = cpu.maxTurbo;
-        cpuDetail = '最大睿频功耗（基础 ' + cpu.tdp + 'W / 睿频 ' + cpu.maxTurbo + 'W）' +
-                    (oc && !canOc ? ' — 该型号倍频锁定，超频开关不生效' : '');
+        cpuDetail = (cpu.brand === 'AMD' ? '规划PPT估值（TDP ' : '最大睿频功耗（基础 ') + cpu.tdp + 'W / ' + (cpu.brand === 'AMD' ? 'PPT ' : '睿频 ') + cpu.maxTurbo + 'W）' +
+                    (cpuOc && !canOc ? ' — 该型号倍频锁定，超频开关不生效' : '');
+      }
+      // 明确输入的功耗墙（含降压/限功耗）不依赖倍频超频能力。
+      if (num(cfg.cpuCustomWatts) > 0) {
+        cpuWatts = Math.min(3000, num(cfg.cpuCustomWatts));
+        cpuDetail = '用户设置功耗墙 ' + cpuWatts + 'W；需与 BIOS 设置核对';
       }
       items.push({
         group: '核心部件', label: 'CPU', name: cpu.name, alias: cpu.alias,
         watts: cpuWatts, nominal: cpu.tdp, detail: cpuDetail,
         locked: !canOc,
-        confidence: cfg.cpuCustomWatts ? 'estimate' : cpu.confidence,
-        source: cpu.source, highlight: true
+        confidence: cpu.confidence === 'leak' ? 'leak' : (cfg.cpuCustomWatts || cpuOcApplied || cpu.brand === 'AMD' ? 'estimate' : cpu.confidence),
+        source: num(cfg.cpuCustomWatts) > 0 || cpuOcApplied || cpu.brand === 'AMD' ? null : cpu.source, highlight: true
       });
     } else if (cfg.cpuName) {
       cpuWatts = num(cfg.cpuCustomWatts, 150);
@@ -138,9 +160,9 @@
 
       if (gpu) {
         if (aib) {
-          gpuWatts = oc ? aib.ocLimit : aib.tbp;
+          gpuWatts = gpuOc ? aib.ocLimit : aib.tbp;
         } else {
-          gpuWatts = oc ? Math.round(gpu.tbp * 1.08) : gpu.tbp;
+          gpuWatts = gpuOc ? Math.round(gpu.tbp * 1.08) : gpu.tbp;
         }
         gpuTransientFactor = gpu.transient;
         items.push({
@@ -151,18 +173,18 @@
           sub: aib ? aib.sku : '',
           watts: gpuWatts, nominal: aib ? aib.tbp : gpu.tbp,
           detail: aib
-            ? (oc ? 'OC 功耗墙 ' + aib.ocLimit + 'W' : '出厂 TBP ' + aib.tbp + 'W') +
+            ? (gpuOc ? 'OC 功耗墙 ' + aib.ocLimit + 'W' : '出厂 TBP ' + aib.tbp + 'W') +
               ' · ' + aib.connector + ' · ' +
               ({ aggressive: 'AIC 超频策略激进', moderate: 'AIC 超频策略中性', conservative: 'AIC 超频策略保守' }[aib.ocBias] || '') +
               (aib.liquid ? ' · 水冷形态' : '') +
               (aib.generated ? ' · 功耗墙由系列定位推算' : '')
             : '标称 TBP ' + gpu.tbp + 'W · ' + gpu.connector,
-          confidence: aib ? aib.confidence : gpu.confidence,
-          source: aib ? (aib.source || gpu.source) : gpu.source,
+          confidence: (aib ? aib.confidence : gpu.confidence) === 'leak' ? 'leak' : (gpuOc ? 'estimate' : (aib ? aib.confidence : gpu.confidence)),
+          source: gpuOc ? null : (aib ? (aib.source || null) : gpu.source),
           highlight: true
         });
       } else if (cfg.gpuName) {
-        gpuWatts = num(cfg.gpuCustomWatts, 250);
+      gpuWatts = Math.min(3000, Math.max(0, num(cfg.gpuCustomWatts, 250)));
         items.push({
           group: '核心部件', label: '显卡', name: cfg.gpuName,
           watts: gpuWatts, detail: '未收录型号，按同类均值估算（' + gpuWatts + 'W）',
@@ -291,6 +313,29 @@
     });
 
     /* ---------------------------------------------------- 9. 合计与系数 -- */
+    var missing = [];
+    if (!cpu && !cfg.cpuName) missing.push('CPU');
+    if (!gpu && !cfg.gpuName && cfg.gpuId !== '__igpu__') missing.push('显卡或集成显卡选择');
+    var canRecommend = missing.length === 0;
+    var missingPowerParts = [];
+    if (!mobo) missingPowerParts.push('主板');
+    if (!ram) missingPowerParts.push('内存');
+    if (storageWatts === 0) missingPowerParts.push('存储');
+    if (!cooler) missingPowerParts.push('散热器');
+    var assumptions = [];
+    if (cfg.mode === 'quick' && canRecommend) {
+      var defaults = [
+        [!mobo, '主板', 25], [!ram, '两条内存', 10],
+        [storageWatts === 0, '一块 NVMe SSD', 8], [!cooler, 'CPU 散热器', 10],
+        [!fan || fanQty === 0, '三只机箱风扇', 9]
+      ];
+      defaults.forEach(function (d) {
+        if (!d[0]) return;
+        assumptions.push(d[1] + ' ' + d[2] + 'W');
+        items.push({ group: '快速估算默认项', label: d[1], name: d[1] + '（默认）',
+          watts: d[2], detail: '快速估算假设；填写具体部件后替代', confidence: 'estimate', source: null });
+      });
+    }
     var subtotal = items.reduce(function (a, b) { return a + b.watts; }, 0);
     subtotal = round1(subtotal);
 
@@ -310,7 +355,16 @@
        是真值，会绕过白名单，后面 sc.factor 直接抛错（实测可复现）。 */
     var scenarioKey = Object.prototype.hasOwnProperty.call(SCENARIOS, cfg.scenario) ? cfg.scenario : 'gaming';
     var sc = SCENARIOS[scenarioKey];
-    var expected = round1(subtotal * sc.factor);
+    var load = LOAD_RANGES[scenarioKey];
+    var otherWattsForLoad = subtotal - cpuWatts - gpuWatts;
+    var expectedRange = {
+      low: round1(cpuWatts * load.cpu[0] + gpuWatts * load.gpu[0] + otherWattsForLoad * load.other[0]),
+      high: round1(cpuWatts * load.cpu[1] + gpuWatts * load.gpu[1] + otherWattsForLoad * load.other[1])
+    };
+    var expected = round1((expectedRange.low + expectedRange.high) / 2);
+    var estimatedWatts = items.reduce(function (sum, it) {
+      return sum + (it.confidence === 'official' || it.confidence === 'review' ? 0 : it.watts);
+    }, 0);
 
     // 瞬时峰值：显卡/硬盘启动瞬间会远超持续功耗
     var gpuPeak = gpuWatts;
@@ -329,12 +383,15 @@
     if (oc) redundancy = Math.max(redundancy, 1.50);
     if (hddCount > 0) redundancy = Math.max(redundancy, 1.40);
 
-    var recFloor = hasSelection ? roundUpStandard(subtotal * FLOOR_FACTOR) : 0;   // 硬性底线，不容差
-    var recIdeal = hasSelection ? roundUpStandard(subtotal * redundancy, 0.01) : 0;
+    var recFloor = canRecommend ? roundUpStandard(subtotal * FLOOR_FACTOR) : 0;
+    var recIdeal = canRecommend ? roundUpStandard(subtotal * redundancy, 0.01) : 0;
 
     // 厂商建议整机电源（如 ASUS 对 5090 全超频平台建议 1000W、
     // 微星对 5090 闪电建议 1600W）作为地板
-    var vendorFloor = aib && aib.recPsu ? aib.recPsu : (gpu && gpu.tbp >= 400 ? 1000 : 0);
+    var vendorFloor = canRecommend && aib && aib.recPsu ? aib.recPsu : 0;
+    var conservativeFloor = canRecommend && !vendorFloor && gpu && gpu.tbp >= 400 ? 1000 : 0;
+    if (conservativeFloor > recFloor) recFloor = conservativeFloor;
+    if (conservativeFloor > recIdeal) recIdeal = conservativeFloor;
     if (vendorFloor > recFloor) recFloor = vendorFloor;
     if (vendorFloor > recIdeal) recIdeal = vendorFloor;
     if (recIdeal < recFloor) recIdeal = recFloor;
@@ -342,7 +399,7 @@
     // 超出消费级电源常规范围时如实告知，而不是给出一个买不到的非标准瓦数
     var MAX_CONSUMER = STANDARD_WATTS[STANDARD_WATTS.length - 1];
     var idealTarget = round1(subtotal * redundancy);   // 未取整的理想目标，用于说明缺口
-    var beyond = hasSelection && recIdeal > MAX_CONSUMER;
+    var beyond = canRecommend && recIdeal > MAX_CONSUMER;
     if (beyond) {
       issues.push({
         level: 'warn', code: 'BEYOND_CONSUMER_PSU',
@@ -369,24 +426,29 @@
     if (vendorFloor) {
       reasons.push('显卡厂商建议整机电源不低于 ' + vendorFloor + 'W，已作为推荐下限');
     }
+    if (conservativeFloor) reasons.push('工具保守规则：显卡标称功耗 ≥400W，推荐下限取 1000W；不是厂商规格');
+    if (!canRecommend && hasSelection) issues.push({ level: 'info', code: 'INCOMPLETE_CONFIG',
+      title: '配置尚未完整，暂不推荐整机电源', detail: '缺少 ' + missing.join('、') + '；当前功耗只代表已填部件。',
+      fix: '先补齐 CPU 与显卡选择；仅用核显时请明确选择集成显卡。' });
     if (oc) reasons.push('已启用超频：冗余系数自动提升至 ≥1.50');
     if (hddCount > 0) {
       reasons.push('检测到 ' + hddCount + ' 块机械硬盘：已计入启动瞬间 ' + round1(storageSpinUp) +
                    'W 额外功耗，冗余系数提升至 ≥1.40');
     }
+    if (!canRecommend) reasons = ['当前仅计算已填部件，补齐 CPU 与显卡选择后再推荐整机电源。'];
 
     /* ------------------------------------------------ 11. 电源候选推荐 -- */
     /* 没选硬件时不推荐任何电源 —— 空配置下 compatible() 全部返回 true，
        会把 ≥450W 的型号全塞进候选池，渲染出 3 张「负载率 0%」的电源卡。 */
-    var psuPicks = hasSelection
-      ? pickPsus(recFloor, recIdeal, mobo, aib, gpu, pcCase)
+    var psuPicks = canRecommend && !beyond
+      ? pickPsus(recFloor, recIdeal, mobo, aib, gpu, pcCase, cpu, gpuWatts, storageList)
       : { value: null, balanced: null, flagship: null, min: null, list: [],
           distinctCount: 0, belowFloor: [], need12v2x6: false, need8pin: 0, filteredByCase: false };
 
     /* ------------------------------------------------- 12. 升级余量推演 -- */
     var otherWatts = subtotal - gpuWatts;
     var upgrade = null;
-    if (hasSelection && recIdeal > 0) {
+    if (canRecommend && !beyond && recIdeal > 0) {
       var gpuBudget = round1(recIdeal / redundancy - otherWatts);
       /* 升级建议只在「当前在售」的卡里挑。
          数据库补了 GTX 900 ~ RTX 30 系老卡之后，这里原来「TBP 最大者胜」的
@@ -432,7 +494,7 @@
       cpu: cpu, mobo: mobo, gpu: gpu, aib: aib, ram: ram, pcCase: pcCase,
       cooler: cooler, storage: storageList, nvmeCount: nvmeCount, gen5Count: gen5Count,
       ramSticks: ramSticks, ramCapacity: ramCapacity,
-      psu: byId(HWDB.psus, cfg.psuId)
+      psu: byId(HWDB.psus, cfg.psuId), gpuWatts: gpuWatts
     }));
 
     /* --------------------------------------------- 14. 数据库缺失提醒 ---- */
@@ -460,7 +522,7 @@
     /* ---------------------------------------------- 15. 已有电源评估 ----- */
     var existingPsu = null;
     var userPsu = byId(HWDB.psus, cfg.psuId);
-    if (userPsu) {
+    if (userPsu && canRecommend) {
       var util = subtotal / userPsu.watts;
       var utilExpected = expected / userPsu.watts;
       var verdict, vlevel;
@@ -474,22 +536,32 @@
         verdict = '负载区间合理，效率与静音表现良好';
         vlevel = 'ok';
       } else {
-        verdict = '功率严重过剩，长期低负载下效率偏低（但不影响安全）';
-        vlevel = 'warn';
+        verdict = '功率余量充足；效率与噪声需参考该型号的负载曲线';
+        vlevel = 'ok';
       }
+      var psuErrors = issues.filter(function (i) { return i.level === 'error' && /^PSU_/.test(i.code); });
+      if (psuErrors.length || beyond) { verdict = '接口、安装规格或功率不满足要求'; vlevel = 'error'; }
+      var verificationComplete = userPsu.verified && !issues.some(function (i) {
+        return /^(PSU_SPEC_UNVERIFIED|PSU_16PIN_UNVERIFIED|PSU_SATA_UNVERIFIED|PSU_NO_12V2X6|PSU_PCIE_CABLES|EPS_COUNT)$/.test(i.code);
+      });
+      if (!verificationComplete && vlevel !== 'error') { verdict = '规格或线束资料未齐，暂不能确认可复用'; vlevel = 'warn'; }
+      if (!userPsu.verified) { verdict = '具体版本与规格未核实；原录额定功率仅用于暂估，不能确认可复用'; vlevel = 'warn'; }
       existingPsu = {
         psu: userPsu,
         utilization: Math.round(util * 100),
         utilizationExpected: Math.round(utilExpected * 100),
         verdict: verdict, level: vlevel,
-        meetsFloor: userPsu.watts >= recFloor,
-        meetsIdeal: userPsu.watts >= recIdeal
+        meetsFloor: userPsu.watts >= recFloor && !beyond,
+        meetsIdeal: userPsu.watts >= recIdeal && !beyond,
+        specVerified: !!userPsu.verified, verificationComplete: !!verificationComplete,
+        reusable: !userPsu.verified ? null : userPsu.watts < recFloor || beyond || psuErrors.length ? false : verificationComplete ? true : null,
+        blockers: psuErrors.map(function (i) { return i.title; })
       };
-      if (vlevel === 'error' || vlevel === 'warn') {
+      if (userPsu.verified && (vlevel === 'error' || (vlevel === 'warn' && verificationComplete))) {
         var recPick = psuPicks.balanced || psuPicks.min || psuPicks.flagship;
         issues.push({
           level: vlevel, code: 'PSU_TIGHT',
-          title: (vlevel === 'error' ? '所选电源功率不足' : '所选电源余量偏低') +
+          title: (psuErrors.length ? '所选电源的接口或安装规格不满足要求' : vlevel === 'error' ? '所选电源功率不足' : '所选电源余量偏低') +
                  '（负载率 ' + Math.round(util * 100) + '%）',
           detail: '规划功耗 ' + subtotal + 'W ÷ 电源额定 ' + userPsu.watts + 'W = ' +
                   Math.round(util * 100) + '%。' + verdict + '。',
@@ -504,11 +576,29 @@
 
     return {
       hasSelection: hasSelection,
+      canRecommend: canRecommend, missing: missing, missingPowerParts: missingPowerParts, assumptions: assumptions,
+      beyond: beyond,
+      confidence: { estimatedWatts: round1(estimatedWatts),
+        estimatedPercent: subtotal ? Math.round(estimatedWatts / subtotal * 100) : 0,
+        sensitivityWatts: round1(subtotal + estimatedWatts * 0.20),
+        sensitivityPsu: canRecommend ? roundUpStandard(Math.max(subtotal + estimatedWatts * 0.20, vendorFloor / redundancy, conservativeFloor / redundancy) * redundancy) : 0 },
+      coverage: [
+        { label: 'CPU / 主板插槽', checked: !!(cpu && mobo) },
+        { label: '内存 / 主板规格', checked: !!(ram && mobo) },
+        { label: '主板 / 机箱板型', checked: !!(mobo && pcCase) },
+        { label: '显卡 / 机箱尺寸', checked: !!(aib && pcCase && !aib.generated && aib.confidence !== 'estimate') },
+        { label: '散热器 / CPU', checked: !!(cooler && cpu) },
+        { label: '存储 / 主板插槽', checked: !!(storageList.length && mobo) },
+        { label: '电源 / 显卡接口', checked: !!(userPsu && userPsu.verified && (aib || gpu) && verificationComplete) },
+        { label: '电源 / 机箱规格', checked: !!(userPsu && userPsu.verified && pcCase) }
+      ],
       scenario: scenarioKey,
       scenarioInfo: sc,
       items: items,
       subtotal: subtotal,
       expected: expected,
+      expectedRange: expectedRange,
+      loadRanges: load,
       transient: transient,
       redundancy: redundancy,
       recFloor: recFloor,
@@ -561,17 +651,42 @@
    *  三者去重，若同瓦数段可选型号太少则如实告知。
    * ======================================================================*/
   var EFF_RANK = { '80 PLUS 钛金': 4, '80 PLUS 铂金': 3, '80 PLUS 金牌': 2, '80 PLUS 铜牌': 1 };
+  function psuBudget(p) { return p.price > 0 ? p.price : Infinity; }
 
-  function pickPsus(recFloor, recIdeal, mobo, aib, gpu, pcCase) {
+  function cable16Status(p, count, watts) {
+    if (!count) return true;
+    if (p.conn12v2x6 < count) return false;
+    if (!Array.isArray(p.connector16Watts) || p.connector16Watts.length < count) return null;
+    var ratings = p.connector16Watts.slice().sort(function (a, b) { return b - a; }).slice(0, count);
+    // Conservative: reserve full board power across the required cables. Slot
+    // power is not subtracted; actual BIOS limits / dual-input distribution vary.
+    return ratings.every(function (w) { return w >= watts / count; });
+  }
+
+  function sataNeeded(storage) {
+    return (storage || []).reduce(function (n, s) {
+      if (!s) return n;
+      var d = byId(HWDB.storage, s.id);
+      return n + (d && (d.kind === 'HDD' || d.kind === 'SATA') ? Math.max(0, num(s.qty, 0)) : 0);
+    }, 0);
+  }
+
+  function pickPsus(recFloor, recIdeal, mobo, aib, gpu, pcCase, cpu, gpuWatts, storage) {
     var need12v = aib ? needs12v2x6(aib.connector) : (gpu ? needs12v2x6(gpu.connector) : false);
     var need8pin = aib ? requiredPcie8pin(aib.connector) : (gpu ? requiredPcie8pin(gpu.connector) : 0);
     var casePsuForm = pcCase ? pcCase.psuFormFactor : null;
+    var need12Count = required12v2x6(aib ? aib.connector : (gpu ? gpu.connector : ''));
+    var needEps = cpu && cpu.maxTurbo >= 200 ? 2 : 1;
 
     function compatible(p) {
+      if (!p.verified) return false;
       var form = p.formFactor || 'ATX';
       if (casePsuForm && casePsuForm.indexOf(form) === -1) return false;
-      if (need12v && p.conn12v2x6 < 1 && p.pcie8pin < 4) return false; // 允许 4×8pin 转 16pin
+      if (need12Count && p.conn12v2x6 < need12Count) return false;
+      if (need12Count && cable16Status(p, need12Count, gpuWatts) !== true) return false;
       if (need8pin > 0 && p.pcie8pin < need8pin) return false;
+      if (p.eps8pin < needEps) return false;
+      if (sataNeeded(storage) && (p.sata == null || p.sata < sataNeeded(storage))) return false;
       return true;
     }
 
@@ -583,13 +698,13 @@
 
     pool = pool.slice().sort(function (a, b) {
       if (a.watts !== b.watts) return a.watts - b.watts;
-      return (a.price || 0) - (b.price || 0);
+      return psuBudget(a) - psuBudget(b);
     });
 
     var picks = { value: null, balanced: null, flagship: null };
     if (pool.length) {
       // 性价比之选：达标前提下价格最低
-      picks.value = pool.slice().sort(function (a, b) { return (a.price || 0) - (b.price || 0); })[0];
+      picks.value = pool.filter(function (p) { return p.price > 0; }).sort(function (a, b) { return psuBudget(a) - psuBudget(b); })[0] || null;
       // 旗舰之选：瓦数最高，其次认证最高
       picks.flagship = pool.slice().sort(function (a, b) {
         if (b.watts !== a.watts) return b.watts - a.watts;
@@ -601,7 +716,7 @@
       picks.balanced = base.slice().sort(function (a, b) {
         var d = (EFF_RANK[b.efficiency] || 0) - (EFF_RANK[a.efficiency] || 0);
         if (d !== 0) return d;
-        return (a.price || 0) - (b.price || 0);
+        return psuBudget(a) - psuBudget(b);
       })[0];
     }
 
@@ -618,12 +733,14 @@
       flagship: picks.flagship,
       // 兼容旧字段名
       min: picks.value,
-      list: pool.slice(0, 8),
+      list: compliant.slice().sort(function (a, b) { return a.watts - b.watts || psuBudget(a) - psuBudget(b); }),
       distinctCount: distinct.length,
       // 非达标但接口兼容的型号，用于「预算紧张时的次优选择」提示
       belowFloor: all.filter(function (p) { return p.watts < recFloor; })
                     .sort(function (a, b) { return b.watts - a.watts; }).slice(0, 3),
       need12v2x6: need12v,
+      need12Count: need12Count,
+      needEps: needEps,
       need8pin: need8pin,
       filteredByCase: !!casePsuForm
     };
@@ -634,6 +751,12 @@
     var out = [];
     var cpu = ctx.cpu, mobo = ctx.mobo, gpu = ctx.gpu, aib = ctx.aib;
     var pcCase = ctx.pcCase, cooler = ctx.cooler, ram = ctx.ram, psu = ctx.psu;
+    var cpuOc = Object.prototype.hasOwnProperty.call(cfg, 'cpuOc') ? !!cfg.cpuOc : !!cfg.overclock;
+    var gpuOc = Object.prototype.hasOwnProperty.call(cfg, 'gpuOc') ? !!cfg.gpuOc : !!cfg.overclock;
+    if (cpu && cfg.gpuId === '__igpu__' && cpu.igpu === false) {
+      out.push({ level: 'error', code: 'NO_INTEGRATED_GPU', title: '所选 CPU 没有集成显卡',
+        detail: cpu.name + ' 无核显，仅选择集成显卡时无法提供视频输出。', fix: '请选择独立显卡或带核显的 CPU。' });
+    }
 
     /* ---- CPU ↔ 主板 插槽 ---- */
     if (cpu && mobo && cpu.socket !== mobo.socket) {
@@ -674,12 +797,12 @@
     if (aib && pcCase && aib.length) {
       if (aib.length > pcCase.gpuMaxLen) {
         out.push({
-          level: 'error', code: 'GPU_TOO_LONG',
-          title: '显卡长度超出机箱限长',
+          level: aib.generated || aib.confidence === 'estimate' ? 'warn' : 'error', code: 'GPU_TOO_LONG',
+          title: (aib.generated || aib.confidence === 'estimate' ? '估算尺寸提示：' : '') + '显卡长度超出机箱限长',
           detail: aib.vendor + ' ' + aib.series + ' 长度 ' + aib.length + 'mm，机箱 ' +
                   pcCase.model + ' 显卡限长 ' + pcCase.gpuMaxLen + 'mm，超出 ' +
                   round1(aib.length - pcCase.gpuMaxLen) + 'mm。',
-          fix: '建议更换限长 ≥' + Math.ceil(aib.length / 10) * 10 + 'mm 的机箱。'
+          fix: aib.generated || aib.confidence === 'estimate' ? '尺寸为系列估算，先核对具体SKU官方尺寸与实际安装空间。' : '建议更换限长 ≥' + Math.ceil(aib.length / 10) * 10 + 'mm 的机箱。'
         });
       } else if (pcCase.gpuMaxLen - aib.length < 15) {
         out.push({
@@ -844,6 +967,12 @@
     }
 
     /* ---- 机箱 ↔ 电源规格 ---- */
+    if (psu && !psu.verified) {
+      out.push({ level: 'warn', code: 'PSU_SPEC_UNVERIFIED', title: '所选电源的具体版本与规格待核实',
+        detail: psu.model + ' 缺少可确认的厂家规格，暂不进行接口或安装规格判断。',
+        fix: '按铭牌型号、版本与实际线束核对；该条目不进入自动推荐，也不能确认可复用。' });
+      psu = null;
+    }
     if (pcCase && psu) {
       var pForm = psu.formFactor || 'ATX';
       if (pcCase.psuFormFactor.indexOf(pForm) === -1) {
@@ -860,15 +989,32 @@
     if (psu && (aib || gpu)) {
       var conn = aib ? aib.connector : gpu.connector;
       var need12 = needs12v2x6(conn);
+      var need12Count = required12v2x6(conn);
       var need8 = requiredPcie8pin(conn);
-      if (need12 && psu.conn12v2x6 < 1) {
+      if (need12Count && psu.conn12v2x6 < need12Count) {
+        var missing12 = need12Count - psu.conn12v2x6;
+        var canAdapt = psu.pcie8pin >= missing12 * 4;
         out.push({
-          level: 'warn', code: 'PSU_NO_12V2X6',
-          title: '电源没有原生 12V-2x6 / 12VHPWR 接口',
+          level: canAdapt ? 'warn' : 'error', code: 'PSU_NO_12V2X6',
+          title: '电源原生 12V-2x6 / 12VHPWR 接口数量不足',
           detail: psu.model + ' 提供 ' + psu.pcie8pin + ' 个 PCIe 8pin，显卡需要 ' + conn + '。',
-          fix: '需使用显卡附带的 4×8pin 转 16pin 转接线。' +
-               '注意：转接线会增加接触电阻与发热风险，强烈建议改用原生 12V-2x6 的 ATX 3.1 电源。'
+          fix: canAdapt ? '缺少 ' + missing12 + ' 个原生接口。转接方案须逐一核实显卡附带线材与独立线束；不能视为已确认可直接复用。'
+            : '原生接口与按每个缺口预留 4 个 8pin 的转接条件均不满足，请更换接口足量的电源。'
         });
+      }
+      if (need12Count && psu.conn12v2x6 >= need12Count) {
+        var cableStatus = cable16Status(psu, need12Count, ctx.gpuWatts || (aib ? aib.tbp : gpu.tbp));
+        if (cableStatus !== true) out.push({ level: cableStatus === false ? 'error' : 'warn',
+          code: cableStatus === false ? 'PSU_16PIN_POWER' : 'PSU_16PIN_UNVERIFIED',
+          title: cableStatus === false ? '随附16-pin线缆额定功率不足' : '16-pin线缆额定功率尚未确认',
+          detail: '显卡规划功耗 ' + (ctx.gpuWatts || (aib ? aib.tbp : gpu.tbp)) + 'W；线缆标称 ' +
+            (psu.connector16Watts ? psu.connector16Watts.join('W / ') + 'W' : '待核实') + '。',
+          fix: '按具体电源版本和显卡功耗墙选择足额的原厂线缆。工具保守按整卡功耗预留，不扣除PCIe插槽供电。' });
+      }
+      if (need8 > 1 && psu.pcie8pinCables != null && psu.pcie8pinCables < need8) {
+        out.push({ level: 'warn', code: 'PSU_PCIE_CABLES', title: 'PCIe接头足量，但独立线束偏少',
+          detail: psu.model + ' 随附 ' + psu.pcie8pinCables + ' 条PCIe 8pin线束，显卡需要 ' + need8 + ' 个接头。',
+          fix: '串接头不等于独立线束；按显卡厂商接线要求核对后再判断能否复用。' });
       }
       if (need8 > 0 && psu.pcie8pin < need8) {
         out.push({
@@ -903,6 +1049,16 @@
     }
 
     /* ---- CPU 供电接口 ---- */
+    if (psu && sataNeeded(ctx.storage) > 0 && psu.sata == null) {
+      out.push({ level: 'warn', code: 'PSU_SATA_UNVERIFIED', title: 'SATA供电接头数量待核实',
+        detail: '已选硬盘需要 ' + sataNeeded(ctx.storage) + ' 个SATA接头，厂家资料未明确拆分数量。',
+        fix: '核对随附线材及实际接头数量后再判断能否复用。' });
+    }
+    if (psu && sataNeeded(ctx.storage) > 0 && psu.sata != null && psu.sata < sataNeeded(ctx.storage)) {
+      out.push({ level: 'error', code: 'PSU_SATA_COUNT', title: 'SATA供电接头不足',
+        detail: '已选硬盘需要 ' + sataNeeded(ctx.storage) + ' 个SATA供电接头，电源随附 ' + psu.sata + ' 个。',
+        fix: '选择SATA接头足量的电源，并额外核对水泵、集线器等设备的供电需求。' });
+    }
     if (psu && cpu && cpu.maxTurbo >= 200 && psu.eps8pin < 2) {
       out.push({
         level: 'warn', code: 'EPS_COUNT',
@@ -913,7 +1069,7 @@
     }
 
     /* ---- 超频提示 ---- */
-    if (cfg.overclock && cpu && cpu.unlocked === false) {
+    if (cpuOc && cpu && cpu.unlocked === false && !num(cfg.cpuCustomWatts)) {
       out.push({
         level: 'info', code: 'CPU_LOCKED',
         title: '该 CPU 倍频锁定，超频开关不生效',
@@ -923,11 +1079,11 @@
              '部分主板支持 BCLK 外频超频，但幅度有限且有风险。'
       });
     }
-    if (cfg.overclock && (!cpu || cpu.unlocked !== false)) {
+    if ((cpuOc && (!cpu || cpu.unlocked !== false)) || gpuOc) {
       out.push({
         level: 'warn', code: 'OC_NOTICE',
         title: '已启用超频功耗模式',
-        detail: 'CPU 与显卡均按解锁功耗墙后的数值计算，瞬时峰值可能进一步超出。',
+        detail: [cpuOc ? 'CPU' : '', gpuOc ? '显卡' : ''].filter(Boolean).join('、') + ' 已开启超频功耗模式；分项开关独立生效。',
         fix: '建议选择更高瓦数电源（冗余系数已自动提升至 ≥1.50），并确认主板供电与散热余量。'
       });
     }
@@ -941,6 +1097,7 @@
   function advise(cfg, budget) {
     var r = calculate(cfg);
     var tips = [];
+    if (!r.canRecommend || r.beyond) return { result: r, tips: tips };
     var gpuPct = r.subtotal > 0 ? r.gpuWatts / r.subtotal : 0;
 
     if (gpuPct >= 0.55) {
@@ -1012,7 +1169,8 @@
     STANDARD_WATTS: STANDARD_WATTS,
     roundUpStandard: roundUpStandard,
     needs12v2x6: needs12v2x6,
-    requiredPcie8pin: requiredPcie8pin
+    requiredPcie8pin: requiredPcie8pin,
+    required12v2x6: required12v2x6, LOAD_RANGES: LOAD_RANGES
   };
 
   root.PSUEngine = API;
