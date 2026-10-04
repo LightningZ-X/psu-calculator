@@ -120,7 +120,10 @@ setTimeout(async function () {
     transientButton.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
     var pressedAnimations = transientButton.getAnimations().length;
     transientButton.remove(); document.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', bubbles: true }));
-    t('按压过程中移除按钮会清理受管动画', pressedAnimations === 1 && transientButton.getAnimations().length === 0);
+    // 云端 Windows 的无障碍设置可能禁用动画；此时应从一开始就没有动画。
+    // 普通模式仍要求先有一个按压动画，移除后两种模式都必须完全清理。
+    var motionSuppressed = matchMedia('(prefers-reduced-motion: reduce)').matches || document.hidden || matchMedia('print').matches;
+    t('按压过程中移除按钮会清理受管动画（尊重减少动画设置）', pressedAnimations === (motionSuppressed ? 0 : 1) && transientButton.getAnimations().length === 0);
     t('无捕获异常', (window.__PSU_ERRORS || []).length === 0);
     dbg.applyPreset('office'); set('planName', '恢复验证', 'input'); click('savePlan');
   } catch (e) { results.push('FAIL | 自检异常：' + e.message + ' @ ' + e.stack); }
