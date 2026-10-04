@@ -1,0 +1,31 @@
+{
+  "checkedAt": "2026-10-04",
+  "description": "Manually transcribed manufacturer facts, independent of catalog generation. Unknown fields are deliberately omitted. This fixture does not replace external verification.",
+  "facts": [
+    { "id": "msi-mag-a550bn", "expected": { "watts": 550, "conn12v2x6": 0, "eps8pin": 1, "pcie8pin": 2, "sata": 5 }, "source": "https://us.msi.com/Power-Supply/MAG-A550BN/Specification" },
+    { "id": "msi-mag-a650gl", "expected": { "watts": 650, "conn12v2x6": 0, "eps8pin": 2, "pcie8pin": 4, "sata": 6 }, "source": "https://us.msi.com/Power-Supply/MAG-A650GL/Specification" },
+    { "id": "msi-mag-a750gl-pcie5", "expected": { "connector16Watts": [450], "pcie8pin": 3, "sata": 8 }, "source": "https://us.msi.com/Power-Supply/MAG-A750GL-PCIE5" },
+    { "id": "msi-mag-a850gl-pcie5", "expected": { "connector16Watts": [600], "pcie8pin": 4, "sata": 8 }, "source": "https://us.msi.com/Power-Supply/MAG-A850GL-PCIE5/Specification" },
+    { "id": "deepcool-pl550d-v2", "expected": { "connector16Watts": [300], "eps8pin": 2, "pcie8pin": 3, "sata": 6 }, "source": "https://www.deepcool.com/products/PowerSupplyUnits/powersupplyunits/PL550D-V2-ATX3.1-Direct-Power-Supply/2024/19090.shtml" },
+    { "id": "deepcool-pl650d-v2", "expected": { "connector16Watts": [300], "sata": 6 }, "source": "https://www.deepcool.com/products/PowerSupplyUnits/powersupplyunits/PL650D-V2-ATX3.1-Direct-Power-Supply/2024/19091.shtml" },
+    { "id": "deepcool-pl750d-v2", "expected": { "connector16Watts": [450], "sata": 8 }, "source": "https://deepcool.com/products/PowerSupplyUnits/powersupplyunits/PL750D-V2-ATX3.1-Direct-Power-Supply/2024/19092.shtml" },
+    { "id": "deepcool-pn650m", "expected": { "connector16Watts": [450], "pcie8pin": 3, "sata": 8 }, "source": "https://www.deepcool.com/products/PowerSupplyUnits/powersupplyunits/PN650M-ATX3.1-Modular-Power-Supply/2023/17878.shtml" },
+    { "id": "deepcool-pn850m", "expected": { "connector16Watts": [600], "pcie8pin": 3, "sata": 8 }, "source": "https://deepcool.com/products/PowerSupplyUnits/powersupplyunits/PN850M-ATX3.1-Modular-Power-Supply/2023/17874.shtml" },
+    { "id": "coolermaster-mwe550-bronze-v3-230v", "expected": { "atx": "ATX 3.1", "conn12v2x6": 0, "eps8pin": 2, "pcie8pin": 2, "sata": 6, "inputVoltage": "200–240V" }, "source": "https://www.coolermaster.com/en-in/products/mwe-bronze-550-v3-230v.html" },
+    { "id": "coolermaster-mwe650-bronze-v3-230v", "expected": { "pcie8pin": 4, "sata": 6 }, "source": "https://www.coolermaster.com/en-in/products/mwe-bronze-650-v3-230v.html" },
+    { "id": "coolermaster-mwe750-bronze-v3-230v", "expected": { "pcie8pin": 4, "sata": 6 }, "source": "https://www.coolermaster.com/en-au/products/mwe-bronze-750-v3-230v.html" },
+    { "id": "fsp-vita-gm650", "expected": { "atx": "ATX 3.1", "conn12v2x6": 0, "pcie8pin": 4, "sata": 8 }, "source": "https://www.fsplifestyle.com/en/product/VITAGM650W.html" },
+    { "id": "fsp-vita-gm650-gen5", "expected": { "conn12v2x6": 1, "connector16Watts": null }, "source": "https://www.fsplifestyle.com/en/product/VITAGM650WGEN5.html" },
+    { "id": "seasonic-focus-gx650", "expected": { "conn12v2x6": 0, "pcie8pin": 4, "eps8pin": 2, "sata": 10 }, "source": "https://seasonic.com/wp-content/uploads/2024/04/FOCUS-GX-FX.pdf" },
+    { "id": "seasonic-focus-gx750", "expected": { "pcie8pin": 2, "sata": 8, "rail12vWatts": 744 }, "source": "https://seasonic.com/wp-content/uploads/2024/07/ATX3.1-FOCUS-GX.pdf" },
+    { "id": "seasonic-focus-gx850", "expected": { "pcie8pin": 3, "sata": 8, "rail12vWatts": 840 }, "source": "https://seasonic.com/wp-content/uploads/2024/07/ATX3.1-FOCUS-GX.pdf" },
+    { "id": "seasonic-prime-tx1300", "expected": { "conn12v2x6": 1, "pcie8pin": 6, "eps8pin": 3, "sata": 18 }, "source": "https://seasonic.com/wp-content/uploads/2025/03/Prime-TX-ATX-3.0-2024-v2.pdf" },
+    { "id": "seasonic-prime-tx1600", "expected": { "conn12v2x6": 2, "pcie8pin": 6, "eps8pin": 3, "sata": 18 }, "source": "https://seasonic.com/wp-content/uploads/2025/03/Prime-TX-ATX-3.0-2024-v2.pdf" },
+    { "id": "seasonic-sfx-750", "expected": { "formFactor": "SFX", "conn12v2x6": 0, "pcie8pin": 4, "pcie8pinCables": 3, "sata": 6 }, "source": "https://seasonic.com/focus-sgx-2021/" },
+    { "id": "corsair-sf1000", "expected": { "formFactor": "SFX", "atx": "ATX 3.1", "pcie8pin": 4, "sata": 8 }, "source": "https://www.corsair.com/us/en/p/psu/cp-9020257-na/sf-series-sf1000-fully-modular-80-plus-platinum-sfx-power-supply-cp-9020257-na" },
+    { "id": "asus-rog-thor-1200p2", "expected": { "efficiency": "80 PLUS 铂金", "pcie8pin": 8, "sata": 12 }, "source": "https://rog.asus.com/br/power-supply-units/rog-thor/rog-thor-1200p2-gaming-model/spec/" },
+    { "id": "deepcool-pq1000m", "expected": { "atx": "ATX 2.4", "conn12v2x6": 0, "pcie8pin": 6, "sata": 10 }, "source": "https://www.deepcool.com/products/PowerSupplyUnits/powersupplyunits/PQ1000M-80-PLUS-Gold-Modular-Power-Supply/2021/14033.shtml" },
+    { "id": "msi-meg-ai1300p", "expected": { "connector16Watts": [600], "pcie8pin": 8, "sata": 16 }, "source": "https://us.msi.com/Power-Supply/MEG-Ai1300P-PCIE5/Specification" },
+    { "id": "msi-meg-ai1000p", "expected": { "connector16Watts": [600], "pcie8pin": 8, "sata": 12 }, "source": "https://us.msi.com/Power-Supply/MEG-Ai1000P-PCIE5/Specification" }
+  ]
+}

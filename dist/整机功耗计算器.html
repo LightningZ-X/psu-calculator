@@ -17,7 +17,7 @@
 
 <!-- ---------------------------------------------------------------- SEO -- -->
 <title>台式机功耗计算器 · 电源瓦数怎么选</title>
-<meta name="description" content="选好 CPU、显卡、主板就能算出整机功耗，并直接给出该买多大瓦数的电源。覆盖 164 款 CPU 与 RTX 50 到 GTX 900 的 71 款显卡、23 家 AIC 厂商 2386 个板型，含 ATX 3.1 与 12V-2x6 接口校验。">
+<meta name="description" content="选好 CPU、显卡、主板就能算出整机功耗，并直接给出该买多大瓦数的电源。覆盖 164 款 CPU 与 RTX 50 到 GTX 900 的 73 款显卡、23 家 AIC 厂商 2439 个板型，含 ATX 3.1 与 12V-2x6 接口校验。">
 <meta name="robots" content="index, follow">
 <link rel="canonical" href="https://lightningz-x.github.io/">
 
@@ -33,7 +33,7 @@
 <meta property="og:site_name" content="台式机功耗计算器">
 <meta property="og:locale" content="zh_CN">
 <meta property="og:title" content="台式机功耗计算器 · 电源瓦数怎么选">
-<meta property="og:description" content="选好 CPU、显卡、主板就能算出整机功耗，并直接给出该买多大瓦数的电源。164 款 CPU、71 款显卡、2386 个显卡板型，老平台也支持。">
+<meta property="og:description" content="选好 CPU、显卡、主板就能算出整机功耗，并直接给出该买多大瓦数的电源。164 款 CPU、73 款显卡、2439 个显卡板型，老平台也支持。">
 <meta property="og:url" content="https://lightningz-x.github.io/">
 <meta property="og:image" content="https://lightningz-x.github.io/assets/og-image.png">
 <meta property="og:image:width" content="1200">
@@ -41,7 +41,7 @@
 <meta property="og:image:alt" content="台式机功耗计算器">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="台式机功耗计算器 · 电源瓦数怎么选">
-<meta name="twitter:description" content="选好配置就能算出整机功耗，直接给出该买多大瓦数的电源。164 款 CPU、71 款显卡型号、23 家 AIC 厂商 2386 个板型。">
+<meta name="twitter:description" content="选好配置就能算出整机功耗，直接给出该买多大瓦数的电源。164 款 CPU、73 款显卡型号、23 家 AIC 厂商 2439 个板型。">
 <meta name="twitter:image" content="https://lightningz-x.github.io/assets/og-image.png">
 
 <!-- -------------------------------------------------------------- 图标 -- -->
@@ -67,7 +67,7 @@
     "电源瓦数推荐（ATX 3.1）",
     "CPU 与主板插槽兼容性校验",
     "CPU 三级筛选（品牌 / 系列世代 / 型号，164 款）",
-    "显卡四级筛选（品牌 / 世代 / 型号 / AIC 板型，71 款型号 · 2386 个板型 · 23 家厂商）",
+    "显卡四级筛选（品牌 / 世代 / 型号 / AIC 板型，73 款型号 · 2439 个板型 · 23 家厂商）",
     "显卡板型功耗墙区分（ROG Astral、SUPRIM、AORUS 等）",
     "老平台兼容：GTX 900 / 10 系、RTX 20 / 30 系、RX 500 / 5000 / 6000 系",
     "12V-2x6 / PCIe 8pin 接口数量校验"
@@ -164,6 +164,10 @@
 
   --ease: cubic-bezier(.4, 0, .2, 1);
   --dur: 150ms;
+  /* 参考澎湃 OS 的跟手感；这些曲线为网页自行调校。 */
+  --motion-enter: cubic-bezier(.16, 1, .3, 1);
+  --motion-exit: cubic-bezier(.4, 0, 1, 1);
+  --motion-fast: cubic-bezier(.2, 0, .2, 1);
   --shadow-float: 0 8px 32px rgba(0, 0, 0, .6);
 }
 
@@ -393,11 +397,12 @@ details.section-collapse > summary::before {
    高度自然动画，且不需要事先知道内容有多高（由 js/ui.js 包的那层 .card-body-in 承载）。 */
 .col-config .card > .card-body {
   display: grid; grid-template-rows: 1fr;
-  transition: grid-template-rows 240ms var(--ease), opacity 170ms var(--ease);
+  transition: grid-template-rows 320ms var(--motion-enter), opacity 180ms var(--motion-fast);
 }
 .col-config .card > .card-body > .card-body-in { min-height: 0; overflow: hidden; }
 .col-config .card.is-collapsed > .card-body {
   grid-template-rows: 0fr; opacity: 0; pointer-events: none;
+  transition-duration: 220ms, 140ms;
 }
 
 /* 折叠开关 */
@@ -867,6 +872,7 @@ details.section-collapse > summary .hint {
 .modal-backdrop {
   position: fixed; inset: 0; z-index: 300;
   background: rgba(0, 0, 0, .74);
+  backdrop-filter: blur(8px);
   display: grid; place-items: center;
   padding: 20px; overflow-y: auto;
 }
@@ -1090,23 +1096,35 @@ html.psu-boot-pending body > :not(.psu-boot):not(script):not(noscript) { opacity
   to { opacity: 1; transform: translate(0, 0); }
 }
 
-/* 交互反馈：短时、局部，只新增 transform / opacity 动效。 */
-button, .btn { transition: transform 120ms var(--ease), opacity 120ms var(--ease); }
-button:not(:disabled):active, .btn:not([aria-disabled="true"]):active {
-  transform: translateY(1px) scale(.98);
+/* 局部回弹不改变控件尺寸或文档布局；JS 从当前帧接续，CSS 保留降级路径。 */
+button, .btn {
+  transition: transform 320ms var(--motion-enter), opacity 180ms var(--motion-fast),
+    background-color 180ms var(--motion-fast), border-color 180ms var(--motion-fast), color 180ms var(--motion-fast);
 }
-#btnTheme .ico { transition: transform 220ms var(--ease); }
+html:not(.psu-motion-ready) button:not(:disabled):active,
+html:not(.psu-motion-ready) .btn:not([aria-disabled="true"]):active {
+  transform: scale(.975); transition-duration: 80ms;
+}
+#btnTheme .ico { transition: transform 380ms var(--motion-enter); }
 html[data-theme="light"] #btnTheme .ico { transform: rotate(180deg); }
+.switch .track::after { transition: transform 320ms var(--motion-enter), background-color 180ms var(--motion-fast); }
 .col-config .card > .card-body > .card-body-in {
-  transform: translateY(0); transition: transform 200ms var(--ease);
+  transform: translateY(0); transition: transform 320ms var(--motion-enter);
 }
-.col-config .card.is-collapsed > .card-body > .card-body-in { transform: translateY(-4px); }
+.col-config .card.is-collapsed > .card-body > .card-body-in { transform: translateY(-6px); }
 html:not(.psu-boot-active) details[open] > :not(summary),
-.modal-backdrop:not([hidden]) > .modal-card { animation: psu-ui-enter .22s var(--ease) both; }
+.modal-backdrop:not([hidden]) > .modal-card { animation: psu-ui-enter .32s var(--motion-enter) both; }
+.modal-backdrop.is-closing > .modal-card { animation: psu-ui-exit .18s var(--motion-exit) both; }
+html.psu-motion-ready details[open] > :not(summary),
+html.psu-motion-ready .modal-backdrop > .modal-card { animation: none; }
 .psu-ui-feedback { animation: psu-ui-feedback .18s var(--ease) both; }
 @keyframes psu-ui-enter {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(8px) scale(.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes psu-ui-exit {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(8px) scale(.98); }
 }
 @keyframes psu-ui-feedback {
   from { opacity: .65; transform: translateY(1px); }
@@ -1186,7 +1204,7 @@ html:not(.psu-boot-active) details[open] > :not(summary),
 .pick-specs > summary { cursor: pointer; padding: 4px 0; }
 .result-fold > summary::after, .result-explain > summary::after { transition: transform 180ms var(--ease); }
 .result-fold[open] > summary::after, .result-explain[open] > summary::after { content: '＋'; transform: rotate(45deg); }
-.storage-row, .custom-row { animation: psu-ui-enter .22s var(--ease) both; }
+.storage-row, .custom-row { animation: psu-ui-enter .32s var(--motion-enter) both; }
 @media (hover: hover) and (pointer: fine) {
   button:not(:disabled):hover { transform: translateY(-1px); }
   button:not(:disabled):active { transform: translateY(1px) scale(.98); }
@@ -1310,6 +1328,10 @@ html:not(.psu-boot-active) details[open] > :not(summary),
   .tag, .conf { border-color: #666 !important; color: #333 !important; }
   select, input { border: 1px solid #999; background: #fff !important; color: #000; }
   .table-scroll { overflow: visible !important; }
+  .decision-toolbar, #comparisonCard .field, #upgradeSimulation, .candidate-row button { display: none !important; }
+  .candidate-list { max-height: none !important; overflow: visible !important; }
+  .decision-quality details > *, .result-explain > .coverage-list, .result-explain > #allPsuCandidates { display: block !important; }
+  .comparison-table, .comparison-table tr, .candidate-row { break-inside: avoid; }
 
   .print-only { display: block !important; }
   a { color: #000; border-bottom: none; }
@@ -1329,6 +1351,45 @@ html:not(.psu-boot-active) details[open] > :not(summary),
     width: min(100vw, 56.25vh); width: min(100vw, 56.25dvh);
     aspect-ratio: 9 / 16;
   }
+}
+
+/* 配置管理与对比沿用平面分区、细分隔线和现有文字尺度。 */
+.decision-toolbar { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; padding: 18px 0; border-block: 1px solid var(--line); }
+.decision-toolbar > *, .search-controls > *, .comparison-table td { min-width: 0; }
+.decision-toolbar label { display: block; font-size: var(--fs-sm); color: var(--text-2); margin-bottom: 6px; }
+.decision-toolbar p { margin: 8px 0 0; }
+.search-controls { display: grid; grid-template-columns: 100px 1fr; gap: 8px; }
+.search-results { max-height: 320px; overflow-y: auto; }
+.search-results button { display: block; width: 100%; text-align: left; padding: 10px; border: 0; border-bottom: 1px solid var(--line); background: var(--bg-soft); white-space: normal; overflow-wrap: anywhere; }
+.search-results button:hover { background: var(--surface-2); }
+.plan-manager { grid-column: 1 / -1; }
+.plan-manager > summary { cursor: pointer; font-weight: 600; padding: 8px 0; }
+.plan-manager .hint { margin-left: 12px; }
+.plan-panel { padding-top: 14px; }
+.plan-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.coverage-list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 12px 0; font-size: var(--fs-sm); color: var(--text-2); }
+.decision-quality .note + .note { margin-top: 10px; }
+.decision-quality input { max-width: 140px; }
+.candidate-list { max-height: 300px; overflow-y: auto; }
+.candidate-row { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.candidate-row p { margin: 4px 0; color: var(--text-2); font-size: var(--fs-sm); }
+.candidate-row button { margin-top: 6px; }
+.hero .v.blue { font-size: clamp(20px, 3vw, 32px); overflow-wrap: anywhere; }
+.comparison-table { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); margin: 16px 0; }
+.comparison-table th, .comparison-table td { padding: 9px 6px; border-bottom: 1px solid var(--line); text-align: left; overflow-wrap: anywhere; }
+.comparison-table th { color: var(--text-2); font-weight: 600; }
+#compareOutput .note { margin-top: 10px; }
+#comparisonCard .grid2 { grid-template-columns: 1fr 1fr; }
+#comparisonCard .field { display: block; min-width: 0; }
+#comparisonCard .field > label { display: block; margin-bottom: 8px; }
+#comparisonCard .field > select { width: 100%; max-width: 100%; }
+html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: none; }
+.no-js .decision-toolbar { display: none; }
+@media (max-width: 640px) {
+  .decision-toolbar { grid-template-columns: 1fr; gap: 14px; }
+  #comparisonCard .grid2, .coverage-list { grid-template-columns: 1fr; }
+  .plan-actions button { flex: 1 1 140px; }
+  .comparison-table th, .comparison-table td { padding: 8px 4px; }
 }
 
 </style>
@@ -1854,7 +1915,11 @@ html:not(.psu-boot-active) details[open] > :not(summary),
     }
 
     function open(fromAuto) {
-      if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; m.classList.remove('is-closing'); return; }
+      if (closeTimer) {
+        clearTimeout(closeTimer); closeTimer = null; m.classList.remove('is-closing');
+        if (window.__PSU_MOTION__) window.__PSU_MOTION__.surface(m.querySelector('.modal-card'), true);
+        return;
+      }
       if (isOpen()) return;
       openedAuto = !!fromAuto;
       syncNever();
@@ -1862,6 +1927,7 @@ html:not(.psu-boot-active) details[open] > :not(summary),
       m.hidden = false;
       document.body.classList.add('modal-open');
       holdBackground();
+      if (window.__PSU_MOTION__) window.__PSU_MOTION__.surface(m.querySelector('.modal-card'), true);
       if (body) body.scrollTop = 0;
       if (okBtn) { try { okBtn.focus({ preventScroll: true }); } catch (e) { okBtn.focus(); } }
       announce('psu:disclaimer-open');
@@ -1876,8 +1942,11 @@ html:not(.psu-boot-active) details[open] > :not(summary),
         } catch (e) {}
       }
       function finishClose() {
+        if (m.hidden) return;
+        clearTimeout(closeTimer);
         closeTimer = null;
         m.hidden = true;
+        if (window.__PSU_MOTION__) window.__PSU_MOTION__.stop(m.querySelector('.modal-card'));
         m.classList.remove('is-closing');
         document.body.classList.remove('modal-open');
         /* 必须在恢复焦点之前解除：lastFocus 多半在背景里，
@@ -1892,7 +1961,8 @@ html:not(.psu-boot-active) details[open] > :not(summary),
       if (matchMedia('(prefers-reduced-motion: reduce)').matches) finishClose();
       else {
         m.classList.add('is-closing');
-        closeTimer = setTimeout(finishClose, 160);
+        if (window.__PSU_MOTION__) window.__PSU_MOTION__.surface(m.querySelector('.modal-card'), false);
+        closeTimer = setTimeout(finishClose, 180);
       }
     }
 
@@ -2007,6 +2077,7 @@ html:not(.psu-boot-active) details[open] > :not(summary),
   var ITEM_SELECTOR = [
     'header.top',
     '.page-intro',
+    '.decision-toolbar',
     '.col-config > .card',
     '.col-result .sticky-col > *:not(.print-only)',
     'details.section-collapse'
@@ -2188,26 +2259,154 @@ html:not(.psu-boot-active) details[open] > :not(summary),
   else start();
 })();
 
-/* 用户改变选项后提供局部确认；不订阅结果重算，避免批量渲染闪烁。 */
+/* 参考澎湃 OS 的连续响应。独立呈现层：从当前帧接续，不改文本或计算结果。 */
 (function () {
+  'use strict';
   var reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+  var printing = false;
+  var active = new Map(), pressed = new Set(), folds = new Map();
+  var ENTER = 'cubic-bezier(.16, 1, .3, 1)', FAST = 'cubic-bezier(.2, 0, .2, 1)';
+  var EXIT = 'cubic-bezier(.4, 0, 1, 1)';
+  function enabled(surface) {
+    return !reduced.matches && !printing && !document.hidden && !matchMedia('print').matches &&
+      (surface || !document.documentElement.classList.contains('psu-boot-active'));
+  }
+  function stop(el) {
+    var old = active.get(el);
+    if (old) { active.delete(el); old.cancel(); }
+  }
+  function play(el, frames, duration, easing, done, hold) {
+    if (!el || typeof el.animate !== 'function') return;
+    stop(el);
+    var animation = el.animate(frames, { duration: duration, easing: easing, fill: 'forwards' });
+    active.set(el, animation);
+    animation.finished.then(function () {
+      if (active.get(el) !== animation) return;
+      if (hold) return;
+      active.delete(el); animation.cancel();
+      if (done) done();
+    }, function () { if (active.get(el) === animation) active.delete(el); });
+  }
+  function pulse(el) {
+    if (!enabled() || !el || !el.isConnected || !el.getClientRects().length) return;
+    var style = getComputedStyle(el), running = active.has(el);
+    play(el, [
+      { opacity: running ? style.opacity : .82, transform: running ? style.transform : 'translateY(3px)' },
+      { opacity: 1, transform: 'none' }
+    ], 280, ENTER);
+  }
+  function press(el) {
+    if (!enabled() || !el || el.disabled || el.getAttribute('aria-disabled') === 'true' || pressed.has(el)) return;
+    pressed.add(el);
+    play(el, [{ transform: getComputedStyle(el).transform }, { transform: 'scale(.975)' }], 80, FAST, null, true);
+  }
+  function release(el) {
+    if (!pressed.delete(el)) return;
+    if (!el.isConnected) { stop(el); return; }
+    if (!enabled()) { stop(el); return; }
+    // 小幅回弹采用有限关键帧；重入时采样当前 transform，避免跳回第一帧。
+    play(el, [
+      { transform: getComputedStyle(el).transform, offset: 0 },
+      { transform: 'scale(1.006)', offset: .58 },
+      { transform: 'scale(1)', offset: 1 }
+    ], 360, ENTER);
+  }
+  function releaseAll() { Array.from(pressed).forEach(release); }
+  function buttonFrom(event) { return event.target.closest && event.target.closest('button, .btn'); }
+  document.addEventListener('pointerdown', function (event) {
+    if (event.isPrimary && event.button === 0) press(buttonFrom(event));
+  });
+  document.addEventListener('pointerup', releaseAll);
+  document.addEventListener('pointercancel', releaseAll);
+  document.addEventListener('pointerout', function (event) {
+    var button = buttonFrom(event);
+    if (button && (!event.relatedTarget || !button.contains(event.relatedTarget))) release(button);
+  });
+  document.addEventListener('keydown', function (event) {
+    if (!event.repeat && (event.key === ' ' || event.key === 'Enter')) press(buttonFrom(event));
+  });
+  document.addEventListener('keyup', function (event) { if (event.key === ' ' || event.key === 'Enter') releaseAll(); });
+  window.addEventListener('blur', releaseAll);
+
+  function surface(el, opening) {
+    if (!el || !enabled(true)) return;
+    var current = getComputedStyle(el), running = active.has(el);
+    play(el, [
+      { opacity: running ? current.opacity : (opening ? 0 : 1),
+        transform: running ? current.transform : (opening ? 'translateY(12px) scale(.96)' : 'none') },
+      { opacity: opening ? 1 : 0, transform: opening ? 'none' : 'translateY(8px) scale(.98)' }
+    ], opening ? 340 : 180, opening ? ENTER : EXIT, null, !opening);
+  }
+  window.__PSU_MOTION__ = { surface: surface, stop: stop };
+
+  document.addEventListener('change', function (event) {
+    var input = event.target;
+    if (!input.matches || !input.matches('select, input[type="checkbox"], input[type="radio"], input[type="number"]')) return;
+    pulse(input.closest('.switch')?.querySelector('.track') || input);
+  });
+
+  // 原生 details 的最终结构不变；仅在过渡期间固定高度，快速反向从当前高度接续。
+  document.addEventListener('click', function (event) {
+    var summary = event.target.closest && event.target.closest('summary');
+    var el = summary && summary.parentElement;
+    if (!el || el.tagName !== 'DETAILS' || event.defaultPrevented ||
+        event.target.closest('button, a, input, select, textarea') || !enabled() || typeof el.animate !== 'function') return;
+    event.preventDefault();
+    var old = folds.get(el), opening = old ? !old.opening : !el.open;
+    var start = el.getBoundingClientRect().height;
+    var contentFrames = new Map();
+    if (old) Array.from(el.children).forEach(function (child) {
+      var style = getComputedStyle(child); contentFrames.set(child, { opacity: style.opacity, transform: style.transform });
+    });
+    if (old) old.restore();
+    stop(el);
+    var height = el.style.height, overflow = el.style.overflow, expanded = summary.getAttribute('aria-expanded');
+    var contents = Array.from(el.children).filter(function (child) { return child !== summary; });
+    var record = { opening: opening, restore: function () {
+      stop(el); contents.forEach(stop); el.style.height = height; el.style.overflow = overflow;
+      if (expanded === null) summary.removeAttribute('aria-expanded'); else summary.setAttribute('aria-expanded', expanded);
+      folds.delete(el);
+    }, finish: function () { record.restore(); el.open = opening; } };
+    if (!opening && el.contains(document.activeElement)) summary.focus({ preventScroll: true });
+    el.open = opening;
+    var end = el.getBoundingClientRect().height;
+    if (!opening) el.open = true;
+    summary.setAttribute('aria-expanded', String(opening));
+    el.style.overflow = 'hidden';
+    folds.set(el, record);
+    if (Math.abs(end - start) > 1000) { record.finish(); return; }
+    contents.forEach(function (child) {
+      play(child, [contentFrames.get(child) || { opacity: opening ? 0 : 1, transform: 'none' },
+        { opacity: opening ? 1 : 0, transform: opening ? 'none' : 'translateY(-4px)' }], opening ? 300 : 180, ENTER, null, !opening);
+    });
+    play(el, [{ height: start + 'px' }, { height: end + 'px' }], opening ? 340 : 220, opening ? ENTER : FAST, record.finish);
+  });
+
   function clear() {
+    Array.from(folds.values()).forEach(function (record) { record.finish(); });
+    active.forEach(function (animation) { animation.cancel(); }); active.clear(); pressed.clear();
     document.querySelectorAll('.psu-ui-feedback').forEach(function (el) { el.classList.remove('psu-ui-feedback'); });
   }
-  document.addEventListener('change', function (event) {
-    if (reduced.matches || document.documentElement.classList.contains('psu-boot-active')) return;
-    var input = event.target;
-    if (!input.matches('select, input[type="checkbox"], input[type="radio"], input[type="number"]')) return;
-    var target = input.closest('.switch') || input;
-    target.classList.remove('psu-ui-feedback');
-    void target.offsetWidth; // 重新触发有限动画；快速连续切换也只保留当前反馈。
-    target.classList.add('psu-ui-feedback');
-  });
-  document.addEventListener('animationend', function (event) {
-    if (event.animationName === 'psu-ui-feedback') event.target.classList.remove('psu-ui-feedback');
-  });
   reduced.addEventListener('change', clear);
-  window.addEventListener('beforeprint', clear);
+  document.addEventListener('visibilitychange', function () { if (document.hidden) clear(); });
+  window.addEventListener('beforeprint', function () { printing = true; clear(); });
+  window.addEventListener('afterprint', function () { printing = false; });
+
+  function setup() {
+    if (typeof document.documentElement.animate === 'function') document.documentElement.classList.add('psu-motion-ready');
+    ['recoBig', 'heroPower', 'heroExpected', 'heroTransient', 'answerChipValue'].forEach(function (id) {
+      var target = document.getElementById(id);
+      if (!target) return;
+      var last = target.textContent;
+      new MutationObserver(function () {
+        var value = target.textContent;
+        if (value === last) return;
+        last = value; pulse(target);
+      }).observe(target, { childList: true, subtree: true, characterData: true });
+    });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', setup, { once: true });
+  else setup();
 })();
 
 /* 结果分层只整理呈现，不改计算；保留用户主动展开的风险详情。 */
@@ -2264,26 +2463,6 @@ html:not(.psu-boot-active) details[open] > :not(summary),
       observer.observe(root, { childList: true, subtree: true, characterData: true });
     }
     refresh();
-  }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', setup, { once: true });
-  else setup();
-})();
-
-/* 推荐数值真实变化时做一次局部反馈；不滚动数字，不修改结果。 */
-(function () {
-  function setup() {
-    var target = document.getElementById('recoBig');
-    if (!target) return;
-    var last = target.textContent;
-    new MutationObserver(function () {
-      var value = target.textContent;
-      if (value === last) return;
-      last = value;
-      if (matchMedia('(prefers-reduced-motion: reduce)').matches || document.documentElement.classList.contains('psu-boot-active')) return;
-      target.classList.remove('psu-ui-feedback');
-      void target.offsetWidth;
-      target.classList.add('psu-ui-feedback');
-    }).observe(target, { childList: true, subtree: true, characterData: true });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', setup, { once: true });
   else setup();
@@ -2349,7 +2528,52 @@ html:not(.psu-boot-active) details[open] > :not(summary),
   <section class="page-intro" aria-label="计算器介绍">
     <p class="eyebrow">POWER SUPPLY CALCULATOR</p>
     <h2>为你的配置，选好电源。</h2>
-    <p>选择硬件，即时查看整机功耗与推荐瓦数。</p>
+    <p>估算功耗、比较配置，看看升级后能否继续用现有电源。</p>
+  </section>
+
+  <section class="decision-toolbar" aria-label="配置工具">
+    <div class="decision-mode">
+      <div class="seg" id="calcMode" role="group" aria-label="计算模式">
+        <button type="button" data-mode="full" aria-pressed="true">完整配置</button>
+        <button type="button" data-mode="quick" aria-pressed="false">快速估算</button>
+      </div>
+      <p class="note" id="modeNote">填写具体硬件可检查接口、尺寸和安装兼容性。</p>
+    </div>
+    <div class="hardware-search">
+      <label for="hardwareSearch">搜索硬件型号</label>
+      <div class="search-controls">
+        <select id="searchCategory" aria-label="搜索硬件类别">
+          <option value="cpu">CPU</option><option value="gpu">显卡</option><option value="aib">显卡板型</option>
+          <option value="mobo">主板</option><option value="psu">电源</option>
+          <option value="ram">内存</option><option value="storage">存储</option><option value="cooler">散热器</option>
+          <option value="fan">风扇</option><option value="case">机箱</option>
+        </select>
+        <input type="search" id="hardwareSearch" maxlength="80" placeholder="如 9600X、5090 夜神、海韵" autocomplete="off" aria-controls="hardwareResults">
+      </div>
+      <p class="note" id="searchStatus" role="status"></p>
+      <div id="hardwareResults" class="search-results"></div>
+    </div>
+    <details class="plan-manager" id="planManager">
+      <summary>我的配置方案<span class="hint" id="planCount">0 / 12</span></summary>
+      <div class="plan-panel">
+        <div class="grid2">
+          <div class="field"><label for="planName">方案名称</label><input id="planName" type="text" maxlength="60" placeholder="如 现有电脑 / 升级方案"></div>
+          <div class="field"><label for="savedPlan">已保存方案</label><select id="savedPlan"><option value="">— 选择方案 —</option></select></div>
+        </div>
+        <div class="plan-actions">
+          <button id="savePlan" type="button" class="primary">另存新方案</button>
+          <button id="updatePlan" type="button">更新所选方案</button>
+          <button id="loadPlan" type="button">载入方案</button>
+          <button id="renamePlan" type="button">重命名</button>
+          <button id="deletePlan" type="button" class="ghost">删除方案</button>
+          <button id="undoPlanDelete" type="button" class="ghost" hidden>撤销删除</button>
+          <button id="backupPlans" type="button" class="ghost">备份全部方案</button>
+          <button id="importPlans" type="button" class="ghost">导入方案 / 配置</button>
+          <input id="planImportFile" type="file" accept=".json,application/json" aria-label="导入 JSON 配置文件" hidden>
+        </div>
+        <p class="note" id="planStatus" role="status">方案保存在此浏览器。载入会替换编辑区，请先另存当前配置；换设备前请备份。</p>
+      </div>
+    </details>
   </section>
 
   <div class="layout">
@@ -2392,7 +2616,7 @@ html:not(.psu-boot-active) details[open] > :not(summary),
               <dt>规划功耗</dt>
               <dd>各部件功耗上限之和，用于电源选型。</dd>
               <dt>场景预期功耗</dt>
-              <dd>所选场景下的预计功耗，通常低于满载值。</dd>
+              <dd>按 CPU、显卡及其他部件的负载假设估算区间，是部件侧功耗，不是插座实测。</dd>
               <dt>瞬时峰值</dt>
               <dd>短时功率尖峰，电源需具备相应承受能力。</dd>
               <dt>TDP / 最大睿频功耗</dt>
@@ -2649,7 +2873,7 @@ html:not(.psu-boot-active) details[open] > :not(summary),
 
           </div>
           <div>
-            <div class="k">场景预期功耗</div>
+            <div class="k">场景功耗区间 · 部件侧</div>
             <div class="v blue" id="heroExpected">0<small> W</small></div>
 
           </div>
@@ -2661,14 +2885,29 @@ html:not(.psu-boot-active) details[open] > :not(summary),
         </div>
 
         <details class="result-explain"><summary>计算说明</summary><div class="explain-content"><div class="u" id="heroPowerNote">各部件功耗上限之和</div>
-<div class="u" id="heroExpectedNote">按场景负载系数折算</div>
+<div class="u" id="heroExpectedNote">按分项负载区间估算</div>
 <div class="u" id="heroTransientNote">含显卡功率尖峰与硬盘启动</div></div></details>
+
+        <section class="card decision-quality">
+          <h2>结果依据<span class="hint" id="completenessLabel"></span></h2>
+          <div class="card-body">
+            <div class="note" id="assumptionsNote"></div>
+            <div class="note" id="confidenceNote"></div>
+            <details class="result-explain"><summary>已检查与尚未检查</summary><div id="checkCoverage" class="coverage-list"></div></details>
+            <details class="result-explain"><summary>场景模型与插座功耗</summary><div id="loadModel" class="note"></div>
+              <label for="psuEfficiency">假设电源转换效率（%）</label>
+              <input type="number" id="psuEfficiency" min="60" max="99" value="90" step="1">
+              <p class="note" id="wallEstimate"></p>
+            </details>
+          </div>
+        </section>
 
         <!-- 三档推荐 -->
         <section class="card">
           <h2>电源推荐方案<span class="hint" id="psuPickHint"></span></h2>
           <div class="card-body">
             <div class="psu-picks" id="psuPicks"></div>
+            <details class="result-explain"><summary>查看全部合格候选 <span id="candidateCount"></span></summary><div class="candidate-list" id="allPsuCandidates"></div></details>
             <details class="result-explain"><summary>选型依据</summary><div class="meta" id="recoMeta"></div><div id="psuPickNote" style="margin-top:11px"></div></details>
           </div>
         </section>
@@ -2680,6 +2919,24 @@ html:not(.psu-boot-active) details[open] > :not(summary),
         </section>
 
         <!-- 升级建议 -->
+        <section class="card" id="comparisonCard">
+          <h2>方案与升级对比<span class="hint">复用电源判断</span></h2>
+          <div class="card-body">
+            <div class="grid2">
+              <div class="field"><label for="compareBase">原配置</label><select id="compareBase"><option value="">当前配置</option></select></div>
+              <div class="field"><label for="compareTarget">对比配置</label><select id="compareTarget"><option value="">当前配置</option></select></div>
+            </div>
+            <details class="result-explain" id="upgradeSimulation"><summary>模拟更换 CPU / 显卡</summary>
+              <p class="note">以对比配置为基础，仅在这里模拟。载入升级方案后才会替换编辑区。</p>
+              <div class="field"><label for="upgradeCpu">升级 CPU</label><select id="upgradeCpu"><option value="">保持原 CPU</option></select></div>
+              <div class="field"><label for="upgradeGpu">升级显卡</label><select id="upgradeGpu"><option value="">保持原显卡</option></select></div>
+              <div class="field"><label for="upgradeAib">升级显卡板型</label><select id="upgradeAib"><option value="">公版 / 未指定</option></select></div>
+              <button type="button" id="applyUpgrade">载入升级方案</button>
+            </details>
+            <div id="compareOutput" aria-live="polite"></div>
+          </div>
+        </section>
+
         <details class="card result-fold">
           <summary><h2>升级空间</h2></summary>
           <div class="card-body" id="upgradeBox"></div>
@@ -4169,11 +4426,150 @@ html:not(.psu-boot-active) details[open] > :not(summary),
 })(typeof globalThis !== 'undefined' ? globalThis : this);
 
 </script>
+<!-- js/db-psus.js -->
+<script>
+/* PSU specification audit, 2026-10-04.
+ * Counts refer to supplied device-side connectors, not sockets on the PSU.
+ * Prices are budget estimates, never live retailer quotes. Unknown cable ratings
+ * remain null; an ATX version does not imply a 600 W cable or a 16-pin cable.
+ */
+(function (root) {
+  'use strict';
+  var checkedAt = '2026-10-04';
+  var rows = [];
+  function add(id, brand, series, model, watts, efficiency, atx, modular,
+               pin16, pcie, eps, sata, rating, cables, price, url, revision, extra) {
+    rows.push(Object.assign({ id: id, brand: brand, series: series, model: model,
+      watts: watts, efficiency: '80 PLUS ' + efficiency, atx: atx, modular: modular,
+      formFactor: 'ATX', conn12v2x6: pin16, pcie8pin: pcie, eps8pin: eps, sata: sata,
+      connector16Watts: pin16 ? (rating == null ? null : Array.isArray(rating) ? rating : [rating]) : [],
+      pcie8pinCables: cables, price: price, priceKind: 'budget-estimate',
+      confidence: 'official', verified: true, checkedAt: checkedAt,
+      revision: revision, tier: watts <= 750 ? '基础' : watts <= 1200 ? '均衡' : '旗舰',
+      sourceUrl: url, connector16Type: pin16 ? '16-pin' : '无随附16-pin线缆'
+    }, extra || {}));
+  }
+  var msi = '微星 MSI', dc = '九州风神 DeepCool', ss = '海韵 Seasonic';
+  var cm = '酷冷至尊 Cooler Master';
+  add('msi-mag-a550bn', msi, 'MAG BN', 'MAG A550BN', 550, '铜牌', 'ATX（细版本未公布）', '非模组',
+    0, 2, 1, 5, null, null, 269, 'https://us.msi.com/Power-Supply/MAG-A550BN/Specification', 'A550BN');
+  add('msi-mag-a650bn', msi, 'MAG BN', 'MAG A650BN', 650, '铜牌', 'ATX（细版本未公布）', '非模组',
+    0, 2, 1, 5, null, null, 299, 'https://us.msi.com/Power-Supply/MAG-A650BN/Specification', 'A650BN');
+  add('msi-mag-a650gl', msi, 'MAG GL', 'MAG A650GL（无16-pin）', 650, '金牌', 'ATX（细版本未公布）', '全模组',
+    0, 4, 2, 6, null, null, 449, 'https://us.msi.com/Power-Supply/MAG-A650GL/Specification', 'A650GL，非 PCIE5 / II');
+  add('msi-mag-a750gl-pcie5', msi, 'MAG GL', 'MAG A750GL PCIE5（ATX 3.1版）', 750, '金牌', 'ATX 3.1', '全模组',
+    1, 3, 2, 8, 450, 2, 549, 'https://us.msi.com/Power-Supply/MAG-A750GL-PCIE5', '官网当前 ATX 3.1 版本；旧批次 ATX 3.0 不混用',
+    { connector16Type: '12V-2x6', note: '随附16-pin线缆450W；购买时核对包装版本。' });
+  add('msi-mag-a850gl-pcie5', msi, 'MAG GL', 'MAG A850GL PCIE5', 850, '金牌', 'ATX（按包装核对版本）', '全模组',
+    1, 4, 2, 8, 600, null, 649, 'https://us.msi.com/Power-Supply/MAG-A850GL-PCIE5/Specification', 'PCIE5，非 PCIE5 II',
+    { note: '规格页确认随附16-pin线缆600W；ATX细版本须核对实际包装。' });
+  add('deepcool-pl550d-v2', dc, 'PL-D V2', 'PL550D V2', 550, '铜牌', 'ATX 3.1', '非模组',
+    1, 3, 2, 6, 300, 2, 279, 'https://www.deepcool.com/products/PowerSupplyUnits/powersupplyunits/PL550D-V2-ATX3.1-Direct-Power-Supply/2024/19090.shtml', 'V2 / ATX 3.1，非旧款 PL-D', { connector16Type: '12V-2x6' });
+  add('deepcool-pl650d-v2', dc, 'PL-D V2', 'PL650D V2', 650, '铜牌', 'ATX 3.1', '非模组',
+    1, 3, 2, 6, 300, 2, 329, 'https://www.deepcool.com/products/PowerSupplyUnits/powersupplyunits/PL650D-V2-ATX3.1-Direct-Power-Supply/2024/19091.shtml', 'V2 / ATX 3.1，非旧款 PL-D', { connector16Type: '12V-2x6' });
+  add('deepcool-pl750d-v2', dc, 'PL-D V2', 'PL750D V2', 750, '铜牌', 'ATX 3.1', '非模组',
+    1, 3, 2, 8, 450, 2, 379, 'https://deepcool.com/products/PowerSupplyUnits/powersupplyunits/PL750D-V2-ATX3.1-Direct-Power-Supply/2024/19092.shtml', 'V2 / ATX 3.1，非旧款 PL-D', { connector16Type: '12V-2x6' });
+  add('deepcool-pn650m', dc, 'PN-M', 'PN650M', 650, '金牌', 'ATX 3.1', '全模组',
+    1, 3, 2, 8, 450, 3, 449, 'https://www.deepcool.com/products/PowerSupplyUnits/powersupplyunits/PN650M-ATX3.1-Modular-Power-Supply/2023/17878.shtml', 'R-PN650M-FC0B', { connector16Type: '12V-2x6' });
+  add('deepcool-pn850m', dc, 'PN-M', 'PN850M', 850, '金牌', 'ATX 3.1', '全模组',
+    1, 3, 2, 8, 600, 3, 599, 'https://deepcool.com/products/PowerSupplyUnits/powersupplyunits/PN850M-ATX3.1-Modular-Power-Supply/2023/17874.shtml', 'R-PN850M-FC0B', { connector16Type: '12V-2x6' });
+  add('deepcool-pn750m-white', dc, 'PN-M', 'PN750M WH（白色）', 750, '金牌', 'ATX 3.1', '全模组',
+    1, 3, 2, 8, 600, 3, 549, 'https://www.deepcool.com/products/PowerSupplyUnits/powersupplyunits/2024/19529.shtml', 'PN750M WH，单独按白色版页面核对', { connector16Type: '12V-2x6' });
+  add('coolermaster-mwe550-bronze-v3-230v', cm, 'MWE Bronze V3', 'MWE Bronze 550 V3 230V', 550, '铜牌', 'ATX 3.1', '非模组',
+    0, 2, 2, 6, null, null, 269, 'https://www.coolermaster.com/en-in/products/mwe-bronze-550-v3-230v.html', 'MPE-5501-ACABW-3B', { inputVoltage: '200–240V', note: '230V版；无随附16-pin线缆。' });
+  add('coolermaster-mwe650-bronze-v3-230v', cm, 'MWE Bronze V3', 'MWE Bronze 650 V3 230V', 650, '铜牌', 'ATX 3.1', '非模组',
+    0, 4, 2, 6, null, null, 319, 'https://www.coolermaster.com/en-in/products/mwe-bronze-650-v3-230v.html', 'MPE-6501-ACABW-3B', { inputVoltage: '200–240V', note: '230V版；无随附16-pin线缆。' });
+  add('coolermaster-mwe750-bronze-v3-230v', cm, 'MWE Bronze V3', 'MWE Bronze 750 V3 230V', 750, '铜牌', 'ATX 3.1', '非模组',
+    0, 4, 2, 6, null, null, 369, 'https://www.coolermaster.com/en-au/products/mwe-bronze-750-v3-230v.html', 'MPE-7501-ACABW-3B', { inputVoltage: '200–240V', note: '230V版；无随附16-pin线缆。' });
+  add('fsp-vita-gm650', '全汉 FSP', 'VITA GM', 'VITA GM 650W（非 GEN5）', 650, '金牌', 'ATX 3.1', '全模组',
+    0, 4, 2, 8, null, 2, 399, 'https://www.fsplifestyle.com/en/product/VITAGM650W.html', 'VITA-650GM，非 GEN5');
+  add('fsp-vita-gm650-gen5', '全汉 FSP', 'VITA GM', 'VITA GM 650W GEN5', 650, '金牌', 'ATX 3.1', '全模组',
+    1, 4, 2, 8, null, 2, 449, 'https://www.fsplifestyle.com/en/product/VITAGM650WGEN5.html', 'VITA-650GM GEN5',
+    { connector16Type: '12V-2x6', note: '随附16-pin线缆数量已核；额定功率未确认，不进入16-pin显卡的自动推荐。' });
+  add('fsp-vita-gm750', '全汉 FSP', 'VITA GM', 'VITA GM 750W', 750, '金牌', 'ATX 3.1', '全模组',
+    1, 4, 2, 8, null, 2, 499, 'https://www.fsplifestyle.com/en/product/VITAGM750W.html', 'VITA-750GM',
+    { connector16Type: '12V-2x6', note: '16-pin额定功率未确认，不进入16-pin显卡的自动推荐。' });
+  add('fsp-vita-gm850-white', '全汉 FSP', 'VITA GM', 'VITA GM 850W White', 850, '金牌', 'ATX 3.1', '全模组',
+    1, 4, 2, 8, null, null, 599, 'https://www.fsplifestyle.com/us/product/VITAGM850W_WHITE.html', 'VITA-850GM White Edition',
+    { connector16Type: '12V-2x6', inputVoltage: '中国版200–240V；其他地区100–240V', note: '16-pin额定功率未确认，不进入16-pin显卡的自动推荐。' });
+  var xpg = 'https://www.xpg.com/us/xpg/670?tab=spec';
+  var xpgNote = { additionalSources: ['https://www.adata.com/upload/downloadfile/Datasheet_XPG_PYLON_PSU.pdf'], note: 'ATX 2.4（时序按2.52）；650/750W的第二个CPU接头为整8pin，非4+4。' };
+  add('xpg-pylon450', '威刚 XPG', 'PYLON', 'PYLON 450', 450, '铜牌', 'ATX 2.4', '非模组', 0, 2, 1, 5, null, null, 239, xpg, 'PYLON / 2022后5年保修版本', xpgNote);
+  add('xpg-pylon550', '威刚 XPG', 'PYLON', 'PYLON 550', 550, '铜牌', 'ATX 2.4', '非模组', 0, 2, 1, 5, null, null, 279, xpg, 'PYLON / 2022后5年保修版本', xpgNote);
+  add('xpg-pylon650', '威刚 XPG', 'PYLON', 'PYLON 650', 650, '铜牌', 'ATX 2.4', '非模组', 0, 4, 2, 8, null, null, 329, xpg, 'PYLON / 2022后5年保修版本', xpgNote);
+  add('xpg-pylon750', '威刚 XPG', 'PYLON', 'PYLON 750', 750, '铜牌', 'ATX 2.4', '非模组', 0, 4, 2, 8, null, null, 379, xpg, 'PYLON / 2022后5年保修版本', xpgNote);
+  var core = 'https://seasonic.com/core-gc-atx-3-1/';
+  add('seasonic-core-gc650-atx31', ss, 'CORE GC', 'CORE GC-650 ATX 3.1', 650, '金牌', 'ATX 3.1', '非模组', 0, 2, 2, null, null, 1, 399, core, 'ATX 3.1，非旧款 CORE GC', { note: '无随附16-pin；官网混合SATA/Molex总数未拆分，SATA数量暂不填。' });
+  add('seasonic-core-gc750-atx31', ss, 'CORE GC', 'CORE GC-750 ATX 3.1', 750, '金牌', 'ATX 3.1', '非模组', 1, 2, 2, null, 450, 1, 449, core, 'ATX 3.1，非旧款 CORE GC', { connector16Type: '12V-2x6', note: '官网混合SATA/Molex总数未拆分，SATA数量暂不填。' });
+  add('seasonic-core-gc850-atx31', ss, 'CORE GC', 'CORE GC-850 ATX 3.1', 850, '金牌', 'ATX 3.1', '非模组', 1, 3, 2, null, 600, 2, 499, core, 'ATX 3.1，非旧款 CORE GC', { connector16Type: '12V-2x6', note: '官网混合SATA/Molex总数未拆分，SATA数量暂不填。' });
+  var focus = 'https://seasonic.com/wp-content/uploads/2024/07/ATX3.1-FOCUS-GX.pdf';
+  add('seasonic-focus-gx750', ss, 'FOCUS GX', 'FOCUS GX-750 ATX 3.1（2024）', 750, '金牌', 'ATX 3.1', '全模组',
+    1, 2, 2, 8, null, 2, 749, focus, '2024 / v4，非 v5', { connector16Type: '12V-2x6', rail12vWatts: 744 });
+  add('seasonic-focus-gx850', ss, 'FOCUS GX', 'FOCUS GX-850 ATX 3.1（2024）', 850, '金牌', 'ATX 3.1', '全模组',
+    1, 3, 2, 8, null, 3, 899, focus, '2024 / v4，非 v5', { connector16Type: '12V-2x6', rail12vWatts: 840 });
+  add('seasonic-focus-gx1000', ss, 'FOCUS GX', 'FOCUS GX-1000 ATX 3.1（2024）', 1000, '金牌', 'ATX 3.1', '全模组',
+    1, 3, 2, 8, null, 3, 1099, focus, '2024 / v4，非 v5', { connector16Type: '12V-2x6', rail12vWatts: 996 });
+  var prime = 'https://seasonic.com/wp-content/uploads/2025/03/Prime-TX-ATX-3.0-2024-v2.pdf';
+  add('seasonic-prime-tx1300', ss, 'PRIME TX', 'PRIME TX-1300 ATX 3.1', 1300, '钛金', 'ATX 3.1', '全模组',
+    1, 6, 3, 18, null, 6, 3299, prime, '2025规格表 / ATX 3.1', { connector16Type: '12V-2x6' });
+  add('seasonic-prime-tx1600', ss, 'PRIME TX', 'PRIME TX-1600 ATX 3.1', 1600, '钛金', 'ATX 3.1', '全模组',
+    2, 6, 3, 18, null, 6, 5299, prime, '2025规格表 / ATX 3.1', { connector16Type: '12V-2x6' });
+  add('seasonic-prime-px1600', ss, 'PRIME PX', 'PRIME PX-1600 ATX 3.1', 1600, '铂金', 'ATX 3.1', '全模组',
+    2, 6, 3, 18, null, 6, 4299, 'https://seasonic.com/atx3-1-prime-px/', 'ATX 3.1', { connector16Type: '12V-2x6' });
+  // Manufacturer's cable guide explicitly rates the native PRIME / FOCUS
+  // 16-pin cables at 600 W. Do not apply this to CORE GC (450 W at 750 W).
+  rows.filter(function (p) { return p.brand === ss && /^(PRIME|FOCUS)/.test(p.series); }).forEach(function (p) {
+    p.connector16Watts = Array.from({ length: p.conn12v2x6 }, function () { return 600; });
+    p.additionalSources = ['https://knowledge.seasonic.com/article/72-psu-recommendations-for-nvidia-rtx-4000-cards'];
+  });
+  add('seasonic-focus-gx650', ss, 'FOCUS GX', 'FOCUS GX-650（旧版，无16-pin）', 650, '金牌', 'ATX 2.x（细版本未标）', '全模组',
+    0, 4, 2, 10, null, 2, 599, 'https://seasonic.com/wp-content/uploads/2024/04/FOCUS-GX-FX.pdf', '旧版 FOCUS GX / FX；非ATX 3.1', { rail12vWatts: 648 });
+  add('seasonic-sfx-750', ss, 'SGX', 'FOCUS SGX-750（2021 / SFX）', 750, '金牌', 'ATX 2.x（细版本未标）', '全模组',
+    0, 4, 2, 6, null, 3, 1199, 'https://seasonic.com/focus-sgx-2021/', '2021，非旧SGX SFX-L', { formFactor: 'SFX', rail12vWatts: 744 });
+  add('deepcool-pq1000m', dc, 'PQ', 'PQ1000M（ATX 2.4，无16-pin）', 1000, '金牌', 'ATX 2.4', '全模组',
+    0, 6, 2, 10, null, 3, 899, 'https://www.deepcool.com/products/PowerSupplyUnits/powersupplyunits/PQ1000M-80-PLUS-Gold-Modular-Power-Supply/2021/14033.shtml', 'R-PQA00M-FA0B');
+  add('corsair-sf1000', '海盗船 Corsair', 'SF', 'SF1000 Platinum（2024 / SFX）', 1000, '铂金', 'ATX 3.1', '全模组',
+    1, 4, 2, 8, 600, 4, 1599, 'https://www.corsair.com/us/en/p/psu/cp-9020257-na/sf-series-sf1000-fully-modular-80-plus-platinum-sfx-power-supply-cp-9020257-na', 'CP-9020257 / 2024',
+    { formFactor: 'SFX', connector16Type: 'Type-5直连16-pin', additionalSources: ['https://help.corsair.com/hc/en-us/articles/45351527323793-CORSAIR-Spare-Parts-List'], note: '标准SFX；请勿与SF-L系列混用规格。' });
+  add('asus-rog-thor-1200p2', '华硕 ASUS', 'ROG THOR', 'ROG THOR 1200P2 GAMING', 1200, '铂金', 'ATX（官网未标3.x）', '全模组',
+    1, 8, 2, 12, null, null, 2999, 'https://rog.asus.com/br/power-supply-units/rog-thor/rog-thor-1200p2-gaming-model/spec/', '1200P2，非1600T / THOR III',
+    { connector16Type: '随附16-pin直连线', note: '铂金认证；显卡侧16-pin线缆不代表PSU有原生16-pin插座，也不代表ATX 3.1。' });
+  add('msi-meg-ai1300p', msi, 'MEG', 'MEG Ai1300P PCIE5（ATX 3.0版）', 1300, '铂金', 'ATX 3.0', '全模组',
+    1, 8, 2, 16, 600, null, 2799, 'https://us.msi.com/Power-Supply/MEG-Ai1300P-PCIE5/Specification', 'PCIE5 / ATX 3.0资料版本，非PCIE5 II', { connector16Type: '12VHPWR', additionalSources: ['https://storage-asset.msi.com/datasheet/power-supply/ca/MEG-Ai1300P-PCIE5.pdf'], note: '按ATX 3.0版PDF记录；不同地区官网有3.1文案，购买时核对包装批次。' });
+  add('msi-meg-ai1000p', msi, 'MEG', 'MEG Ai1000P PCIE5（ATX 3.0版）', 1000, '铂金', 'ATX 3.0', '全模组',
+    1, 8, 2, 12, 600, null, 1999, 'https://us.msi.com/Power-Supply/MEG-Ai1000P-PCIE5/Specification', 'PCIE5 / ATX 3.0资料版本，非PCIE5 II', { connector16Type: '12VHPWR', additionalSources: ['https://storage-asset.msi.com/datasheet/power-supply/ca/MEG-Ai1000P-PCIE5.pdf'], note: '按ATX 3.0版PDF记录；不同地区官网有3.1文案，购买时核对包装批次。' });
+
+  root.HWDB_PSU_AUDIT = {
+    checkedAt: checkedAt,
+    apply: function (legacy, sources) {
+      var audited = {};
+      rows.forEach(function (p) {
+        p.source = 'psu:' + p.id;
+        sources[p.source] = { label: p.brand + ' — ' + p.model + ' 厂家规格（' + checkedAt + '核对）', url: p.sourceUrl };
+        audited[p.id] = p;
+      });
+      var result = legacy.map(function (p) {
+        if (audited[p.id]) { var updated = audited[p.id]; delete audited[p.id]; return updated; }
+        // Preserve IDs for saved plans, but do not present unverified legacy
+        // specifications as facts or use them to certify reuse/recommendations.
+        return Object.assign({}, p, { verified: false, confidence: 'estimate', source: null,
+          atx: '待核实', efficiency: '认证待核实', modular: '待核实', formFactor: null,
+          conn12v2x6: null, pcie8pin: null, eps8pin: null, sata: null,
+          connector16Watts: null, pcie8pinCables: null, priceKind: 'budget-estimate',
+          note: '具体版本与厂家规格待核实；保留旧方案引用，不进入自动推荐，不能确认可复用。' });
+      });
+      Object.keys(audited).forEach(function (id) { result.push(audited[id]); });
+      return result;
+    }
+  };
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+</script>
 <!-- js/db.js -->
 <script>
 /* ============================================================================
  *  硬件功耗数据库  HWDB  ——  主装配文件
- *  数据版本: 2026.09.9   数据截止: 2026-09-16
+ *  数据版本: 2026.10.1   电源专项核对: 2026-10-04（其他硬件见审计说明）
  *  （下面 meta 里那两项才是界面与导出真正读的值，改数据时两处一起改。
  *    这里以前写的是 2026.09.7 / 2026-09-14，已经跟 meta 对不上了。）
  * ----------------------------------------------------------------------------
@@ -4181,6 +4577,7 @@ html:not(.psu-boot-active) details[open] > :not(summary),
  *    js/db-cpus.js   桌面处理器（Intel 10/11/12/13/14 代 + Core Ultra 200S 系列；
  *                    AMD AM4 全系 + AM5 全系），164 款，含世代分组元数据
  *    js/db-aib.js    AIC 厂商系列目录 + 规则生成器（23 家厂商 / 86 系列）
+ *    js/db-psus.js   已核电源规格与厂家来源；旧版ID保留及待核隔离
  *    js/db.js        本文件：来源表、平台表、GPU、主板、内存、存储、散热、电源
  *
  *  confidence 语义:
@@ -4194,16 +4591,19 @@ html:not(.psu-boot-active) details[open] > :not(summary),
   if (typeof module === 'object' && module.exports) {
     require('./db-cpus.js');
     require('./db-aib.js');
+    require('./db-psus.js');
   }
 
   var CPU_DB = root.HWDB_CPUS;
   var AIB_DB = root.HWDB_AIB;
-  if (!CPU_DB || !AIB_DB) {
-    throw new Error('db.js 依赖 db-cpus.js 与 db-aib.js，请先加载它们');
+  if (!CPU_DB || !AIB_DB || !root.HWDB_PSU_AUDIT) {
+    throw new Error('db.js 依赖 db-cpus.js、db-aib.js 与 db-psus.js，请先加载它们');
   }
 
   /* ------------------------------------------------------------------ 来源 */
   var SOURCES = {
+    amd9060spec: { label: 'AMD RX 9060 XT 发布规格：8GB 150W / 16GB 160W', url: 'https://www.amd.com/zh-tw/newsroom/press-releases/2025-5-20-amd-introduces-new-radeon-graphics-cards-and-ryzen.html' },
+    nvidia4060spec: { label: 'NVIDIA RTX 4060 Ti / 4060 官方规格', url: 'https://www.nvidia.com/en-us/geforce/graphics-cards/40-series/rtx-4060-4060ti/' },
     yesky200splus: {
       label: '天极网 — 酷睿Ultra 200S Plus系列首发评测',
       url: 'https://wap.yesky.com/diy/285/343785.shtml'
@@ -4261,7 +4661,7 @@ html:not(.psu-boot-active) details[open] > :not(summary),
       url: 'https://www.intel.com/content/www/us/en/products/details/processors/core-ultra.html'
     },
     amdSpec: {
-      label: 'AMD 官方产品规格页（TDP / PPT）',
+      label: 'AMD 官方产品规格页（TDP / 插槽；PPT不等同TDP，另行估算）',
       url: 'https://www.amd.com/zh-cn/products/processors/desktops/ryzen.html'
     },
     gskill: {
@@ -4383,10 +4783,15 @@ html:not(.psu-boot-active) details[open] > :not(summary),
       transient: 1.8, released: '2023-04', price: 4799,
       confidence: 'official', source: 'tpuGpuDb' },
     { id: 'rtx4060ti', brand: 'NVIDIA', family: 'GeForce RTX 40 (Ada)',
-      name: 'GeForce RTX 4060 Ti', tbp: 165, memory: '8GB / 16GB GDDR6 128-bit',
+      name: 'GeForce RTX 4060 Ti 16GB', tbp: 165, memory: '16GB GDDR6 128-bit',
       connector: '1× 8pin', pcie: 'PCIe 4.0 x8', slots: 2,
-      transient: 1.7, released: '2023-05', price: 3199,
-      confidence: 'official', source: 'tpuGpuDb' },
+      transient: 1.7, released: '2023-07', price: 3199,
+      confidence: 'official', source: 'nvidia4060spec', note: '16GB版165W；具体AIC接口可能为8pin或16pin，需按SKU核对。' },
+    { id: 'rtx4060ti-8gb', brand: 'NVIDIA', family: 'GeForce RTX 40 (Ada)',
+      name: 'GeForce RTX 4060 Ti 8GB', tbp: 160, memory: '8GB GDDR6 128-bit',
+      connector: '1× 12VHPWR (16pin)', pcie: 'PCIe 4.0 x8', slots: 2,
+      transient: 1.7, released: '2023-05', price: 0,
+      confidence: 'official', source: 'nvidia4060spec', note: '8GB版160W；此处按FE显卡侧16-pin记录，部分AIC使用8pin。' },
     { id: 'rtx4060', brand: 'NVIDIA', family: 'GeForce RTX 40 (Ada)',
       name: 'GeForce RTX 4060', tbp: 115, memory: '8GB GDDR6 128-bit',
       connector: '1× 8pin', pcie: 'PCIe 4.0 x8', slots: 2,
@@ -4405,11 +4810,16 @@ html:not(.psu-boot-active) details[open] > :not(summary),
       transient: 1.6, released: '2025-03', price: 3999,
       confidence: 'official', source: 'guru3d9070' },
     { id: 'rx9060xt', brand: 'AMD', family: 'Radeon RX 9000 (RDNA 4)',
-      name: 'Radeon RX 9060 XT', tbp: 160, memory: '8GB / 16GB GDDR6 128-bit',
+      name: 'Radeon RX 9060 XT 16GB', tbp: 160, memory: '16GB GDDR6 128-bit',
       connector: '1× 8pin', pcie: 'PCIe 5.0 x16', slots: 2,
       transient: 1.6, released: '2025-06', price: 2299,
-      confidence: 'official', source: 'tpuGpuDb',
-      note: '16GB 版 TBP 160W，8GB 版 150W。' },
+      confidence: 'official', source: 'amd9060spec',
+      note: '16GB基准TBP从160W起；AIC功耗墙可能更高。' },
+    { id: 'rx9060xt-8gb', brand: 'AMD', family: 'Radeon RX 9000 (RDNA 4)',
+      name: 'Radeon RX 9060 XT 8GB', tbp: 150, memory: '8GB GDDR6 128-bit',
+      connector: '1× 8pin', pcie: 'PCIe 5.0 x16', slots: 2,
+      transient: 1.6, released: '2025-06', price: 0,
+      confidence: 'official', source: 'amd9060spec', note: '8GB基准TBP从150W起；AIC功耗墙可能更高。' },
     { id: 'rx7900xtx', brand: 'AMD', family: 'Radeon RX 7000 (RDNA 3)',
       name: 'Radeon RX 7900 XTX', tbp: 355, memory: '24GB GDDR6 384-bit',
       connector: '2× 8pin', pcie: 'PCIe 4.0 x16', slots: 2.5,
@@ -5224,205 +5634,381 @@ html:not(.psu-boot-active) details[open] > :not(summary),
   ];
 
   /* ========================================================== 电源 ======
-   *  conn12v2x6 : 原生 12V-2x6 / 12VHPWR 接口数量
+   *  conn12v2x6 : 随附直连 12V-2x6 / 12VHPWR 显卡侧线缆数量（非电源侧插座数）
    *  pcie8pin   : PCIe 8pin (6+2) 接口数量
    *  eps8pin    : CPU 8pin (4+4) 接口数量 —— 高端主板可能需要 2 个
    * ======================================================================*/
+  // Legacy IDs retain saved-plan compatibility. db-psus.js replaces verified
+  // entries and quarantines all others; old guessed specifications are removed.
   var PSUS = [
-    { id: 'seasonic-prime-tx1300', brand: '海韵 Seasonic', series: 'PRIME TX', model: 'PRIME TX-1300',
-      watts: 1300, efficiency: '80 PLUS 钛金', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 4, eps8pin: 2, sata: 8, tier: '旗舰',
-      price: 3299, confidence: 'estimate', source: 'seasonic' },
-    { id: 'seasonic-prime-px1600', brand: '海韵 Seasonic', series: 'PRIME PX', model: 'PRIME PX-1600',
-      watts: 1600, efficiency: '80 PLUS 铂金', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 2, pcie8pin: 6, eps8pin: 3, sata: 12, tier: '旗舰',
-      price: 4299, confidence: 'estimate', source: 'seasonic' },
-    { id: 'seasonic-prime-tx1600', brand: '海韵 Seasonic', series: 'PRIME TX', model: 'PRIME TX-1600',
-      watts: 1600, efficiency: '80 PLUS 钛金', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 2, pcie8pin: 6, eps8pin: 3, sata: 12, tier: '旗舰',
-      price: 5299, confidence: 'estimate', source: 'seasonic',
-      note: 'PRIME TX 系列旗舰，钛金效率；双 12V-2x6 原生接口。' },
-    { id: 'seasonic-vertex-gx1200', brand: '海韵 Seasonic', series: 'VERTEX GX', model: 'VERTEX GX-1200',
-      watts: 1200, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 4, eps8pin: 2, sata: 6, tier: '均衡',
-      price: 1699, confidence: 'estimate', source: 'seasonic' },
-    { id: 'seasonic-focus-gx1000', brand: '海韵 Seasonic', series: 'FOCUS GX', model: 'FOCUS GX-1000 ATX 3.1',
-      watts: 1000, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 3, eps8pin: 2, sata: 5, tier: '均衡',
-      price: 1099, confidence: 'estimate', source: 'seasonic' },
-    { id: 'seasonic-focus-gx850', brand: '海韵 Seasonic', series: 'FOCUS GX', model: 'FOCUS GX-850 ATX 3.1',
-      watts: 850, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 3, eps8pin: 2, sata: 5, tier: '均衡',
-      price: 899, confidence: 'estimate', source: 'seasonic' },
-    { id: 'seasonic-focus-gx750', brand: '海韵 Seasonic', series: 'FOCUS GX', model: 'FOCUS GX-750 ATX 3.1',
-      watts: 750, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 3, eps8pin: 2, sata: 4, tier: '均衡',
-      price: 749, confidence: 'estimate', source: 'seasonic' },
-    { id: 'seasonic-focus-gx650', brand: '海韵 Seasonic', series: 'FOCUS GX', model: 'FOCUS GX-650 ATX 3.1',
-      watts: 650, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 0, pcie8pin: 3, eps8pin: 2, sata: 4, tier: '基础',
-      price: 599, confidence: 'estimate', source: 'seasonic' },
-    { id: 'superflower-leadex3-1000', brand: '振华 Super Flower', series: 'LEADEX III ARGB', model: 'LEADEX III ARGB 1000W',
-      watts: 1000, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 4, eps8pin: 2, sata: 6, tier: '均衡',
-      price: 1299, confidence: 'estimate', source: 'tpuGpuDb' },
-    { id: 'superflower-leadex3-1300', brand: '振华 Super Flower', series: 'LEADEX III ARGB', model: 'LEADEX III ARGB 1300W',
-      watts: 1300, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 6, eps8pin: 2, sata: 8, tier: '均衡',
-      price: 1899, confidence: 'estimate', source: 'tpuGpuDb',
-      note: 'ARGB 灯效 + 原生 12V-2x6，1300W 段位里较有性价比的选择。' },
-    { id: 'superflower-leadex7-1300', brand: '振华 Super Flower', series: 'LEADEX VII', model: 'LEADEX VII 1300W',
-      watts: 1300, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 2, pcie8pin: 4, eps8pin: 2, sata: 8, tier: '旗舰',
-      price: 2299, confidence: 'estimate', source: 'tpuGpuDb' },
-    { id: 'asus-rog-thor-1200p2', brand: '华硕 ASUS', series: 'ROG THOR', model: 'ROG THOR 1200P2 GAMING',
-      watts: 1200, efficiency: '80 PLUS 钛金', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 4, eps8pin: 2, sata: 6, tier: '旗舰',
-      price: 2999, confidence: 'estimate', source: 'asusAstral5090' },
-    { id: 'asus-rog-strix-1000', brand: '华硕 ASUS', series: 'ROG STRIX', model: 'ROG STRIX 1000W AURA',
-      watts: 1000, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 4, eps8pin: 2, sata: 6, tier: '均衡',
-      price: 1499, confidence: 'estimate', source: 'asusAstral5090' },
-    { id: 'msi-meg-ai1300p', brand: '微星 MSI', series: 'MEG', model: 'MEG Ai1300P PCIE5',
-      watts: 1300, efficiency: '80 PLUS 铂金', atx: 'ATX 3.0', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 6, eps8pin: 2, sata: 8, tier: '旗舰',
-      price: 2799, confidence: 'estimate', source: 'tpuGpuDb',
-      note: 'ATX 3.0 规范（12VHPWR 接口），若追求最新规范建议选 ATX 3.1 型号。' },
-    { id: 'msi-mpg-a1000g', brand: '微星 MSI', series: 'MPG', model: 'MPG A1000G PCIE5',
-      watts: 1000, efficiency: '80 PLUS 金牌', atx: 'ATX 3.0', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 4, eps8pin: 2, sata: 6, tier: '均衡',
-      price: 1099, confidence: 'estimate', source: 'tpuGpuDb' },
-    { id: 'greatwall-f1250', brand: '长城 Great Wall', series: '猎金部落', model: '猎金部落 F1250',
-      watts: 1250, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 6, eps8pin: 2, sata: 8, tier: '均衡',
-      price: 1299, confidence: 'estimate', source: 'tpuGpuDb' },
-    { id: 'huntkey-k850', brand: '航嘉 Huntkey', series: 'MVP', model: 'MVP K850',
-      watts: 850, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 3, eps8pin: 2, sata: 6, tier: '基础',
-      price: 699, confidence: 'estimate', source: 'tpuGpuDb' },
-    { id: 'huntkey-wd650k', brand: '航嘉 Huntkey', series: 'WD', model: 'WD650K',
-      watts: 650, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '非模组',
-      conn12v2x6: 0, pcie8pin: 2, eps8pin: 2, sata: 4, tier: '基础',
-      price: 399, confidence: 'estimate', source: 'tpuGpuDb' },
-    { id: 'fsp-hydro-gt-1000', brand: '全汉 FSP', series: 'HYDRO GT PRO', model: 'HYDRO GT PRO 1000W',
-      watts: 1000, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 4, eps8pin: 2, sata: 6, tier: '均衡',
-      price: 999, confidence: 'estimate', source: 'tpuGpuDb' },
-    { id: 'antec-ne1300g', brand: '安钛克 Antec', series: 'NE Gold', model: 'NE1300G M ATX 3.1',
-      watts: 1300, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 2, pcie8pin: 4, eps8pin: 2, sata: 8, tier: '旗舰',
-      price: 1899, confidence: 'estimate', source: 'tpuGpuDb' },
-    { id: 'greatwall-x6-750', brand: '长城 Great Wall', series: 'X', model: 'X6 750W ATX 3.1',
-      watts: 750, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 3, eps8pin: 2, sata: 6, tier: '基础',
-      price: 549, confidence: 'estimate', source: 'tpuGpuDb' },
-    { id: 'greatwall-x4-550', brand: '长城 Great Wall', series: 'X', model: 'X4 550W',
-      watts: 550, efficiency: '80 PLUS 铜牌', atx: 'ATX 3.0', modular: '非模组',
-      conn12v2x6: 0, pcie8pin: 2, eps8pin: 1, sata: 4, tier: '基础',
-      price: 299, confidence: 'estimate', source: 'tpuGpuDb',
-      note: '入门级办公机常用，注意只有 1 个 CPU 8pin。' },
-    { id: 'seasonic-sfx-750', brand: '海韵 Seasonic', series: 'SGX', model: 'SGX-750 (SFX-L)',
-      watts: 750, efficiency: '80 PLUS 金牌', atx: 'ATX 3.0', modular: '全模组', formFactor: 'SFX-L',
-      conn12v2x6: 1, pcie8pin: 3, eps8pin: 2, sata: 4, tier: '基础',
-      price: 1199, confidence: 'estimate', source: 'seasonic',
-      note: 'SFX-L 规格，仅适用于 ITX 机箱。' },
-    { id: 'coolermaster-v850-sfx', brand: '酷冷至尊 CoolerMaster', series: 'V SFX', model: 'V850 SFX Gold',
-      watts: 850, efficiency: '80 PLUS 金牌', atx: 'ATX 3.0', modular: '全模组', formFactor: 'SFX',
-      conn12v2x6: 1, pcie8pin: 3, eps8pin: 2, sata: 4, tier: '均衡',
-      price: 1099, confidence: 'estimate', source: 'tpuGpuDb',
-      note: '标准 SFX 规格，ITX 高性能装机的主力选择。' },
-    /* --------------------------------------- 2026.09.8 扩充：主流电源 --- */
-    { id: 'thermalright-tg-750', brand: '利民 Thermalright', series: 'TG', model: 'TG-750 金牌全模组',
-      watts: 750, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 3, eps8pin: 2, sata: 4, tier: '基础',
-      price: 449, confidence: 'estimate', source: 'expreview' },
-    { id: 'thermalright-tg-1000', brand: '利民 Thermalright', series: 'TG', model: 'TG-1000 金牌全模组',
-      watts: 1000, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 4, eps8pin: 2, sata: 6, tier: '均衡',
-      price: 549, confidence: 'estimate', source: 'expreview',
-      note: '千元内千 W 金牌里性价比突出的选择。' },
-    { id: 'superflower-leadex3-850', brand: '振华 Super Flower', series: 'LEADEX III ARGB', model: 'LEADEX III ARGB 850W',
-      watts: 850, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 3, eps8pin: 2, sata: 4, tier: '均衡',
-      price: 799, confidence: 'estimate', source: 'expreview' },
-    { id: 'phanteks-amp-gh850', brand: '追风者 Phanteks', series: 'AMP', model: 'AMP GH850',
-      watts: 850, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 3, eps8pin: 2, sata: 4, tier: '均衡',
-      price: 749, confidence: 'estimate', source: 'expreview' },
-    { id: 'antec-hcg-850', brand: '安钛克 Antec', series: 'HCG', model: 'HCG850 GOLD',
-      watts: 850, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 3, eps8pin: 2, sata: 6, tier: '均衡',
-      price: 799, confidence: 'estimate', source: 'expreview' },
-    { id: 'segotep-gm850w', brand: '鑫谷 Segotep', series: 'GM', model: 'GM850W',
-      watts: 850, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 3, eps8pin: 2, sata: 4, tier: '基础',
-      price: 599, confidence: 'estimate', source: 'expreview' },
-    { id: 'sama-xp1000', brand: '先马 SAMA', series: '黑洞', model: '黑洞 850P XP1000',
-      watts: 1000, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 4, eps8pin: 2, sata: 6, tier: '均衡',
-      price: 799, confidence: 'estimate', source: 'expreview' },
-    { id: 'deepcool-pq1000m', brand: '九州风神 DeepCool', series: 'PQ', model: 'PQ1000M',
-      watts: 1000, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 4, eps8pin: 2, sata: 6, tier: '均衡',
-      price: 899, confidence: 'estimate', source: 'expreview' },
-    { id: 'gigabyte-ud1000gm-pg5', brand: '技嘉 GIGABYTE', series: 'UD', model: 'UD1000GM PG5',
-      watts: 1000, efficiency: '80 PLUS 金牌', atx: 'ATX 3.0', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 4, eps8pin: 2, sata: 6, tier: '均衡',
-      price: 899, confidence: 'estimate', source: 'expreview',
-      note: 'ATX 3.0 规范（12VHPWR 接口）。' },
-    { id: 'corsair-rm1000e', brand: '海盗船 Corsair', series: 'RM', model: 'RM1000e',
-      watts: 1000, efficiency: '80 PLUS 金牌', atx: 'ATX 3.0', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 3, eps8pin: 2, sata: 6, tier: '均衡',
-      price: 1099, confidence: 'estimate', source: 'expreview' },
-    { id: 'msi-mag-a1000gl', brand: '微星 MSI', series: 'MAG', model: 'MAG A1000GL PCIE5.1',
-      watts: 1000, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 4, eps8pin: 2, sata: 6, tier: '均衡',
-      price: 999, confidence: 'estimate', source: 'expreview' },
-    { id: 'asus-tuf-1000g', brand: '华硕 ASUS', series: 'TUF GAMING', model: 'TUF GAMING 1000G',
-      watts: 1000, efficiency: '80 PLUS 金牌', atx: 'ATX 3.0', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 4, eps8pin: 2, sata: 6, tier: '均衡',
-      price: 1199, confidence: 'estimate', source: 'expreview' },
-    { id: 'msi-meg-ai1000p', brand: '微星 MSI', series: 'MEG', model: 'MEG Ai1000P PCIE5',
-      watts: 1000, efficiency: '80 PLUS 铂金', atx: 'ATX 3.0', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 5, eps8pin: 2, sata: 8, tier: '旗舰',
-      price: 1999, confidence: 'estimate', source: 'expreview' },
-    { id: 'fsp-hydro-ptm-x-1000', brand: '全汉 FSP', series: 'HYDRO PTM X PRO', model: 'HYDRO PTM X PRO 1000W',
-      watts: 1000, efficiency: '80 PLUS 铂金', atx: 'ATX 3.0', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 4, eps8pin: 2, sata: 8, tier: '旗舰',
-      price: 1599, confidence: 'estimate', source: 'expreview' },
-    { id: 'corsair-sf1000', brand: '海盗船 Corsair', series: 'SF', model: 'SF1000 Platinum (SFX-L)',
-      watts: 1000, efficiency: '80 PLUS 铂金', atx: 'ATX 3.0', modular: '全模组', formFactor: 'SFX-L',
-      conn12v2x6: 1, pcie8pin: 3, eps8pin: 2, sata: 4, tier: '旗舰',
-      price: 1599, confidence: 'estimate', source: 'expreview',
-      note: 'SFX-L 规格，ITX 高性能装机的高瓦数选择。' },
-    { id: 'phanteks-revolt-1200', brand: '追风者 Phanteks', series: 'REVOLT PRO', model: 'REVOLT PRO 1200W',
-      watts: 1200, efficiency: '80 PLUS 铂金', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 4, eps8pin: 2, sata: 8, tier: '旗舰',
-      price: 1999, confidence: 'estimate', source: 'expreview' },
-    { id: 'asus-tuf-1200g', brand: '华硕 ASUS', series: 'TUF GAMING', model: 'TUF GAMING 1200G',
-      watts: 1200, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 4, eps8pin: 2, sata: 8, tier: '均衡',
-      price: 1499, confidence: 'estimate', source: 'expreview' },
-    { id: 'deepcool-px1200g', brand: '九州风神 DeepCool', series: 'PX', model: 'PX1200G',
-      watts: 1200, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 4, eps8pin: 2, sata: 8, tier: '均衡',
-      price: 1299, confidence: 'estimate', source: 'expreview' },
-    { id: 'superflower-leadex7-1200', brand: '振华 Super Flower', series: 'LEADEX VII', model: 'LEADEX VII 1200W',
-      watts: 1200, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 2, pcie8pin: 4, eps8pin: 2, sata: 8, tier: '旗舰',
-      price: 1799, confidence: 'estimate', source: 'expreview' },
-    { id: 'segotep-kp1250g', brand: '鑫谷 Segotep', series: '昆仑 KL', model: '昆仑 KL-1250G',
-      watts: 1250, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 4, eps8pin: 2, sata: 8, tier: '均衡',
-      price: 1199, confidence: 'estimate', source: 'expreview' },
-    { id: 'corsair-hx1200i', brand: '海盗船 Corsair', series: 'HX', model: 'HX1200i',
-      watts: 1200, efficiency: '80 PLUS 铂金', atx: 'ATX 3.0', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 6, eps8pin: 2, sata: 12, tier: '旗舰',
-      price: 2299, confidence: 'estimate', source: 'expreview' },
-    { id: 'superflower-leadex7-1600', brand: '振华 Super Flower', series: 'LEADEX VII', model: 'LEADEX VII 1600W',
-      watts: 1600, efficiency: '80 PLUS 铂金', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 2, pcie8pin: 6, eps8pin: 2, sata: 12, tier: '旗舰',
-      price: 2999, confidence: 'estimate', source: 'expreview' }
+    {
+      "id": "seasonic-prime-tx1300",
+      "brand": "海韵 Seasonic",
+      "series": "PRIME TX",
+      "model": "PRIME TX-1300",
+      "watts": 1300,
+      "price": 3299
+    },
+    {
+      "id": "seasonic-prime-px1600",
+      "brand": "海韵 Seasonic",
+      "series": "PRIME PX",
+      "model": "PRIME PX-1600",
+      "watts": 1600,
+      "price": 4299
+    },
+    {
+      "id": "seasonic-prime-tx1600",
+      "brand": "海韵 Seasonic",
+      "series": "PRIME TX",
+      "model": "PRIME TX-1600",
+      "watts": 1600,
+      "price": 5299
+    },
+    {
+      "id": "seasonic-vertex-gx1200",
+      "brand": "海韵 Seasonic",
+      "series": "VERTEX GX",
+      "model": "VERTEX GX-1200",
+      "watts": 1200,
+      "price": 1699
+    },
+    {
+      "id": "seasonic-focus-gx1000",
+      "brand": "海韵 Seasonic",
+      "series": "FOCUS GX",
+      "model": "FOCUS GX-1000 ATX 3.1",
+      "watts": 1000,
+      "price": 1099
+    },
+    {
+      "id": "seasonic-focus-gx850",
+      "brand": "海韵 Seasonic",
+      "series": "FOCUS GX",
+      "model": "FOCUS GX-850 ATX 3.1",
+      "watts": 850,
+      "price": 899
+    },
+    {
+      "id": "seasonic-focus-gx750",
+      "brand": "海韵 Seasonic",
+      "series": "FOCUS GX",
+      "model": "FOCUS GX-750 ATX 3.1",
+      "watts": 750,
+      "price": 749
+    },
+    {
+      "id": "seasonic-focus-gx650",
+      "brand": "海韵 Seasonic",
+      "series": "FOCUS GX",
+      "model": "FOCUS GX-650 ATX 3.1",
+      "watts": 650,
+      "price": 599
+    },
+    {
+      "id": "superflower-leadex3-1000",
+      "brand": "振华 Super Flower",
+      "series": "LEADEX III ARGB",
+      "model": "LEADEX III ARGB 1000W",
+      "watts": 1000,
+      "price": 1299
+    },
+    {
+      "id": "superflower-leadex3-1300",
+      "brand": "振华 Super Flower",
+      "series": "LEADEX III ARGB",
+      "model": "LEADEX III ARGB 1300W",
+      "watts": 1300,
+      "price": 1899
+    },
+    {
+      "id": "superflower-leadex7-1300",
+      "brand": "振华 Super Flower",
+      "series": "LEADEX VII",
+      "model": "LEADEX VII 1300W",
+      "watts": 1300,
+      "price": 2299
+    },
+    {
+      "id": "asus-rog-thor-1200p2",
+      "brand": "华硕 ASUS",
+      "series": "ROG THOR",
+      "model": "ROG THOR 1200P2 GAMING",
+      "watts": 1200,
+      "price": 2999
+    },
+    {
+      "id": "asus-rog-strix-1000",
+      "brand": "华硕 ASUS",
+      "series": "ROG STRIX",
+      "model": "ROG STRIX 1000W AURA",
+      "watts": 1000,
+      "price": 1499
+    },
+    {
+      "id": "msi-meg-ai1300p",
+      "brand": "微星 MSI",
+      "series": "MEG",
+      "model": "MEG Ai1300P PCIE5",
+      "watts": 1300,
+      "price": 2799
+    },
+    {
+      "id": "msi-mpg-a1000g",
+      "brand": "微星 MSI",
+      "series": "MPG",
+      "model": "MPG A1000G PCIE5",
+      "watts": 1000,
+      "price": 1099
+    },
+    {
+      "id": "greatwall-f1250",
+      "brand": "长城 Great Wall",
+      "series": "猎金部落",
+      "model": "猎金部落 F1250",
+      "watts": 1250,
+      "price": 1299
+    },
+    {
+      "id": "huntkey-k850",
+      "brand": "航嘉 Huntkey",
+      "series": "MVP",
+      "model": "MVP K850",
+      "watts": 850,
+      "price": 699
+    },
+    {
+      "id": "huntkey-wd650k",
+      "brand": "航嘉 Huntkey",
+      "series": "WD",
+      "model": "WD650K",
+      "watts": 650,
+      "price": 399
+    },
+    {
+      "id": "fsp-hydro-gt-1000",
+      "brand": "全汉 FSP",
+      "series": "HYDRO GT PRO",
+      "model": "HYDRO GT PRO 1000W",
+      "watts": 1000,
+      "price": 999
+    },
+    {
+      "id": "antec-ne1300g",
+      "brand": "安钛克 Antec",
+      "series": "NE Gold",
+      "model": "NE1300G M ATX 3.1",
+      "watts": 1300,
+      "price": 1899
+    },
+    {
+      "id": "greatwall-x6-750",
+      "brand": "长城 Great Wall",
+      "series": "X",
+      "model": "X6 750W ATX 3.1",
+      "watts": 750,
+      "price": 549
+    },
+    {
+      "id": "greatwall-x4-550",
+      "brand": "长城 Great Wall",
+      "series": "X",
+      "model": "X4 550W",
+      "watts": 550,
+      "price": 299
+    },
+    {
+      "id": "seasonic-sfx-750",
+      "brand": "海韵 Seasonic",
+      "series": "SGX",
+      "model": "SGX-750 (SFX-L)",
+      "watts": 750,
+      "price": 1199
+    },
+    {
+      "id": "coolermaster-v850-sfx",
+      "brand": "酷冷至尊 CoolerMaster",
+      "series": "V SFX",
+      "model": "V850 SFX Gold",
+      "watts": 850,
+      "price": 1099
+    },
+    {
+      "id": "thermalright-tg-750",
+      "brand": "利民 Thermalright",
+      "series": "TG",
+      "model": "TG-750 金牌全模组",
+      "watts": 750,
+      "price": 449
+    },
+    {
+      "id": "thermalright-tg-1000",
+      "brand": "利民 Thermalright",
+      "series": "TG",
+      "model": "TG-1000 金牌全模组",
+      "watts": 1000,
+      "price": 549
+    },
+    {
+      "id": "superflower-leadex3-850",
+      "brand": "振华 Super Flower",
+      "series": "LEADEX III ARGB",
+      "model": "LEADEX III ARGB 850W",
+      "watts": 850,
+      "price": 799
+    },
+    {
+      "id": "phanteks-amp-gh850",
+      "brand": "追风者 Phanteks",
+      "series": "AMP",
+      "model": "AMP GH850",
+      "watts": 850,
+      "price": 749
+    },
+    {
+      "id": "antec-hcg-850",
+      "brand": "安钛克 Antec",
+      "series": "HCG",
+      "model": "HCG850 GOLD",
+      "watts": 850,
+      "price": 799
+    },
+    {
+      "id": "segotep-gm850w",
+      "brand": "鑫谷 Segotep",
+      "series": "GM",
+      "model": "GM850W",
+      "watts": 850,
+      "price": 599
+    },
+    {
+      "id": "sama-xp1000",
+      "brand": "先马 SAMA",
+      "series": "黑洞",
+      "model": "黑洞 850P XP1000",
+      "watts": 1000,
+      "price": 799
+    },
+    {
+      "id": "deepcool-pq1000m",
+      "brand": "九州风神 DeepCool",
+      "series": "PQ",
+      "model": "PQ1000M",
+      "watts": 1000,
+      "price": 899
+    },
+    {
+      "id": "gigabyte-ud1000gm-pg5",
+      "brand": "技嘉 GIGABYTE",
+      "series": "UD",
+      "model": "UD1000GM PG5",
+      "watts": 1000,
+      "price": 899
+    },
+    {
+      "id": "corsair-rm1000e",
+      "brand": "海盗船 Corsair",
+      "series": "RM",
+      "model": "RM1000e",
+      "watts": 1000,
+      "price": 1099
+    },
+    {
+      "id": "msi-mag-a1000gl",
+      "brand": "微星 MSI",
+      "series": "MAG",
+      "model": "MAG A1000GL PCIE5.1",
+      "watts": 1000,
+      "price": 999
+    },
+    {
+      "id": "asus-tuf-1000g",
+      "brand": "华硕 ASUS",
+      "series": "TUF GAMING",
+      "model": "TUF GAMING 1000G",
+      "watts": 1000,
+      "price": 1199
+    },
+    {
+      "id": "msi-meg-ai1000p",
+      "brand": "微星 MSI",
+      "series": "MEG",
+      "model": "MEG Ai1000P PCIE5",
+      "watts": 1000,
+      "price": 1999
+    },
+    {
+      "id": "fsp-hydro-ptm-x-1000",
+      "brand": "全汉 FSP",
+      "series": "HYDRO PTM X PRO",
+      "model": "HYDRO PTM X PRO 1000W",
+      "watts": 1000,
+      "price": 1599
+    },
+    {
+      "id": "corsair-sf1000",
+      "brand": "海盗船 Corsair",
+      "series": "SF",
+      "model": "SF1000 Platinum (SFX-L)",
+      "watts": 1000,
+      "price": 1599
+    },
+    {
+      "id": "phanteks-revolt-1200",
+      "brand": "追风者 Phanteks",
+      "series": "REVOLT PRO",
+      "model": "REVOLT PRO 1200W",
+      "watts": 1200,
+      "price": 1999
+    },
+    {
+      "id": "asus-tuf-1200g",
+      "brand": "华硕 ASUS",
+      "series": "TUF GAMING",
+      "model": "TUF GAMING 1200G",
+      "watts": 1200,
+      "price": 1499
+    },
+    {
+      "id": "deepcool-px1200g",
+      "brand": "九州风神 DeepCool",
+      "series": "PX",
+      "model": "PX1200G",
+      "watts": 1200,
+      "price": 1299
+    },
+    {
+      "id": "superflower-leadex7-1200",
+      "brand": "振华 Super Flower",
+      "series": "LEADEX VII",
+      "model": "LEADEX VII 1200W",
+      "watts": 1200,
+      "price": 1799
+    },
+    {
+      "id": "segotep-kp1250g",
+      "brand": "鑫谷 Segotep",
+      "series": "昆仑 KL",
+      "model": "昆仑 KL-1250G",
+      "watts": 1250,
+      "price": 1199
+    },
+    {
+      "id": "corsair-hx1200i",
+      "brand": "海盗船 Corsair",
+      "series": "HX",
+      "model": "HX1200i",
+      "watts": 1200,
+      "price": 2299
+    },
+    {
+      "id": "superflower-leadex7-1600",
+      "brand": "振华 Super Flower",
+      "series": "LEADEX VII",
+      "model": "LEADEX VII 1600W",
+      "watts": 1600,
+      "price": 2999
+    }
   ];
 
   /* ==================================================== 其他 / 外设 ==== */
@@ -5438,13 +6024,15 @@ html:not(.psu-boot-active) details[open] > :not(summary),
   ];
 
   /* ------------------------------------------------------------ 装配 ---- */
+  PSUS = root.HWDB_PSU_AUDIT.apply(PSUS, SOURCES);
   var AIBS = AIB_DB.build(GPUS);
 
   root.HWDB = {
     meta: {
-      toolVersion: '2.2.0',
-      version: '2026.09.9',
-      updated: '2026-09-16',
+      toolVersion: '3.0.0',
+      version: '2026.10.1',
+      updated: '2026-10-04',
+      psuCheckedAt: root.HWDB_PSU_AUDIT.checkedAt,
       title: '台式机功耗与电源选型数据库',
       counts: {
         cpu: CPU_DB.length, gpu: GPUS.length, aib: AIBS.length,
@@ -5520,6 +6108,14 @@ html:not(.psu-boot-active) details[open] > :not(summary),
 
   var STANDARD_WATTS = [450, 500, 550, 650, 750, 850, 1000, 1200, 1300, 1500, 1600, 2000];
 
+  // 场景系数是可解释的工程假设，不是实测或统计置信区间。
+  var LOAD_RANGES = {
+    office: { cpu: [0.08, 0.25], gpu: [0.03, 0.12], other: [0.35, 0.65] },
+    gaming: { cpu: [0.25, 0.65], gpu: [0.65, 1.00], other: [0.60, 1.00] },
+    creator: { cpu: [0.55, 1.00], gpu: [0.35, 1.00], other: [0.65, 1.00] },
+    extreme: { cpu: [0.90, 1.00], gpu: [0.90, 1.00], other: [0.90, 1.00] }
+  };
+
   /* ------------------------------------------------------------- 工具函数 - */
 
   function byId(list, id) {
@@ -5563,13 +6159,22 @@ html:not(.psu-boot-active) details[open] > :not(summary),
     return /12V-?2x6|12VHPWR|16pin/i.test(connector || '');
   }
 
+  function required12v2x6(connector) {
+    if (!needs12v2x6(connector)) return 0;
+    var m = /(\d+)\s*[×x]\s*(?:12V-?2x6|12VHPWR|16pin)/i.exec(connector || '');
+    return m ? parseInt(m[1], 10) : 1;
+  }
+
   /* ============================================================ 主计算 ====
    * @param {Object} cfg 用户配置
    * @returns {Object}    完整计算结果
    * ======================================================================*/
   function calculate(cfg) {
     cfg = cfg || {};
-    var oc = !!cfg.overclock;
+    // 旧 API 的 overclock 仍兼容；显式分项开关优先。
+    var cpuOc = Object.prototype.hasOwnProperty.call(cfg, 'cpuOc') ? !!cfg.cpuOc : !!cfg.overclock;
+    var gpuOc = Object.prototype.hasOwnProperty.call(cfg, 'gpuOc') ? !!cfg.gpuOc : !!cfg.overclock;
+    var oc = cpuOc || gpuOc;
     var issues = [];
     var items = [];
 
@@ -5579,7 +6184,7 @@ html:not(.psu-boot-active) details[open] > :not(summary),
     if (cpu) {
       // 锁频型号（Intel 非 K / 部分 X3D）无法通过倍频超频，超频开关对其无效
       var canOc = cpu.unlocked !== false;
-      cpuOcApplied = oc && canOc;
+      cpuOcApplied = cpuOc && canOc;
       if (cpuOcApplied) {
         cpuWatts = num(cfg.cpuCustomWatts, cpu.ocPeak);
         cpuDetail = '超频模式：' + (cfg.cpuCustomWatts
@@ -5587,15 +6192,20 @@ html:not(.psu-boot-active) details[open] > :not(summary),
           : '解锁功耗墙 ' + cpu.maxTurbo + 'W → ' + cpuWatts + 'W');
       } else {
         cpuWatts = cpu.maxTurbo;
-        cpuDetail = '最大睿频功耗（基础 ' + cpu.tdp + 'W / 睿频 ' + cpu.maxTurbo + 'W）' +
-                    (oc && !canOc ? ' — 该型号倍频锁定，超频开关不生效' : '');
+        cpuDetail = (cpu.brand === 'AMD' ? '规划PPT估值（TDP ' : '最大睿频功耗（基础 ') + cpu.tdp + 'W / ' + (cpu.brand === 'AMD' ? 'PPT ' : '睿频 ') + cpu.maxTurbo + 'W）' +
+                    (cpuOc && !canOc ? ' — 该型号倍频锁定，超频开关不生效' : '');
+      }
+      // 明确输入的功耗墙（含降压/限功耗）不依赖倍频超频能力。
+      if (num(cfg.cpuCustomWatts) > 0) {
+        cpuWatts = Math.min(3000, num(cfg.cpuCustomWatts));
+        cpuDetail = '用户设置功耗墙 ' + cpuWatts + 'W；需与 BIOS 设置核对';
       }
       items.push({
         group: '核心部件', label: 'CPU', name: cpu.name, alias: cpu.alias,
         watts: cpuWatts, nominal: cpu.tdp, detail: cpuDetail,
         locked: !canOc,
-        confidence: cfg.cpuCustomWatts ? 'estimate' : cpu.confidence,
-        source: cpu.source, highlight: true
+        confidence: cpu.confidence === 'leak' ? 'leak' : (cfg.cpuCustomWatts || cpuOcApplied || cpu.brand === 'AMD' ? 'estimate' : cpu.confidence),
+        source: num(cfg.cpuCustomWatts) > 0 || cpuOcApplied || cpu.brand === 'AMD' ? null : cpu.source, highlight: true
       });
     } else if (cfg.cpuName) {
       cpuWatts = num(cfg.cpuCustomWatts, 150);
@@ -5625,9 +6235,9 @@ html:not(.psu-boot-active) details[open] > :not(summary),
 
       if (gpu) {
         if (aib) {
-          gpuWatts = oc ? aib.ocLimit : aib.tbp;
+          gpuWatts = gpuOc ? aib.ocLimit : aib.tbp;
         } else {
-          gpuWatts = oc ? Math.round(gpu.tbp * 1.08) : gpu.tbp;
+          gpuWatts = gpuOc ? Math.round(gpu.tbp * 1.08) : gpu.tbp;
         }
         gpuTransientFactor = gpu.transient;
         items.push({
@@ -5638,18 +6248,18 @@ html:not(.psu-boot-active) details[open] > :not(summary),
           sub: aib ? aib.sku : '',
           watts: gpuWatts, nominal: aib ? aib.tbp : gpu.tbp,
           detail: aib
-            ? (oc ? 'OC 功耗墙 ' + aib.ocLimit + 'W' : '出厂 TBP ' + aib.tbp + 'W') +
+            ? (gpuOc ? 'OC 功耗墙 ' + aib.ocLimit + 'W' : '出厂 TBP ' + aib.tbp + 'W') +
               ' · ' + aib.connector + ' · ' +
               ({ aggressive: 'AIC 超频策略激进', moderate: 'AIC 超频策略中性', conservative: 'AIC 超频策略保守' }[aib.ocBias] || '') +
               (aib.liquid ? ' · 水冷形态' : '') +
               (aib.generated ? ' · 功耗墙由系列定位推算' : '')
             : '标称 TBP ' + gpu.tbp + 'W · ' + gpu.connector,
-          confidence: aib ? aib.confidence : gpu.confidence,
-          source: aib ? (aib.source || gpu.source) : gpu.source,
+          confidence: (aib ? aib.confidence : gpu.confidence) === 'leak' ? 'leak' : (gpuOc ? 'estimate' : (aib ? aib.confidence : gpu.confidence)),
+          source: gpuOc ? null : (aib ? (aib.source || null) : gpu.source),
           highlight: true
         });
       } else if (cfg.gpuName) {
-        gpuWatts = num(cfg.gpuCustomWatts, 250);
+      gpuWatts = Math.min(3000, Math.max(0, num(cfg.gpuCustomWatts, 250)));
         items.push({
           group: '核心部件', label: '显卡', name: cfg.gpuName,
           watts: gpuWatts, detail: '未收录型号，按同类均值估算（' + gpuWatts + 'W）',
@@ -5778,6 +6388,29 @@ html:not(.psu-boot-active) details[open] > :not(summary),
     });
 
     /* ---------------------------------------------------- 9. 合计与系数 -- */
+    var missing = [];
+    if (!cpu && !cfg.cpuName) missing.push('CPU');
+    if (!gpu && !cfg.gpuName && cfg.gpuId !== '__igpu__') missing.push('显卡或集成显卡选择');
+    var canRecommend = missing.length === 0;
+    var missingPowerParts = [];
+    if (!mobo) missingPowerParts.push('主板');
+    if (!ram) missingPowerParts.push('内存');
+    if (storageWatts === 0) missingPowerParts.push('存储');
+    if (!cooler) missingPowerParts.push('散热器');
+    var assumptions = [];
+    if (cfg.mode === 'quick' && canRecommend) {
+      var defaults = [
+        [!mobo, '主板', 25], [!ram, '两条内存', 10],
+        [storageWatts === 0, '一块 NVMe SSD', 8], [!cooler, 'CPU 散热器', 10],
+        [!fan || fanQty === 0, '三只机箱风扇', 9]
+      ];
+      defaults.forEach(function (d) {
+        if (!d[0]) return;
+        assumptions.push(d[1] + ' ' + d[2] + 'W');
+        items.push({ group: '快速估算默认项', label: d[1], name: d[1] + '（默认）',
+          watts: d[2], detail: '快速估算假设；填写具体部件后替代', confidence: 'estimate', source: null });
+      });
+    }
     var subtotal = items.reduce(function (a, b) { return a + b.watts; }, 0);
     subtotal = round1(subtotal);
 
@@ -5797,7 +6430,16 @@ html:not(.psu-boot-active) details[open] > :not(summary),
        是真值，会绕过白名单，后面 sc.factor 直接抛错（实测可复现）。 */
     var scenarioKey = Object.prototype.hasOwnProperty.call(SCENARIOS, cfg.scenario) ? cfg.scenario : 'gaming';
     var sc = SCENARIOS[scenarioKey];
-    var expected = round1(subtotal * sc.factor);
+    var load = LOAD_RANGES[scenarioKey];
+    var otherWattsForLoad = subtotal - cpuWatts - gpuWatts;
+    var expectedRange = {
+      low: round1(cpuWatts * load.cpu[0] + gpuWatts * load.gpu[0] + otherWattsForLoad * load.other[0]),
+      high: round1(cpuWatts * load.cpu[1] + gpuWatts * load.gpu[1] + otherWattsForLoad * load.other[1])
+    };
+    var expected = round1((expectedRange.low + expectedRange.high) / 2);
+    var estimatedWatts = items.reduce(function (sum, it) {
+      return sum + (it.confidence === 'official' || it.confidence === 'review' ? 0 : it.watts);
+    }, 0);
 
     // 瞬时峰值：显卡/硬盘启动瞬间会远超持续功耗
     var gpuPeak = gpuWatts;
@@ -5816,12 +6458,15 @@ html:not(.psu-boot-active) details[open] > :not(summary),
     if (oc) redundancy = Math.max(redundancy, 1.50);
     if (hddCount > 0) redundancy = Math.max(redundancy, 1.40);
 
-    var recFloor = hasSelection ? roundUpStandard(subtotal * FLOOR_FACTOR) : 0;   // 硬性底线，不容差
-    var recIdeal = hasSelection ? roundUpStandard(subtotal * redundancy, 0.01) : 0;
+    var recFloor = canRecommend ? roundUpStandard(subtotal * FLOOR_FACTOR) : 0;
+    var recIdeal = canRecommend ? roundUpStandard(subtotal * redundancy, 0.01) : 0;
 
     // 厂商建议整机电源（如 ASUS 对 5090 全超频平台建议 1000W、
     // 微星对 5090 闪电建议 1600W）作为地板
-    var vendorFloor = aib && aib.recPsu ? aib.recPsu : (gpu && gpu.tbp >= 400 ? 1000 : 0);
+    var vendorFloor = canRecommend && aib && aib.recPsu ? aib.recPsu : 0;
+    var conservativeFloor = canRecommend && !vendorFloor && gpu && gpu.tbp >= 400 ? 1000 : 0;
+    if (conservativeFloor > recFloor) recFloor = conservativeFloor;
+    if (conservativeFloor > recIdeal) recIdeal = conservativeFloor;
     if (vendorFloor > recFloor) recFloor = vendorFloor;
     if (vendorFloor > recIdeal) recIdeal = vendorFloor;
     if (recIdeal < recFloor) recIdeal = recFloor;
@@ -5829,7 +6474,7 @@ html:not(.psu-boot-active) details[open] > :not(summary),
     // 超出消费级电源常规范围时如实告知，而不是给出一个买不到的非标准瓦数
     var MAX_CONSUMER = STANDARD_WATTS[STANDARD_WATTS.length - 1];
     var idealTarget = round1(subtotal * redundancy);   // 未取整的理想目标，用于说明缺口
-    var beyond = hasSelection && recIdeal > MAX_CONSUMER;
+    var beyond = canRecommend && recIdeal > MAX_CONSUMER;
     if (beyond) {
       issues.push({
         level: 'warn', code: 'BEYOND_CONSUMER_PSU',
@@ -5856,24 +6501,29 @@ html:not(.psu-boot-active) details[open] > :not(summary),
     if (vendorFloor) {
       reasons.push('显卡厂商建议整机电源不低于 ' + vendorFloor + 'W，已作为推荐下限');
     }
+    if (conservativeFloor) reasons.push('工具保守规则：显卡标称功耗 ≥400W，推荐下限取 1000W；不是厂商规格');
+    if (!canRecommend && hasSelection) issues.push({ level: 'info', code: 'INCOMPLETE_CONFIG',
+      title: '配置尚未完整，暂不推荐整机电源', detail: '缺少 ' + missing.join('、') + '；当前功耗只代表已填部件。',
+      fix: '先补齐 CPU 与显卡选择；仅用核显时请明确选择集成显卡。' });
     if (oc) reasons.push('已启用超频：冗余系数自动提升至 ≥1.50');
     if (hddCount > 0) {
       reasons.push('检测到 ' + hddCount + ' 块机械硬盘：已计入启动瞬间 ' + round1(storageSpinUp) +
                    'W 额外功耗，冗余系数提升至 ≥1.40');
     }
+    if (!canRecommend) reasons = ['当前仅计算已填部件，补齐 CPU 与显卡选择后再推荐整机电源。'];
 
     /* ------------------------------------------------ 11. 电源候选推荐 -- */
     /* 没选硬件时不推荐任何电源 —— 空配置下 compatible() 全部返回 true，
        会把 ≥450W 的型号全塞进候选池，渲染出 3 张「负载率 0%」的电源卡。 */
-    var psuPicks = hasSelection
-      ? pickPsus(recFloor, recIdeal, mobo, aib, gpu, pcCase)
+    var psuPicks = canRecommend && !beyond
+      ? pickPsus(recFloor, recIdeal, mobo, aib, gpu, pcCase, cpu, gpuWatts, storageList)
       : { value: null, balanced: null, flagship: null, min: null, list: [],
           distinctCount: 0, belowFloor: [], need12v2x6: false, need8pin: 0, filteredByCase: false };
 
     /* ------------------------------------------------- 12. 升级余量推演 -- */
     var otherWatts = subtotal - gpuWatts;
     var upgrade = null;
-    if (hasSelection && recIdeal > 0) {
+    if (canRecommend && !beyond && recIdeal > 0) {
       var gpuBudget = round1(recIdeal / redundancy - otherWatts);
       /* 升级建议只在「当前在售」的卡里挑。
          数据库补了 GTX 900 ~ RTX 30 系老卡之后，这里原来「TBP 最大者胜」的
@@ -5919,7 +6569,7 @@ html:not(.psu-boot-active) details[open] > :not(summary),
       cpu: cpu, mobo: mobo, gpu: gpu, aib: aib, ram: ram, pcCase: pcCase,
       cooler: cooler, storage: storageList, nvmeCount: nvmeCount, gen5Count: gen5Count,
       ramSticks: ramSticks, ramCapacity: ramCapacity,
-      psu: byId(HWDB.psus, cfg.psuId)
+      psu: byId(HWDB.psus, cfg.psuId), gpuWatts: gpuWatts
     }));
 
     /* --------------------------------------------- 14. 数据库缺失提醒 ---- */
@@ -5947,7 +6597,7 @@ html:not(.psu-boot-active) details[open] > :not(summary),
     /* ---------------------------------------------- 15. 已有电源评估 ----- */
     var existingPsu = null;
     var userPsu = byId(HWDB.psus, cfg.psuId);
-    if (userPsu) {
+    if (userPsu && canRecommend) {
       var util = subtotal / userPsu.watts;
       var utilExpected = expected / userPsu.watts;
       var verdict, vlevel;
@@ -5961,22 +6611,32 @@ html:not(.psu-boot-active) details[open] > :not(summary),
         verdict = '负载区间合理，效率与静音表现良好';
         vlevel = 'ok';
       } else {
-        verdict = '功率严重过剩，长期低负载下效率偏低（但不影响安全）';
-        vlevel = 'warn';
+        verdict = '功率余量充足；效率与噪声需参考该型号的负载曲线';
+        vlevel = 'ok';
       }
+      var psuErrors = issues.filter(function (i) { return i.level === 'error' && /^PSU_/.test(i.code); });
+      if (psuErrors.length || beyond) { verdict = '接口、安装规格或功率不满足要求'; vlevel = 'error'; }
+      var verificationComplete = userPsu.verified && !issues.some(function (i) {
+        return /^(PSU_SPEC_UNVERIFIED|PSU_16PIN_UNVERIFIED|PSU_SATA_UNVERIFIED|PSU_NO_12V2X6|PSU_PCIE_CABLES|EPS_COUNT)$/.test(i.code);
+      });
+      if (!verificationComplete && vlevel !== 'error') { verdict = '规格或线束资料未齐，暂不能确认可复用'; vlevel = 'warn'; }
+      if (!userPsu.verified) { verdict = '具体版本与规格未核实；原录额定功率仅用于暂估，不能确认可复用'; vlevel = 'warn'; }
       existingPsu = {
         psu: userPsu,
         utilization: Math.round(util * 100),
         utilizationExpected: Math.round(utilExpected * 100),
         verdict: verdict, level: vlevel,
-        meetsFloor: userPsu.watts >= recFloor,
-        meetsIdeal: userPsu.watts >= recIdeal
+        meetsFloor: userPsu.watts >= recFloor && !beyond,
+        meetsIdeal: userPsu.watts >= recIdeal && !beyond,
+        specVerified: !!userPsu.verified, verificationComplete: !!verificationComplete,
+        reusable: !userPsu.verified ? null : userPsu.watts < recFloor || beyond || psuErrors.length ? false : verificationComplete ? true : null,
+        blockers: psuErrors.map(function (i) { return i.title; })
       };
-      if (vlevel === 'error' || vlevel === 'warn') {
+      if (userPsu.verified && (vlevel === 'error' || (vlevel === 'warn' && verificationComplete))) {
         var recPick = psuPicks.balanced || psuPicks.min || psuPicks.flagship;
         issues.push({
           level: vlevel, code: 'PSU_TIGHT',
-          title: (vlevel === 'error' ? '所选电源功率不足' : '所选电源余量偏低') +
+          title: (psuErrors.length ? '所选电源的接口或安装规格不满足要求' : vlevel === 'error' ? '所选电源功率不足' : '所选电源余量偏低') +
                  '（负载率 ' + Math.round(util * 100) + '%）',
           detail: '规划功耗 ' + subtotal + 'W ÷ 电源额定 ' + userPsu.watts + 'W = ' +
                   Math.round(util * 100) + '%。' + verdict + '。',
@@ -5991,11 +6651,29 @@ html:not(.psu-boot-active) details[open] > :not(summary),
 
     return {
       hasSelection: hasSelection,
+      canRecommend: canRecommend, missing: missing, missingPowerParts: missingPowerParts, assumptions: assumptions,
+      beyond: beyond,
+      confidence: { estimatedWatts: round1(estimatedWatts),
+        estimatedPercent: subtotal ? Math.round(estimatedWatts / subtotal * 100) : 0,
+        sensitivityWatts: round1(subtotal + estimatedWatts * 0.20),
+        sensitivityPsu: canRecommend ? roundUpStandard(Math.max(subtotal + estimatedWatts * 0.20, vendorFloor / redundancy, conservativeFloor / redundancy) * redundancy) : 0 },
+      coverage: [
+        { label: 'CPU / 主板插槽', checked: !!(cpu && mobo) },
+        { label: '内存 / 主板规格', checked: !!(ram && mobo) },
+        { label: '主板 / 机箱板型', checked: !!(mobo && pcCase) },
+        { label: '显卡 / 机箱尺寸', checked: !!(aib && pcCase && !aib.generated && aib.confidence !== 'estimate') },
+        { label: '散热器 / CPU', checked: !!(cooler && cpu) },
+        { label: '存储 / 主板插槽', checked: !!(storageList.length && mobo) },
+        { label: '电源 / 显卡接口', checked: !!(userPsu && userPsu.verified && (aib || gpu) && verificationComplete) },
+        { label: '电源 / 机箱规格', checked: !!(userPsu && userPsu.verified && pcCase) }
+      ],
       scenario: scenarioKey,
       scenarioInfo: sc,
       items: items,
       subtotal: subtotal,
       expected: expected,
+      expectedRange: expectedRange,
+      loadRanges: load,
       transient: transient,
       redundancy: redundancy,
       recFloor: recFloor,
@@ -6048,17 +6726,42 @@ html:not(.psu-boot-active) details[open] > :not(summary),
    *  三者去重，若同瓦数段可选型号太少则如实告知。
    * ======================================================================*/
   var EFF_RANK = { '80 PLUS 钛金': 4, '80 PLUS 铂金': 3, '80 PLUS 金牌': 2, '80 PLUS 铜牌': 1 };
+  function psuBudget(p) { return p.price > 0 ? p.price : Infinity; }
 
-  function pickPsus(recFloor, recIdeal, mobo, aib, gpu, pcCase) {
+  function cable16Status(p, count, watts) {
+    if (!count) return true;
+    if (p.conn12v2x6 < count) return false;
+    if (!Array.isArray(p.connector16Watts) || p.connector16Watts.length < count) return null;
+    var ratings = p.connector16Watts.slice().sort(function (a, b) { return b - a; }).slice(0, count);
+    // Conservative: reserve full board power across the required cables. Slot
+    // power is not subtracted; actual BIOS limits / dual-input distribution vary.
+    return ratings.every(function (w) { return w >= watts / count; });
+  }
+
+  function sataNeeded(storage) {
+    return (storage || []).reduce(function (n, s) {
+      if (!s) return n;
+      var d = byId(HWDB.storage, s.id);
+      return n + (d && (d.kind === 'HDD' || d.kind === 'SATA') ? Math.max(0, num(s.qty, 0)) : 0);
+    }, 0);
+  }
+
+  function pickPsus(recFloor, recIdeal, mobo, aib, gpu, pcCase, cpu, gpuWatts, storage) {
     var need12v = aib ? needs12v2x6(aib.connector) : (gpu ? needs12v2x6(gpu.connector) : false);
     var need8pin = aib ? requiredPcie8pin(aib.connector) : (gpu ? requiredPcie8pin(gpu.connector) : 0);
     var casePsuForm = pcCase ? pcCase.psuFormFactor : null;
+    var need12Count = required12v2x6(aib ? aib.connector : (gpu ? gpu.connector : ''));
+    var needEps = cpu && cpu.maxTurbo >= 200 ? 2 : 1;
 
     function compatible(p) {
+      if (!p.verified) return false;
       var form = p.formFactor || 'ATX';
       if (casePsuForm && casePsuForm.indexOf(form) === -1) return false;
-      if (need12v && p.conn12v2x6 < 1 && p.pcie8pin < 4) return false; // 允许 4×8pin 转 16pin
+      if (need12Count && p.conn12v2x6 < need12Count) return false;
+      if (need12Count && cable16Status(p, need12Count, gpuWatts) !== true) return false;
       if (need8pin > 0 && p.pcie8pin < need8pin) return false;
+      if (p.eps8pin < needEps) return false;
+      if (sataNeeded(storage) && (p.sata == null || p.sata < sataNeeded(storage))) return false;
       return true;
     }
 
@@ -6070,13 +6773,13 @@ html:not(.psu-boot-active) details[open] > :not(summary),
 
     pool = pool.slice().sort(function (a, b) {
       if (a.watts !== b.watts) return a.watts - b.watts;
-      return (a.price || 0) - (b.price || 0);
+      return psuBudget(a) - psuBudget(b);
     });
 
     var picks = { value: null, balanced: null, flagship: null };
     if (pool.length) {
       // 性价比之选：达标前提下价格最低
-      picks.value = pool.slice().sort(function (a, b) { return (a.price || 0) - (b.price || 0); })[0];
+      picks.value = pool.filter(function (p) { return p.price > 0; }).sort(function (a, b) { return psuBudget(a) - psuBudget(b); })[0] || null;
       // 旗舰之选：瓦数最高，其次认证最高
       picks.flagship = pool.slice().sort(function (a, b) {
         if (b.watts !== a.watts) return b.watts - a.watts;
@@ -6088,7 +6791,7 @@ html:not(.psu-boot-active) details[open] > :not(summary),
       picks.balanced = base.slice().sort(function (a, b) {
         var d = (EFF_RANK[b.efficiency] || 0) - (EFF_RANK[a.efficiency] || 0);
         if (d !== 0) return d;
-        return (a.price || 0) - (b.price || 0);
+        return psuBudget(a) - psuBudget(b);
       })[0];
     }
 
@@ -6105,12 +6808,14 @@ html:not(.psu-boot-active) details[open] > :not(summary),
       flagship: picks.flagship,
       // 兼容旧字段名
       min: picks.value,
-      list: pool.slice(0, 8),
+      list: compliant.slice().sort(function (a, b) { return a.watts - b.watts || psuBudget(a) - psuBudget(b); }),
       distinctCount: distinct.length,
       // 非达标但接口兼容的型号，用于「预算紧张时的次优选择」提示
       belowFloor: all.filter(function (p) { return p.watts < recFloor; })
                     .sort(function (a, b) { return b.watts - a.watts; }).slice(0, 3),
       need12v2x6: need12v,
+      need12Count: need12Count,
+      needEps: needEps,
       need8pin: need8pin,
       filteredByCase: !!casePsuForm
     };
@@ -6121,6 +6826,12 @@ html:not(.psu-boot-active) details[open] > :not(summary),
     var out = [];
     var cpu = ctx.cpu, mobo = ctx.mobo, gpu = ctx.gpu, aib = ctx.aib;
     var pcCase = ctx.pcCase, cooler = ctx.cooler, ram = ctx.ram, psu = ctx.psu;
+    var cpuOc = Object.prototype.hasOwnProperty.call(cfg, 'cpuOc') ? !!cfg.cpuOc : !!cfg.overclock;
+    var gpuOc = Object.prototype.hasOwnProperty.call(cfg, 'gpuOc') ? !!cfg.gpuOc : !!cfg.overclock;
+    if (cpu && cfg.gpuId === '__igpu__' && cpu.igpu === false) {
+      out.push({ level: 'error', code: 'NO_INTEGRATED_GPU', title: '所选 CPU 没有集成显卡',
+        detail: cpu.name + ' 无核显，仅选择集成显卡时无法提供视频输出。', fix: '请选择独立显卡或带核显的 CPU。' });
+    }
 
     /* ---- CPU ↔ 主板 插槽 ---- */
     if (cpu && mobo && cpu.socket !== mobo.socket) {
@@ -6161,12 +6872,12 @@ html:not(.psu-boot-active) details[open] > :not(summary),
     if (aib && pcCase && aib.length) {
       if (aib.length > pcCase.gpuMaxLen) {
         out.push({
-          level: 'error', code: 'GPU_TOO_LONG',
-          title: '显卡长度超出机箱限长',
+          level: aib.generated || aib.confidence === 'estimate' ? 'warn' : 'error', code: 'GPU_TOO_LONG',
+          title: (aib.generated || aib.confidence === 'estimate' ? '估算尺寸提示：' : '') + '显卡长度超出机箱限长',
           detail: aib.vendor + ' ' + aib.series + ' 长度 ' + aib.length + 'mm，机箱 ' +
                   pcCase.model + ' 显卡限长 ' + pcCase.gpuMaxLen + 'mm，超出 ' +
                   round1(aib.length - pcCase.gpuMaxLen) + 'mm。',
-          fix: '建议更换限长 ≥' + Math.ceil(aib.length / 10) * 10 + 'mm 的机箱。'
+          fix: aib.generated || aib.confidence === 'estimate' ? '尺寸为系列估算，先核对具体SKU官方尺寸与实际安装空间。' : '建议更换限长 ≥' + Math.ceil(aib.length / 10) * 10 + 'mm 的机箱。'
         });
       } else if (pcCase.gpuMaxLen - aib.length < 15) {
         out.push({
@@ -6331,6 +7042,12 @@ html:not(.psu-boot-active) details[open] > :not(summary),
     }
 
     /* ---- 机箱 ↔ 电源规格 ---- */
+    if (psu && !psu.verified) {
+      out.push({ level: 'warn', code: 'PSU_SPEC_UNVERIFIED', title: '所选电源的具体版本与规格待核实',
+        detail: psu.model + ' 缺少可确认的厂家规格，暂不进行接口或安装规格判断。',
+        fix: '按铭牌型号、版本与实际线束核对；该条目不进入自动推荐，也不能确认可复用。' });
+      psu = null;
+    }
     if (pcCase && psu) {
       var pForm = psu.formFactor || 'ATX';
       if (pcCase.psuFormFactor.indexOf(pForm) === -1) {
@@ -6347,15 +7064,32 @@ html:not(.psu-boot-active) details[open] > :not(summary),
     if (psu && (aib || gpu)) {
       var conn = aib ? aib.connector : gpu.connector;
       var need12 = needs12v2x6(conn);
+      var need12Count = required12v2x6(conn);
       var need8 = requiredPcie8pin(conn);
-      if (need12 && psu.conn12v2x6 < 1) {
+      if (need12Count && psu.conn12v2x6 < need12Count) {
+        var missing12 = need12Count - psu.conn12v2x6;
+        var canAdapt = psu.pcie8pin >= missing12 * 4;
         out.push({
-          level: 'warn', code: 'PSU_NO_12V2X6',
-          title: '电源没有原生 12V-2x6 / 12VHPWR 接口',
+          level: canAdapt ? 'warn' : 'error', code: 'PSU_NO_12V2X6',
+          title: '电源原生 12V-2x6 / 12VHPWR 接口数量不足',
           detail: psu.model + ' 提供 ' + psu.pcie8pin + ' 个 PCIe 8pin，显卡需要 ' + conn + '。',
-          fix: '需使用显卡附带的 4×8pin 转 16pin 转接线。' +
-               '注意：转接线会增加接触电阻与发热风险，强烈建议改用原生 12V-2x6 的 ATX 3.1 电源。'
+          fix: canAdapt ? '缺少 ' + missing12 + ' 个原生接口。转接方案须逐一核实显卡附带线材与独立线束；不能视为已确认可直接复用。'
+            : '原生接口与按每个缺口预留 4 个 8pin 的转接条件均不满足，请更换接口足量的电源。'
         });
+      }
+      if (need12Count && psu.conn12v2x6 >= need12Count) {
+        var cableStatus = cable16Status(psu, need12Count, ctx.gpuWatts || (aib ? aib.tbp : gpu.tbp));
+        if (cableStatus !== true) out.push({ level: cableStatus === false ? 'error' : 'warn',
+          code: cableStatus === false ? 'PSU_16PIN_POWER' : 'PSU_16PIN_UNVERIFIED',
+          title: cableStatus === false ? '随附16-pin线缆额定功率不足' : '16-pin线缆额定功率尚未确认',
+          detail: '显卡规划功耗 ' + (ctx.gpuWatts || (aib ? aib.tbp : gpu.tbp)) + 'W；线缆标称 ' +
+            (psu.connector16Watts ? psu.connector16Watts.join('W / ') + 'W' : '待核实') + '。',
+          fix: '按具体电源版本和显卡功耗墙选择足额的原厂线缆。工具保守按整卡功耗预留，不扣除PCIe插槽供电。' });
+      }
+      if (need8 > 1 && psu.pcie8pinCables != null && psu.pcie8pinCables < need8) {
+        out.push({ level: 'warn', code: 'PSU_PCIE_CABLES', title: 'PCIe接头足量，但独立线束偏少',
+          detail: psu.model + ' 随附 ' + psu.pcie8pinCables + ' 条PCIe 8pin线束，显卡需要 ' + need8 + ' 个接头。',
+          fix: '串接头不等于独立线束；按显卡厂商接线要求核对后再判断能否复用。' });
       }
       if (need8 > 0 && psu.pcie8pin < need8) {
         out.push({
@@ -6390,6 +7124,16 @@ html:not(.psu-boot-active) details[open] > :not(summary),
     }
 
     /* ---- CPU 供电接口 ---- */
+    if (psu && sataNeeded(ctx.storage) > 0 && psu.sata == null) {
+      out.push({ level: 'warn', code: 'PSU_SATA_UNVERIFIED', title: 'SATA供电接头数量待核实',
+        detail: '已选硬盘需要 ' + sataNeeded(ctx.storage) + ' 个SATA接头，厂家资料未明确拆分数量。',
+        fix: '核对随附线材及实际接头数量后再判断能否复用。' });
+    }
+    if (psu && sataNeeded(ctx.storage) > 0 && psu.sata != null && psu.sata < sataNeeded(ctx.storage)) {
+      out.push({ level: 'error', code: 'PSU_SATA_COUNT', title: 'SATA供电接头不足',
+        detail: '已选硬盘需要 ' + sataNeeded(ctx.storage) + ' 个SATA供电接头，电源随附 ' + psu.sata + ' 个。',
+        fix: '选择SATA接头足量的电源，并额外核对水泵、集线器等设备的供电需求。' });
+    }
     if (psu && cpu && cpu.maxTurbo >= 200 && psu.eps8pin < 2) {
       out.push({
         level: 'warn', code: 'EPS_COUNT',
@@ -6400,7 +7144,7 @@ html:not(.psu-boot-active) details[open] > :not(summary),
     }
 
     /* ---- 超频提示 ---- */
-    if (cfg.overclock && cpu && cpu.unlocked === false) {
+    if (cpuOc && cpu && cpu.unlocked === false && !num(cfg.cpuCustomWatts)) {
       out.push({
         level: 'info', code: 'CPU_LOCKED',
         title: '该 CPU 倍频锁定，超频开关不生效',
@@ -6410,11 +7154,11 @@ html:not(.psu-boot-active) details[open] > :not(summary),
              '部分主板支持 BCLK 外频超频，但幅度有限且有风险。'
       });
     }
-    if (cfg.overclock && (!cpu || cpu.unlocked !== false)) {
+    if ((cpuOc && (!cpu || cpu.unlocked !== false)) || gpuOc) {
       out.push({
         level: 'warn', code: 'OC_NOTICE',
         title: '已启用超频功耗模式',
-        detail: 'CPU 与显卡均按解锁功耗墙后的数值计算，瞬时峰值可能进一步超出。',
+        detail: [cpuOc ? 'CPU' : '', gpuOc ? '显卡' : ''].filter(Boolean).join('、') + ' 已开启超频功耗模式；分项开关独立生效。',
         fix: '建议选择更高瓦数电源（冗余系数已自动提升至 ≥1.50），并确认主板供电与散热余量。'
       });
     }
@@ -6428,6 +7172,7 @@ html:not(.psu-boot-active) details[open] > :not(summary),
   function advise(cfg, budget) {
     var r = calculate(cfg);
     var tips = [];
+    if (!r.canRecommend || r.beyond) return { result: r, tips: tips };
     var gpuPct = r.subtotal > 0 ? r.gpuWatts / r.subtotal : 0;
 
     if (gpuPct >= 0.55) {
@@ -6499,7 +7244,8 @@ html:not(.psu-boot-active) details[open] > :not(summary),
     STANDARD_WATTS: STANDARD_WATTS,
     roundUpStandard: roundUpStandard,
     needs12v2x6: needs12v2x6,
-    requiredPcie8pin: requiredPcie8pin
+    requiredPcie8pin: requiredPcie8pin,
+    required12v2x6: required12v2x6, LOAD_RANGES: LOAD_RANGES
   };
 
   root.PSUEngine = API;
@@ -6547,6 +7293,7 @@ html:not(.psu-boot-active) details[open] > :not(summary),
   function defaultState() {
     return {
       scenario: 'gaming',
+      mode: 'full',
       cpuBrand: 'Intel', cpuGen: '', cpuId: '', cpuOc: false, cpuCustomW: '',
       gpuBrand: 'NVIDIA', gpuGen: '', gpuId: '', gpuAibId: '', gpuOc: false,
       gpuCustomName: '', gpuCustomW: '',
@@ -6619,6 +7366,7 @@ html:not(.psu-boot-active) details[open] > :not(summary),
           out[k] = hasOwn(EN.SCENARIOS, s) ? s : def.scenario;
           return;
         }
+        if (k === 'mode') { out[k] = s === 'quick' ? 'quick' : 'full'; return; }
         out[k] = s;
       }
     });
@@ -6772,7 +7520,7 @@ html:not(.psu-boot-active) details[open] > :not(summary),
              'stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">' +
              (SC_ICON[k] || SC_ICON.gaming) + '</svg></span>' +
              '<b>' + esc(s.label.split(' ')[0]) + '</b>' +
-             '<span>负载 ×' + s.factor.toFixed(2) + '</span></button>';
+             '<span>冗余 ×' + s.redundancy.toFixed(2) + '</span></button>';
     }).join('');
     $('scenarios').addEventListener('click', function (e) {
       var b = e.target.closest('.scenario');
@@ -6820,7 +7568,7 @@ html:not(.psu-boot-active) details[open] > :not(summary),
 
     $('cpuSelect').addEventListener('change', function () { S.cpuId = this.value; render(); });
     $('cpuOc').addEventListener('change', function () { S.cpuOc = this.checked; render(); });
-    $('cpuCustomW').addEventListener('input', function () { S.cpuCustomW = this.value; render(); });
+    $('cpuCustomW').addEventListener('input', function () { S.cpuCustomW = this.value === '' ? '' : String(clampNum(this.value, 0, 3000, 0)); render(); });
   }
 
   /* 型号是否落在当前的「品牌 + 世代」筛选范围内 */
@@ -6963,7 +7711,7 @@ html:not(.psu-boot-active) details[open] > :not(summary),
     $('gpuAib').addEventListener('change', function () { S.gpuAibId = this.value; render(); });
     $('gpuOc').addEventListener('change', function () { S.gpuOc = this.checked; render(); });
     $('gpuCustomName').addEventListener('input', function () { S.gpuCustomName = this.value; render(); });
-    $('gpuCustomW').addEventListener('input', function () { S.gpuCustomW = this.value; render(); });
+    $('gpuCustomW').addEventListener('input', function () { S.gpuCustomW = this.value === '' ? '' : String(clampNum(this.value, 0, 3000, 0)); render(); });
   }
 
   /* 型号是否落在当前的「品牌 + 世代」筛选范围内 */
@@ -7089,7 +7837,8 @@ html:not(.psu-boot-active) details[open] > :not(summary),
           return a.vendor + ' ' + a.series + cnLabel(a) +
                  '  ·  ' + a.tbp + 'W' + (a.liquid ? '  ·  水冷' : '') + tag;
         }, function (a) {
-          return (tierCn[a.tier] || a.tier) + ' — ' + a.vendor;
+          return (a.confidence === 'official' || a.confidence === 'review' ? '有规格 / 评测来源' : '估算 / 未发布') +
+            ' · ' + (tierCn[a.tier] || a.tier) + ' — ' + a.vendor;
         });
     }
   }
@@ -7154,6 +7903,7 @@ html:not(.psu-boot-active) details[open] > :not(summary),
 
   function refreshStorage() {
     var wrap = $('storageList');
+    if (wrap.contains(document.activeElement)) return;
     if (!S.storage.length) {
       wrap.innerHTML = '<div class="empty">尚未添加存储设备</div>';
       return;
@@ -7175,11 +7925,11 @@ html:not(.psu-boot-active) details[open] > :not(summary),
     });
     wrap.querySelectorAll('.s-qty').forEach(function (el) {
       el.addEventListener('input', function () {
-        S.storage[+el.dataset.qi].qty = Math.max(1, parseInt(el.value, 10) || 1); render();
+        S.storage[+el.dataset.qi].qty = Math.round(clampNum(el.value, 1, 8, 1)); renderResults(); renderDecision(); save();
       });
     });
     wrap.querySelectorAll('.del').forEach(function (el) {
-      el.addEventListener('click', function () { S.storage.splice(+el.dataset.di, 1); render(); });
+      el.addEventListener('click', function () { el.blur(); S.storage.splice(+el.dataset.di, 1); render(); });
     });
   }
 
@@ -7244,23 +7994,24 @@ html:not(.psu-boot-active) details[open] > :not(summary),
 
   function refreshCustomItems() {
     var wrap = $('customItems');
+    if (wrap.contains(document.activeElement)) return;
     if (!S.customItems.length) { wrap.innerHTML = ''; return; }
     wrap.innerHTML = S.customItems.map(function (c, i) {
       return '<div class="storage-row" style="grid-template-columns:1fr 90px 32px">' +
         '<input type="text" data-cl="' + i + '" placeholder="设备名称" aria-label="第 ' + (i + 1) + ' 个自定义设备名称" value="' + esc(c.label) + '">' +
-        '<input type="number" min="0" step="1" data-cw="' + i + '" placeholder="W" aria-label="第 ' + (i + 1) + ' 个自定义设备功耗（瓦）" value="' + esc(c.watts || '') + '">' +
+        '<input type="number" min="0" max="5000" step="1" data-cw="' + i + '" placeholder="W" aria-label="第 ' + (i + 1) + ' 个自定义设备功耗（瓦）" value="' + esc(c.watts || '') + '">' +
         '<button class="del" data-cd="' + i + '" aria-label="移除第 ' + (i + 1) + ' 个自定义设备">×</button></div>';
     }).join('');
     wrap.querySelectorAll('[data-cl]').forEach(function (el) {
-      el.addEventListener('input', function () { S.customItems[+el.dataset.cl].label = el.value; render(); });
+      el.addEventListener('input', function () { S.customItems[+el.dataset.cl].label = el.value.slice(0, 60); renderResults(); renderDecision(); save(); });
     });
     wrap.querySelectorAll('[data-cw]').forEach(function (el) {
       el.addEventListener('input', function () {
-        S.customItems[+el.dataset.cw].watts = parseFloat(el.value) || 0; render();
+        S.customItems[+el.dataset.cw].watts = clampNum(el.value, 0, 5000, 0); renderResults(); renderDecision(); save();
       });
     });
     wrap.querySelectorAll('[data-cd]').forEach(function (el) {
-      el.addEventListener('click', function () { S.customItems.splice(+el.dataset.cd, 1); render(); });
+      el.addEventListener('click', function () { el.blur(); S.customItems.splice(+el.dataset.cd, 1); render(); });
     });
   }
 
@@ -7271,12 +8022,21 @@ html:not(.psu-boot-active) details[open] > :not(summary),
   var psuF = { watt: '', eff: '', atx: '' };
 
   function psuConnSummary(p) {
+    if (!p.verified) return '规格待核实 · 不参与推荐';
     var parts = [];
-    if (p.conn12v2x6 > 0) parts.push('12V-2x6×' + p.conn12v2x6);
+    if (p.conn12v2x6 > 0) parts.push('16-pin×' + p.conn12v2x6 + '（' + (p.connector16Watts ? p.connector16Watts.join('/') + 'W' : '功率待核') + '）');
     parts.push('8pin×' + p.pcie8pin);
     parts.push('CPU8pin×' + p.eps8pin);
-    if (p.sata) parts.push('SATA×' + p.sata);
+    parts.push(p.sata == null ? 'SATA待核' : 'SATA×' + p.sata);
     return parts.join(' / ');
+  }
+
+  function psuPriceLabel(p) { return p.price > 0 ? '预算估值 ¥' + p.price + '（非报价）' : '价格未收录'; }
+  function psuSourceNote(p) {
+    if (!p.verified) return '具体版本与规格待核实；不进入自动推荐。';
+    var src = DB.sources[p.source];
+    return esc(p.checkedAt + ' 核对 · ' + p.revision) + (src ? ' · <a href="' + esc(src.url) + '" target="_blank" rel="noopener noreferrer">厂家规格</a>' : '') +
+      (p.note ? '<br>' + esc(p.note) : '') + (p.inputVoltage ? '<br>输入电压：' + esc(p.inputVoltage) : '');
   }
 
   function psuWattBand(w) {
@@ -7367,7 +8127,7 @@ html:not(.psu-boot-active) details[open] > :not(summary),
       optionsHtml(list, S.psuId, function (p) {
         return p.brand + ' ' + p.model + ' · ' + p.watts + 'W · ' + p.efficiency +
           ' · ' + p.atx + (p.modular ? ' · ' + p.modular : '') +
-          ' · ' + psuConnSummary(p) + ' · ¥' + p.price;
+          ' · ' + psuConnSummary(p) + ' · ' + psuPriceLabel(p);
       }, function (p) { return psuWattBand(p.watts); });
   }
 
@@ -7383,21 +8143,22 @@ html:not(.psu-boot-active) details[open] > :not(summary),
     var c = DB.cpus.filter(function (x) { return x.id === S.cpuId; })[0];
     var box = $('cpuInfo');
     if (!c) {
-      box.innerHTML = '<div class="note warn">未选择 CPU。若 CPU 属于未收录型号，' +
-        '请在上方"自定义功耗"中填入其最大睿频功耗，否则无法计算。</div>';
+      box.innerHTML = '<div class="note warn">未选择 CPU。请先选择或搜索型号，再按需要设置自定义功耗墙。</div>';
       return;
     }
-    var used = (S.cpuOc && c.unlocked !== false) ? (parseFloat(S.cpuCustomW) || c.ocPeak) : c.maxTurbo;
+    var used = parseFloat(S.cpuCustomW) > 0 ? Math.min(3000, parseFloat(S.cpuCustomW)) : (S.cpuOc && c.unlocked !== false ? c.ocPeak : c.maxTurbo);
     box.innerHTML =
       '<dl class="kv">' +
       '<dt>插槽</dt><dd>' + esc(c.socket) + '</dd>' +
       '<dt>核心</dt><dd>' + esc(c.cores) + '</dd>' +
-      '<dt>基础 / 睿频功耗</dt><dd>' + c.tdp + ' W / ' + c.maxTurbo + ' W</dd>' +
+      '<dt>' + (c.brand === 'AMD' ? 'TDP / PPT估值' : '基础 / 睿频功耗') + '</dt><dd>' + c.tdp + ' W / ' + c.maxTurbo + ' W</dd>' +
       '<dt>超频</dt><dd>' + (c.unlocked === false ? '倍频锁定，不支持超频' : '不锁倍频') + '</dd>' +
       '<dt>本次计算取值</dt><dd style="color:var(--accent);font-weight:700">' + used + ' W</dd>' +
       '</dl>' +
+      (c.brand === 'AMD' ? '<div class="note">PPT是平台功耗限制，当前值用于规划估算；不把AMD官方TDP当作PPT来源。</div>' : '') +
+      (S.cpuOc && c.unlocked !== false && !parseFloat(S.cpuCustomW) ? '<div class="note">解锁功耗墙取值为工程估算，实际值以BIOS设置和实测为准。</div>' : '') +
       (c.note ? '<div class="note" style="margin-top:9px">' + esc(c.note) + '</div>' : '') +
-      (S.cpuOc && c.unlocked === false
+      (S.cpuOc && c.unlocked === false && !parseFloat(S.cpuCustomW)
         ? '<div class="note warn" style="margin-top:9px">已勾选超频，但该型号倍频锁定，' +
           '功耗仍按 ' + c.maxTurbo + 'W（PL2/PPT 上限）计算。</div>' : '') +
       '<div class="note" style="margin-top:9px">来源：' +
@@ -7406,7 +8167,7 @@ html:not(.psu-boot-active) details[open] > :not(summary),
 
   function srcLink(key) {
     var s = DB.sources[key];
-    if (!s) return '厂商/评测公开数据';
+    if (!s) return '来源未收录，请按估算处理';
     return '<a href="' + esc(s.url) + '" target="_blank" rel="noopener">' + esc(s.label) + '</a>';
   }
 
@@ -7438,17 +8199,17 @@ html:not(.psu-boot-active) details[open] > :not(summary),
         ? '<dt>中文名性质</dt><dd style="color:var(--warn)">玩家俗称，厂商官方不使用该名称</dd>' : '') +
       (a && a.cnType === 'unverified'
         ? '<dt>中文名性质</dt><dd style="color:var(--warn)">未核实（按中文媒体/玩家习惯整理）</dd>' : '') +
-      (a ? '<dt>尺寸 / 厚度</dt><dd>' + a.length + 'mm · ' + a.slots + ' 槽' +
+      (a ? '<dt>' + (a.generated || a.confidence === 'estimate' ? '估算尺寸 / 厚度' : '尺寸 / 厚度') + '</dt><dd>' + a.length + 'mm · ' + a.slots + ' 槽' +
            (a.liquid ? ' · 水冷（' + (a.radiator || 360) + 'mm 冷排）' : '') + '</dd>' : '') +
       (a ? '<dt>AIC 超频策略</dt><dd>' + ({ aggressive: '激进', moderate: '中性', conservative: '保守' }[a.ocBias] || '—') + '</dd>' : '') +
-      '<dt>瞬时峰值倍率</dt><dd>×' + g.transient + '</dd>' +
+      '<dt>瞬时倍率假设</dt><dd>×' + g.transient + '（工程估值）</dd>' +
       '<dt>本次计算取值</dt><dd style="color:var(--accent);font-weight:700">' + used + ' W</dd>' +
       '</dl>' +
       (a && a.recPsu ? '<div class="note accent" style="margin-top:9px">厂商建议整机电源：<b>' +
         a.recPsu + 'W</b>（针对整机全超频场景）</div>' : '') +
       (a && a.generated
         ? '<div class="note warn" style="margin-top:9px"><b>规则生成条目：</b>' +
-          esc(a.note) + '<br>该型号未收录厂商实测功耗墙，数值由系列定位推算，仅用于电源容量估算。</div>'
+          esc(a.note) + '<br>功耗墙、尺寸及接口为系列规则估算；不是已核实SKU规格，装机前须核对具体型号。</div>'
         : '') +
       ((a && a.note && !a.generated) || g.note
         ? '<div class="note" style="margin-top:9px">' + esc((a && a.note && !a.generated) ? a.note : g.note) + '</div>'
@@ -7521,41 +8282,44 @@ html:not(.psu-boot-active) details[open] > :not(summary),
     var lv = r.existingPsu.level === 'error' ? 'error' : (r.existingPsu.level === 'warn' ? 'warn' : 'ok');
     box.innerHTML = '<div class="issue ' + lv + '">' +
       '<span class="ico">' + (lv === 'ok' ? SVG.ok : (lv === 'error' ? SVG.error : SVG.warn)) + '</span>' +
-      '<div><b>负载率 ' + r.existingPsu.utilization + '%（规划功耗 / 额定瓦数）</b>' +
+      '<div><b>' + (p.verified ? '负载率 ' + r.existingPsu.utilization + '%（规划功耗 / 额定瓦数）' : '具体规格待核实（原录 ' + p.watts + 'W）') + '</b>' +
       '<div class="d">' + esc(r.existingPsu.verdict) + '</div>' +
-      '<div class="d">场景预期负载率 ' + r.existingPsu.utilizationExpected + '%（' +
-        esc(r.scenarioInfo.label) + '）</div></div></div>' +
+      (p.verified ? '<div class="d">场景预期负载率 ' + r.existingPsu.utilizationExpected + '%（' +
+        esc(r.scenarioInfo.label) + '）</div>' : '') + '</div></div>' +
       '<dl class="kv" style="margin-top:9px">' +
       '<dt>额定功率</dt><dd>' + p.watts + ' W</dd>' +
       '<dt>效率认证</dt><dd>' + esc(p.efficiency) + '</dd>' +
       '<dt>规范</dt><dd>' + esc(p.atx) + '</dd>' +
       '<dt>模组化</dt><dd>' + esc(p.modular) + '</dd>' +
-      '<dt>12V-2x6 接口</dt><dd>' + p.conn12v2x6 + ' 个</dd>' +
-      '<dt>PCIe 8pin 接口</dt><dd>' + p.pcie8pin + ' 个</dd>' +
-      '<dt>CPU 8pin 接口</dt><dd>' + p.eps8pin + ' 个</dd>' +
-      '<dt>SATA 接口</dt><dd>' + (p.sata || 0) + ' 个</dd>' +
-      '</dl>';
+      '<dt>随附16-pin</dt><dd>' + (p.conn12v2x6 == null ? '待核实' : p.conn12v2x6 + ' 个') + '</dd>' +
+      '<dt>线缆额定功率</dt><dd>' + (p.connector16Watts ? (p.connector16Watts.length ? p.connector16Watts.join(' / ') + ' W' : '无16-pin线缆') : '待核实') + '</dd>' +
+      '<dt>PCIe 8pin 接头</dt><dd>' + (p.pcie8pin == null ? '待核实' : p.pcie8pin + ' 个') + '</dd>' +
+      '<dt>CPU 8pin 接头</dt><dd>' + (p.eps8pin == null ? '待核实' : p.eps8pin + ' 个') + '</dd>' +
+      '<dt>SATA 接头</dt><dd>' + (p.sata == null ? '待核实' : p.sata + ' 个') + '</dd>' +
+      '</dl><div class="note">' + psuSourceNote(p) + '</div>';
   }
 
   /* ==================================================== 结果列渲染 === */
 
-  function renderResults() {
+  function toEngineConfig(state) {
+    var s = state || S;
     var cfg = {
-      cpuId: S.cpuId, cpuOc: S.cpuOc, cpuCustomWatts: parseFloat(S.cpuCustomW) || null,
-      gpuId: S.gpuCustomName && !S.gpuAibId ? '' : S.gpuId,
-      gpuAibId: S.gpuAibId,
-      gpuName: S.gpuCustomName, gpuCustomWatts: parseFloat(S.gpuCustomW) || null,
-      moboId: S.moboId, ramId: S.ramId, ramKits: S.ramKits,
-      storage: S.storage.filter(function (s) { return s.qty > 0; }),
-      coolerId: S.coolerId, fanId: S.fanId, fanQty: S.fanQty,
-      caseId: S.caseId, argbChannels: S.argbChannels, extras: S.extras,
-      otherCustom: S.customItems.filter(function (c) { return c.label && c.watts > 0; }),
-      psuId: S.psuId, scenario: S.scenario, overclock: S.cpuOc || S.gpuOc
+      cpuId: s.cpuId, cpuOc: s.cpuOc, cpuCustomWatts: parseFloat(s.cpuCustomW) || null,
+      gpuId: s.gpuId, gpuAibId: s.gpuAibId, gpuOc: s.gpuOc,
+      gpuName: s.gpuCustomName, gpuCustomWatts: parseFloat(s.gpuCustomW) || null,
+      moboId: s.moboId, ramId: s.ramId, ramKits: s.ramKits,
+      storage: s.storage.filter(function (d) { return d.qty > 0; }),
+      coolerId: s.coolerId, fanId: s.fanId, fanQty: s.fanQty,
+      caseId: s.caseId, argbChannels: s.argbChannels, extras: s.extras,
+      otherCustom: s.customItems.filter(function (c) { return c.label && c.watts > 0; }),
+      psuId: s.psuId, scenario: s.scenario, mode: s.mode
     };
+    if (s.gpuCustomName) { cfg.gpuId = ''; cfg.gpuAibId = ''; }
+    return cfg;
+  }
 
-    // 未收录显卡：优先用自定义名称/功耗
-    if (S.gpuCustomName && parseFloat(S.gpuCustomW)) { cfg.gpuId = ''; cfg.gpuAibId = ''; }
-
+  function renderResults() {
+    var cfg = toEngineConfig(S);
     var r = EN.calculate(cfg);
     lastResult = r;
 
@@ -7566,21 +8330,22 @@ html:not(.psu-boot-active) details[open] > :not(summary),
     $('heroPower').innerHTML = r.hasSelection
       ? r.subtotal + '<small> W</small>' : EMPTY + '<small> W</small>';
     $('heroExpected').innerHTML = r.hasSelection
-      ? r.expected + '<small> W</small>' : EMPTY + '<small> W</small>';
+      ? r.expectedRange.low + '–' + r.expectedRange.high + '<small> W</small>' : EMPTY + '<small> W</small>';
     $('heroTransient').innerHTML = r.hasSelection
       ? r.transient + '<small> W</small>' : EMPTY + '<small> W</small>';
     // 面向非专业用户：先说"这个数是干什么用的"，再给计算依据
     $('heroPowerNote').textContent = '所有硬件同时吃满电的总和 —— 电源至少要扛得住这个数';
-    $('heroExpectedNote').textContent = '你日常实际大概会用掉这么多（' + r.scenarioInfo.label + '）';
+    $('heroExpectedNote').textContent = '部件侧功耗区间（' + r.scenarioInfo.label + '）：CPU、显卡与其他部件分别折算；工程假设，不是实测。插座侧还包含电源转换损耗。';
     $('heroTransientNote').textContent = r.gpuWatts > 0
       ? '显卡在极短一瞬间能拉到的最高值；杂牌电源扛不住这种冲击，会死机重启'
       : '机械硬盘启动瞬间的额外功耗';
 
     /* --- 电源推荐 --- */
-    if (!r.hasSelection) {
+    if (!r.canRecommend || r.beyond) {
       // 空态：不给数字、不给结论、不给推荐，只说明下一步做什么
       $('recoBig').innerHTML = EMPTY + '<span> W</span>';
-      $('recoSub').textContent = '尚未选择硬件';
+      $('recoSub').textContent = r.beyond ? '需求超出本工具的电源推荐范围，请先调整配置'
+        : (r.hasSelection ? '部分配置：请补齐 ' + r.missing.join('、') : '尚未选择硬件');
       $('recoMeta').innerHTML = '';
     } else {
       var sameW = r.recFloor === r.recIdeal;
@@ -7590,13 +8355,16 @@ html:not(.psu-boot-active) details[open] > :not(summary),
       // 结论先行：直接告诉用户"买多大"，再附上计算依据
       $('recoSub').innerHTML = sameW
         ? '买 <b>' + r.recIdeal + 'W</b> 的电源即可。' +
-          '<span style="opacity:.75">（依据：硬件满载 ' + r.subtotal + 'W × 1.30 = ' +
+      '<span style="opacity:.75">（依据：硬件满载 ' + r.subtotal + 'W × 1.30 = ' +
           Math.round(r.subtotal * 1.30) + 'W，× ' + r.redundancy.toFixed(2) + ' = ' +
           Math.round(r.subtotal * r.redundancy) + 'W）</span>'
         : '推荐买 <b>' + r.recIdeal + 'W</b>；预算紧张时最低不要低于 <b>' + r.recFloor + 'W</b>。' +
           '<span style="opacity:.75">（依据：硬件满载 ' + r.subtotal + 'W ×' + r.redundancy.toFixed(2) +
           ' = ' + Math.round(r.subtotal * r.redundancy) + 'W；下限 ×1.30 = ' +
           Math.round(r.subtotal * 1.30) + 'W）</span>';
+      if (r.hasError) $('recoSub').insertAdjacentHTML('afterbegin', '<b>存在兼容性冲突，请先处理；以下瓦数仅用于功耗推演。</b><br>');
+      else if (r.assumptions.length) $('recoSub').insertAdjacentHTML('afterbegin', '快速估算参考，辅助部件使用默认预算。<br>');
+      else if (r.missingPowerParts.length) $('recoSub').insertAdjacentHTML('afterbegin', '部分配置参考，补齐辅助部件后请重新核对。<br>');
       $('recoMeta').innerHTML =
         '<span class="tag on">ATX 3.1</span>' +
         '<span class="tag blue">原生 12V-2x6</span>' +
@@ -7617,7 +8385,7 @@ html:not(.psu-boot-active) details[open] > :not(summary),
        窄屏另有底部常驻条（ui.js 维护），两者数值同源。 */
     var chip = $('answerChip');
     if (chip) {
-      if (!r.hasSelection) {
+      if (!r.canRecommend || r.beyond) {
         chip.hidden = true;
       } else {
         chip.hidden = false;
@@ -7662,14 +8430,14 @@ html:not(.psu-boot-active) details[open] > :not(summary),
     var box = $('psuPicks');
 
     // 空态：不推荐任何电源
-    if (!r.hasSelection) {
+    if (!r.canRecommend || r.beyond) {
       box.innerHTML = '<div class="empty">选好硬件后，这里会列出三档推荐电源</div>';
       $('psuPickHint').textContent = '';
       $('psuPickNote').innerHTML = '';
       return;
     }
     if (!r.picks.value && !r.picks.balanced && !r.picks.flagship) {
-      box.innerHTML = '<div class="empty">没有满足接口与瓦数要求的电源型号</div>';
+      box.innerHTML = '<div class="empty">没有已核实且满足瓦数、接口与线缆功率要求的电源型号</div>';
       $('psuPickHint').textContent = '';
       $('psuPickNote').innerHTML = '';
       return;
@@ -7683,22 +8451,25 @@ html:not(.psu-boot-active) details[open] > :not(summary),
         '<div class="nm">' + esc(p.brand) + '<br>' + esc(p.model) + '</div>' +
         '<div class="w">' + p.watts + ' W</div>' +
         '<div class="sp">' + esc(p.efficiency) + ' · ' + esc(p.atx) + ' · ' + esc(p.modular) + '</div>' +
-        '<div class="sp">12V-2x6 ×' + p.conn12v2x6 + ' · PCIe 8pin ×' + p.pcie8pin +
-          ' · CPU 8pin ×' + p.eps8pin + '</div>' +
+        '<div class="sp">' + esc(psuConnSummary(p)) + '</div>' +
         '<div class="sp">负载率 ' + Math.round(r.subtotal / p.watts * 100) + '%</div>' +
-        '<div class="pr">参考价 ¥' + p.price + '</div>' +
+        '<div class="sp">入选理由：' + ({ value: '推荐池内预算估值最低', balanced: '优先贴近下限，按效率认证与预算估值排序', flagship: '推荐池内额定瓦数最高，其次按效率认证排序' }[role.k]) +
+          '；额定余量 ' + Math.round(p.watts - r.subtotal) + 'W。</div>' +
+        '<div class="sp">' + psuSourceNote(p) + '</div>' +
+        '<div class="pr">' + esc(psuPriceLabel(p)) + '</div>' +
         '</div>';
     }).join('');
 
     $('psuPickHint').textContent = r.picks.distinctCount + ' 款不同型号';
 
     var notes = [];
+    notes.push('仅推荐已有厂家依据的型号；核对随附显卡侧接头与16-pin线缆额定功率，不把ATX 3.1视为自带16-pin。高功耗CPU优先预留两个EPS。独立线束与装机空间仍按实际版本确认。');
+    notes.push('价格是预算占位估值，未核对当前商家报价；性价比排序仅用于预算规划，购买时按同版本实际到手价比较。效率认证不代表整体品质。');
     if (r.picks.distinctCount <= 1 && r.recFloor >= 1200) {
       notes.push('该功率段（≥' + r.recFloor + 'W）的 ATX 3.1 电源在市场上本身就集中在旗舰价位，可选型号较少，属正常现象。');
     }
     if (r.picks.belowFloor && r.picks.belowFloor.length) {
-      notes.push('若预算紧张，以下型号接口兼容但<b>低于安全下限</b>，仅列出供参考，不建议长期满载使用：' +
-        r.picks.belowFloor.map(function (p) { return esc(p.brand + ' ' + p.model + '（' + p.watts + 'W）'); }).join('、'));
+      notes.push('数据库另有 ' + r.picks.belowFloor.length + ' 款接口兼容但低于安全下限的型号，已排除，不作为购买候选。');
     }
     if (r.picks.filteredByCase) {
       notes.push('已按所选机箱的电源规格（' + esc((DB.cases.filter(function (c) { return c.id === S.caseId; })[0] || {}).psuFormFactor || '') + '）过滤不兼容型号。');
@@ -7731,8 +8502,8 @@ html:not(.psu-boot-active) details[open] > :not(summary),
       return;
     }
     if (!list.length) {
-      box.innerHTML = '<div class="issue ok"><span class="ico">' + SVG.ok + '</span><div>' +
-        '<b>未检测到兼容性问题</b><div class="d">所选硬件组合的插槽、板型、尺寸、供电接口与内存规格均匹配。</div>' +
+      box.innerHTML = '<div class="issue info"><span class="ico">' + SVG.info + '</span><div>' +
+        '<b>已检查的项目未发现冲突</b><div class="d">未填写的硬件和未收录的规格尚未检查，请参照上方检查范围。</div>' +
         '</div></div>';
       return;
     }
@@ -7754,7 +8525,7 @@ html:not(.psu-boot-active) details[open] > :not(summary),
       '<dl class="kv">' +
       '<dt>电源余量</dt><dd style="color:var(--accent);font-weight:700">' + u.headroomWatts + ' W（' + u.headroomPct + '%）</dd>' +
       '<dt>可承受显卡 TBP</dt><dd>' + u.gpuBudget + ' W</dd>' +
-      '<dt>最高可升级至</dt><dd>' + esc(u.maxGpu || '无明显升级空间') + '</dd>' +
+      '<dt>功耗预算内的参考卡</dt><dd>' + esc(u.maxGpu || '无匹配型号') + '</dd>' +
       '</dl>' +
       '<div class="note accent" style="margin-top:10px">' + esc(u.note) + '</div>' +
       '<div class="note" style="margin-top:8px">' +
@@ -7784,12 +8555,11 @@ html:not(.psu-boot-active) details[open] > :not(summary),
 
     rows.push('<tr class="sum"><td>规划功耗合计（峰值）</td><td class="dt">各部件功耗上限之和</td>' +
       '<td class="wt">' + r.subtotal + ' W</td></tr>');
-    rows.push('<tr class="sum"><td>场景预期功耗</td><td class="dt">× ' + r.scenarioInfo.factor.toFixed(2) +
-      '（' + esc(r.scenarioInfo.label) + '）</td><td class="wt">' + r.expected + ' W</td></tr>');
+    rows.push('<tr class="sum"><td>场景功耗区间</td><td class="dt">分项负载工程假设（' + esc(r.scenarioInfo.label) + '）</td><td class="wt">' + scenarioRange(r) + '</td></tr>');
     rows.push('<tr class="sum"><td>瞬时峰值（估算）</td><td class="dt">含显卡功率尖峰与硬盘启动</td>' +
       '<td class="wt">' + r.transient + ' W</td></tr>');
     rows.push('<tr class="sum"><td>推荐电源</td><td class="dt">安全下限 ×1.30 ~ 推荐目标 ×' +
-      r.redundancy.toFixed(2) + '</td><td class="wt">' + r.recFloor + '~' + r.recIdeal + ' W</td></tr>');
+      r.redundancy.toFixed(2) + '</td><td class="wt">' + wattRange(r) + '</td></tr>');
 
     t.innerHTML = '<thead><tr><th>部件</th><th>数据来源</th><th style="text-align:right">功耗</th></tr></thead>' +
       '<tbody>' + rows.join('') + '</tbody>';
@@ -7797,16 +8567,7 @@ html:not(.psu-boot-active) details[open] > :not(summary),
 
   function renderAdvice(r) {
     var budget = parseFloat($('budgetInput').value) || 0;
-    var adv = EN.advise({
-      cpuId: S.cpuId, cpuOc: S.cpuOc, cpuCustomWatts: parseFloat(S.cpuCustomW) || null,
-      gpuId: S.gpuCustomName && parseFloat(S.gpuCustomW) ? '' : S.gpuId,
-      gpuAibId: S.gpuAibId, gpuName: S.gpuCustomName, gpuCustomWatts: parseFloat(S.gpuCustomW) || null,
-      moboId: S.moboId, ramId: S.ramId, ramKits: S.ramKits,
-      storage: S.storage, coolerId: S.coolerId, fanId: S.fanId, fanQty: S.fanQty,
-      caseId: S.caseId, argbChannels: S.argbChannels, extras: S.extras,
-      otherCustom: S.customItems, psuId: S.psuId, scenario: S.scenario,
-      overclock: S.cpuOc || S.gpuOc
-    }, budget);
+    var adv = EN.advise(toEngineConfig(S), budget);
 
     var box = $('adviceBox');
     if (!adv.tips.length) { box.innerHTML = '<div class="empty">选好硬件后才能给出平衡建议</div>'; return; }
@@ -7838,8 +8599,7 @@ html:not(.psu-boot-active) details[open] > :not(summary),
          render() 半路抛出去 —— 那会让结果区永久停止更新。 */
       var sc = hasOwn(EN.SCENARIOS, S.scenario) ? EN.SCENARIOS[S.scenario] : EN.SCENARIOS.gaming;
       $('scenarioNote').innerHTML = '<b>' + esc(sc.label) + '：</b>' +
-        esc(sc.desc) + '。负载系数 ' + sc.factor.toFixed(2) +
-        ' 用于折算"场景预期功耗"；冗余系数 ' + sc.redundancy.toFixed(2) +
+        '按分项负载区间估算功耗；冗余系数 ' + sc.redundancy.toFixed(2) +
         ' 用于计算推荐电源瓦数。';
 
       renderCpuInfo();
@@ -7849,8 +8609,265 @@ html:not(.psu-boot-active) details[open] > :not(summary),
       renderCoolerInfo();
       renderCaseInfo();
       renderResults();
+      renderDecision();
       save();
     } catch (e) { errMsg(e); }
+  }
+
+  /* ===================================================== 方案与对比 === */
+  var plans = [], deletedPlan = null, planSerial = 0;
+  var PLAN_KEY = 'psu-calc-plans-v1';
+  var searchMatches = [], simulatedState = null;
+
+  function cleanSnapshot(raw) {
+    var out = defaultState(); applyClean(out, raw); return out;
+  }
+
+  function installState(raw) {
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    var next = cleanSnapshot(raw);
+    Object.keys(S).forEach(function (k) { S[k] = next[k]; });
+    normalizeCpuFilter(); normalizeGpuFilter(); refreshPsu(); syncInputsFromState(); render();
+  }
+
+  function planMessage(msg, error) {
+    $('planStatus').textContent = msg;
+    if (error) toast(msg, true);
+  }
+
+  function commitPlans(next) {
+    try { localStorage.setItem(PLAN_KEY, JSON.stringify({ schema: 1, plans: next })); }
+    catch (e) { planMessage('浏览器无法保存方案。请先使用备份功能导出；本次更改未保存。', true); return false; }
+    plans = next; refreshPlans(); return true;
+  }
+
+  function newPlan(raw, name) {
+    return { id: 'p-' + Date.now().toString(36) + '-' + (++planSerial).toString(36),
+      name: String(name || '未命名方案').slice(0, 60), updatedAt: new Date().toISOString(),
+      dbVersion: DB.meta.version, state: cleanSnapshot(raw) };
+  }
+
+  function selectedPlan(id) {
+    return plans.filter(function (p) { return p.id === (id || $('savedPlan').value); })[0] || null;
+  }
+
+  function refreshPlans() {
+    ['savedPlan', 'compareBase', 'compareTarget'].forEach(function (id) {
+      var el = $(id), old = el.value;
+      el.innerHTML = '<option value="">' + (id === 'savedPlan' ? '— 选择方案 —' : '当前配置') + '</option>' +
+        plans.map(function (p) { return '<option value="' + esc(p.id) + '">' + esc(p.name) + '</option>'; }).join('');
+      el.value = plans.some(function (p) { return p.id === old; }) ? old : '';
+    });
+    $('planCount').textContent = plans.length + ' / 12';
+    ['loadPlan', 'updatePlan', 'renamePlan', 'deletePlan'].forEach(function (id) { $(id).disabled = !$('savedPlan').value; });
+    renderComparison();
+  }
+
+  function normalizeSearch(text) {
+    return String(text || '').toLowerCase().replace(/[\s\-_./（）()]+/g, '');
+  }
+
+  function searchHardware() {
+    var terms = $('hardwareSearch').value.trim().split(/\s+/).map(normalizeSearch).filter(Boolean), cat = $('searchCategory').value;
+    var lists = { cpu: DB.cpus, gpu: DB.gpus, aib: DB.aibs, mobo: DB.motherboards, psu: DB.psus,
+      ram: DB.ram, storage: DB.storage, cooler: DB.coolers, fan: DB.fans, case: DB.cases };
+    searchMatches = [];
+    if (!terms.length) { $('hardwareResults').innerHTML = ''; $('searchStatus').textContent = ''; return; }
+    var matches = lists[cat].filter(function (it) {
+      var g = cat === 'aib' ? DB.gpus.filter(function (x) { return x.id === it.gpuId; })[0] : null;
+      var hay = normalizeSearch([it.id, it.name, it.brand, it.model, it.alias, it.vendor, it.series, it.cn, it.cnLabel, it.sku,
+        g ? g.name : ''].join(' '));
+      return terms.every(function (q) { return hay.indexOf(q) !== -1; });
+    }).sort(function (a, b) {
+      function rank(x) { return x.confidence === 'official' || x.confidence === 'review' ? 0 : 1; }
+      return rank(a) - rank(b);
+    });
+    searchMatches = matches.slice(0, 15);
+    $('searchStatus').textContent = matches.length ? '找到 ' + matches.length + ' 项，显示前 ' + searchMatches.length + ' 项；点击选入当前配置。' : '没有匹配型号，试试型号数字、英文系列名或厂商名。';
+    $('hardwareResults').innerHTML = searchMatches.map(function (it, i) {
+      var g = cat === 'aib' ? DB.gpus.filter(function (x) { return x.id === it.gpuId; })[0] : null;
+      var name = g ? g.name + ' · ' + it.vendor + ' ' + it.series + cnLabel(it) : (it.name || it.brand + ' ' + it.model);
+      return '<button type="button" data-search-index="' + i + '">' + esc(name) + ' ' + confBadge(it.confidence) + '</button>';
+    }).join('');
+  }
+
+  function refreshUpgradeAibs() {
+    var gpuId = $('upgradeGpu').value, old = $('upgradeAib').value;
+    var list = DB.aibs.filter(function (a) { return a.gpuId === gpuId; });
+    $('upgradeAib').innerHTML = '<option value="">公版 / 未指定</option>' + optionsHtml(list, old,
+      function (a) { return a.vendor + ' ' + a.series + cnLabel(a) + ' · ' + a.tbp + 'W'; },
+      function (a) { return a.confidence === 'official' || a.confidence === 'review' ? '有规格 / 评测来源' : '估算 / 未发布'; });
+    $('upgradeAib').disabled = !list.length;
+  }
+
+  function wattRange(r) { return r.canRecommend && !r.beyond ? (r.recFloor === r.recIdeal ? r.recIdeal : r.recFloor + '–' + r.recIdeal) + ' W' : '暂不推荐'; }
+  function scenarioRange(r) { return r.hasSelection ? r.expectedRange.low + '–' + r.expectedRange.high + ' W' : '—'; }
+
+  function renderComparison() {
+    if (!$('compareOutput')) return;
+    var bp = selectedPlan($('compareBase').value), tp = selectedPlan($('compareTarget').value);
+    // selectedPlan 默认使用 savedPlan；对比空值始终明确表示当前配置。
+    if (!$('compareBase').value) bp = null;
+    if (!$('compareTarget').value) tp = null;
+    var base = cleanSnapshot(bp ? bp.state : S), target = cleanSnapshot(tp ? tp.state : S);
+    var uc = $('upgradeCpu').value, ug = $('upgradeGpu').value;
+    if (uc) { target.cpuId = uc; target.cpuCustomW = ''; target.cpuOc = false; }
+    if (ug) { target.gpuId = ug; target.gpuAibId = $('upgradeAib').value; target.gpuCustomName = ''; target.gpuCustomW = ''; target.gpuOc = false; }
+    simulatedState = target;
+    var br = EN.calculate(toEngineConfig(base)), tr = EN.calculate(toEngineConfig(target));
+    $('applyUpgrade').disabled = !uc && !ug;
+    if (!br.hasSelection || !tr.hasSelection) {
+      $('compareOutput').innerHTML = '<div class="empty">先填写硬件并保存原配置，再选择另一方案或模拟更换 CPU / 显卡。</div>'; return;
+    }
+    var baseName = bp ? bp.name : '当前配置', targetName = (tp ? tp.name : '当前配置') + (uc || ug ? '（升级模拟）' : '');
+    function coreName(r, label) { var it = r.items.filter(function (x) { return x.label === label; })[0]; return it ? it.name : '未选择'; }
+    function signed(v) { return (v > 0 ? '+' : '') + Math.round(v * 10) / 10 + ' W'; }
+    var rows = [
+      ['CPU', coreName(br, 'CPU'), coreName(tr, 'CPU')], ['显卡', coreName(br, '显卡'), coreName(tr, '显卡')],
+      ['规划功耗', br.subtotal + ' W', tr.subtotal + ' W（' + signed(tr.subtotal - br.subtotal) + '）'],
+      ['场景功耗区间', scenarioRange(br), scenarioRange(tr)], ['推荐电源', wattRange(br), wattRange(tr)],
+      ['估算数据占功耗', br.confidence.estimatedPercent + '%', tr.confidence.estimatedPercent + '%']
+    ];
+    var html = '<table class="comparison-table"><thead><tr><th scope="col">指标</th><th scope="col">' + esc(baseName) + '</th><th scope="col">' + esc(targetName) + '</th></tr></thead><tbody>' + rows.map(function (row) {
+      return '<tr><th scope="row">' + esc(row[0]) + '</th><td>' + esc(row[1]) + '</td><td>' + esc(row[2]) + '</td></tr>';
+    }).join('') + '</tbody></table>';
+    if (base.scenario !== target.scenario) html += '<p class="note">两方案的使用场景不同，场景区间不能直接当作同负载实测对比。</p>';
+    var reuseCfg = toEngineConfig(target); reuseCfg.psuId = base.psuId;
+    var rr = EN.calculate(reuseCfg), ep = rr.existingPsu;
+    var psuWarnings = rr.issues.filter(function (i) { return i.level === 'warn' && /^(PSU_|EPS_)/.test(i.code); });
+    var level = 'info', title, detail;
+    if (!base.psuId) { title = '原配置尚未选择已有电源'; detail = '在原配置的“校验已有电源”选择实际型号并保存，才能判断是否可复用。'; }
+    else if (!ep) { title = '暂不能判断电源复用'; detail = '请补齐核心配置，并确认原电源型号仍在数据库中。'; }
+    else if (ep.reusable == null) { level = 'warn'; title = '原电源的规格或线束尚未核实'; detail = ep.psu.model + '：' + ep.verdict + '。' + psuWarnings.map(function (i) { return i.title; }).join('；'); }
+    else if (!ep.reusable) { level = 'error'; title = '原电源不满足升级后的要求'; detail = ep.psu.model + '：' + (ep.blockers.join('；') || ep.verdict) + '。升级后建议 ' + wattRange(rr) + '。'; }
+    else if (rr.hasError) { level = 'warn'; title = '请先解决升级配置的兼容性冲突'; detail = rr.issues.filter(function (i) { return i.level === 'error'; }).map(function (i) { return i.title; }).join('；'); }
+    else if (psuWarnings.length) { level = 'warn'; title = '功率达到下限，复用仍需核实条件'; detail = psuWarnings.map(function (i) { return i.title + '：' + i.fix; }).join('；'); }
+    else if (target.gpuCustomName) { level = 'warn'; title = '功率达到下限，显卡接口尚未核实'; detail = '自定义显卡没有录入接口与尺寸规格，不能确认原电源可以直接复用。'; }
+    else { level = 'info'; title = '原电源满足已检查的功率与接口要求'; detail = ep.psu.model + ' · ' + ep.psu.watts + 'W，规划负载率 ' + ep.utilization + '%，剩余额定功率 ' + Math.round(ep.psu.watts - rr.subtotal) + 'W。' + (ep.meetsIdeal ? '' : '达到下限，未达到推荐目标。'); }
+    html += '<div class="issue ' + level + '"><span class="ico">' + (level === 'error' ? SVG.error : SVG.info) + '</span><div><b>' + esc(title) + '</b><div class="d">' + esc(detail) + '</div></div></div>';
+    var errors = tr.issues.filter(function (i) { return i.level === 'error'; });
+    if (errors.length) html += '<p class="note">对比配置冲突：' + errors.map(function (i) { return esc(i.title); }).join('；') + '。</p>';
+    html += '<p class="note">功耗与接口判断基于当前数据库。未填硬件、实际线束、安装空间、电源老化与 BIOS 支持仍需核实；功耗更高不代表性能更强。</p>';
+    $('compareOutput').innerHTML = html;
+  }
+
+  function renderDecision() {
+    if (!$('calcMode') || !lastResult) return;
+    var r = lastResult, quick = S.mode === 'quick';
+    document.documentElement.dataset.calcMode = S.mode;
+    $('calcMode').querySelectorAll('button').forEach(function (b) { var on = b.dataset.mode === S.mode; b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
+    $('modeNote').textContent = quick ? '只需选 CPU、显卡和用途。缺少的辅助部件使用明示默认值；此前填写的具体部件仍参与计算。' : '填写具体硬件可检查接口、尺寸和安装兼容性。';
+    var gaps = r.missingPowerParts;
+    $('completenessLabel').textContent = !r.hasSelection ? '等待选择' : (!r.canRecommend ? '核心配置缺项' : quick ? '快速估算' : gaps.length ? '部分配置' : '具体配置');
+    $('assumptionsNote').textContent = r.assumptions.length ? '默认补入：' + r.assumptions.join('、') + '。尺寸和接口不根据默认值推断。'
+      : (gaps.length && r.hasSelection ? '尚未计入：' + gaps.join('、') + '。推荐值基于已填部分，补齐后可能改变。' : '功耗按已选择的具体部件累计。');
+    $('confidenceNote').textContent = '数据库更新于 ' + DB.meta.updated + '；本次为电源专项核对，其他硬件不代表全量厂家核实。估算 / 未发布 / 自定义数据占规划功耗 ' + r.confidence.estimatedPercent + '%。' +
+      (r.canRecommend ? '若这些项目比录入值高 20%，规划功耗约 ' + r.confidence.sensitivityWatts + 'W，推荐目标约 ' + r.confidence.sensitivityPsu + 'W；这是敏感性推演，不是误差保证。' : '补齐核心配置后显示推荐档位敏感性。');
+    $('checkCoverage').innerHTML = r.coverage.map(function (c) { return '<div>' + esc(c.label) + '：' + (c.checked ? '已检查录入规格' : '尚未检查') + '</div>'; }).join('');
+    var lm = r.loadRanges;
+    $('loadModel').textContent = '按功耗上限分别取 CPU ' + Math.round(lm.cpu[0] * 100) + '–' + Math.round(lm.cpu[1] * 100) + '%、显卡 ' + Math.round(lm.gpu[0] * 100) + '–' + Math.round(lm.gpu[1] * 100) + '%、其他部件 ' + Math.round(lm.other[0] * 100) + '–' + Math.round(lm.other[1] * 100) + '%。区间是场景工程假设，未由实测校准。';
+    var eff = clampNum($('psuEfficiency').value, 60, 99, 90) / 100;
+    $('wallEstimate').textContent = r.hasSelection ? '假设效率 ' + Math.round(eff * 100) + '%，插座侧约 ' + Math.round(r.expectedRange.low / eff) + '–' + Math.round(r.expectedRange.high / eff) + 'W，仅含主机。效率随电源型号和负载变化，不由认证等级直接确定。' : '选好硬件后估算主机插座侧功耗。';
+    var candidates = r.picks.list || [];
+    $('candidateCount').textContent = '（' + candidates.length + ' 款）';
+    $('allPsuCandidates').innerHTML = candidates.length ? candidates.map(function (p) {
+      return '<div class="candidate-row"><b>' + esc(p.brand + ' ' + p.model) + ' · ' + p.watts + 'W</b><p>' + esc(p.efficiency + ' · ' + p.atx + ' · ' + psuPriceLabel(p)) + '</p><p>' + (p.watts >= r.recIdeal ? '达到推荐目标' : '达到安全下限，未达推荐目标') + '；额定余量 ' + Math.round(p.watts - r.subtotal) + 'W，' + esc(psuConnSummary(p)) + '</p><p>' + psuSourceNote(p) + '</p><button type="button" data-pick-psu="' + esc(p.id) + '">选为当前电源</button></div>';
+    }).join('') : '<div class="empty">暂无合格候选，补齐配置或调整需求后再查看。</div>';
+    renderComparison();
+  }
+
+  function initDecision() {
+    document.querySelectorAll('.col-config > .card').forEach(function (card) { var idx = card.querySelector('.idx'); if (idx && +idx.textContent >= 4 && +idx.textContent <= 9) card.dataset.detailPart = 'true'; });
+    $('calcMode').addEventListener('click', function (e) {
+      var b = e.target.closest('button[data-mode]'); if (!b) return; S.mode = b.dataset.mode; render();
+      if (S.mode === 'quick') ['cpuSelect', 'gpuModel'].forEach(function (id) { var card = $(id).closest('.card'); var toggle = card.querySelector('.card-toggle'); if (card.classList.contains('is-collapsed') && toggle) toggle.click(); });
+    });
+    $('hardwareSearch').addEventListener('input', function (e) { if (!e.isComposing) searchHardware(); });
+    $('hardwareSearch').addEventListener('compositionend', searchHardware);
+    $('searchCategory').addEventListener('change', searchHardware);
+    $('hardwareResults').addEventListener('click', function (e) {
+      var b = e.target.closest('[data-search-index]'); if (!b) return;
+      var it = searchMatches[+b.dataset.searchIndex], next = cleanSnapshot(S), cat = $('searchCategory').value;
+      if (!it) return;
+      if (cat === 'cpu') { next.cpuId = it.id; next.cpuGen = ''; }
+      if (cat === 'gpu' || cat === 'aib') { next.gpuId = cat === 'aib' ? it.gpuId : it.id; next.gpuAibId = cat === 'aib' ? it.id : ''; next.gpuGen = ''; next.gpuCustomName = ''; next.gpuCustomW = ''; }
+      if (cat === 'mobo') next.moboId = it.id;
+      if (cat === 'psu') next.psuId = it.id;
+      if (cat === 'ram') next.ramId = it.id;
+      if (cat === 'cooler') next.coolerId = it.id;
+      if (cat === 'fan') next.fanId = it.id;
+      if (cat === 'case') next.caseId = it.id;
+      if (cat === 'storage') {
+        var row = next.storage.filter(function (d) { return d.id === it.id; })[0];
+        if (row && row.qty >= 8) { toast('该硬盘已有 8 块，请调整存储配置', true); return; }
+        if (row) row.qty++;
+        else if (next.storage.length < MAX_ROWS) next.storage.push({ id: it.id, qty: 1 });
+        else { toast('存储已达 ' + MAX_ROWS + ' 行上限', true); return; }
+      }
+      installState(next); $('hardwareSearch').value = ''; searchHardware(); toast('已选入当前配置');
+    });
+    $('psuEfficiency').addEventListener('input', renderDecision);
+    $('allPsuCandidates').addEventListener('click', function (e) { var b = e.target.closest('[data-pick-psu]'); if (b) { S.psuId = b.dataset.pickPsu; refreshPsu(); syncInputsFromState(); render(); } });
+    $('upgradeCpu').innerHTML += optionsHtml(DB.cpus, '', function (c) { return c.name + ' · ' + c.socket; }, function (c) { return c.brand; });
+    $('upgradeGpu').innerHTML += '<option value="__igpu__">改用集成显卡</option>' + optionsHtml(DB.gpus, '', function (g) { return g.name + (g.confidence === 'leak' ? '（未发布）' : ''); }, function (g) { return g.brand; });
+    ['compareBase', 'compareTarget'].forEach(function (id) { $(id).addEventListener('change', function () { $('upgradeCpu').value = ''; $('upgradeGpu').value = ''; refreshUpgradeAibs(); renderComparison(); }); });
+    $('upgradeCpu').addEventListener('change', renderComparison);
+    $('upgradeGpu').addEventListener('change', function () { $('upgradeAib').value = ''; refreshUpgradeAibs(); renderComparison(); });
+    $('upgradeAib').addEventListener('change', renderComparison);
+    $('applyUpgrade').addEventListener('click', function () { if (!simulatedState) return; installState(simulatedState); $('upgradeCpu').value = ''; $('upgradeGpu').value = ''; refreshUpgradeAibs(); $('compareTarget').value = ''; renderComparison(); toast('升级方案已载入，可另存新方案'); });
+    try {
+      var stored = JSON.parse(localStorage.getItem(PLAN_KEY) || 'null');
+      if (stored && Array.isArray(stored.plans)) {
+        var ids = Object.create(null);
+        plans = stored.plans.slice(0, 12).filter(function (p) { return p && typeof p.id === 'string' && p.id.length > 0 && p.id.length <= 80 && !hasOwn(ids, p.id) && (ids[p.id] = true) && p.state && typeof p.state === 'object' && !Array.isArray(p.state); })
+          .map(function (p) { return { id: p.id.slice(0, 80), name: String(p.name || '未命名方案').slice(0, 60), dbVersion: String(p.dbVersion || '').slice(0, 40), updatedAt: String(p.updatedAt || '').slice(0, 40), state: cleanSnapshot(p.state) }; });
+      }
+    } catch (e) { planMessage('方案存档无法读取。当前配置仍可使用，可从备份重新导入。'); }
+    refreshPlans(); refreshUpgradeAibs();
+    $('savedPlan').addEventListener('change', function () { var p = selectedPlan(); $('planName').value = p ? p.name : ''; refreshPlans(); if (p) planMessage('保存时间 ' + p.updatedAt + '；原数据版本 ' + p.dbVersion + '，现在按 ' + DB.meta.version + ' 重算。'); });
+    $('savePlan').addEventListener('click', function () {
+      if (!lastResult || !lastResult.hasSelection) { planMessage('先选择硬件，再保存方案。', true); return; }
+      if (plans.length >= 12) { planMessage('最多保存 12 个方案，请先备份并移除一个方案。', true); return; }
+      var p = newPlan(S, $('planName').value.trim() || '配置 ' + (plans.length + 1));
+      if (commitPlans(plans.concat([p]))) { $('savedPlan').value = p.id; if (plans.length === 1) $('compareBase').value = p.id; $('planName').value = p.name; refreshPlans(); planMessage('已保存“' + p.name + '”。后续编辑不会自动改写这个方案。'); }
+    });
+    $('updatePlan').addEventListener('click', function () {
+      var p = selectedPlan(); if (!p) return;
+      var replacement = newPlan(S, $('planName').value.trim() || p.name); replacement.id = p.id;
+      if (commitPlans(plans.map(function (x) { return x.id === p.id ? replacement : x; }))) planMessage('已更新“' + replacement.name + '”。');
+    });
+    $('loadPlan').addEventListener('click', function () { var p = selectedPlan(); if (p) { installState(p.state); planMessage('已载入“' + p.name + '”，按当前数据重新计算。'); } });
+    $('renamePlan').addEventListener('click', function () { var p = selectedPlan(), name = $('planName').value.trim(); if (!p || !name) { planMessage('请选择方案并填写新名称。', true); return; } if (commitPlans(plans.map(function (x) { return x.id === p.id ? Object.assign({}, x, { name: name.slice(0, 60) }) : x; }))) planMessage('方案已重命名。'); });
+    $('deletePlan').addEventListener('click', function () { var p = selectedPlan(); if (!p) return; if (commitPlans(plans.filter(function (x) { return x.id !== p.id; }))) { deletedPlan = p; $('undoPlanDelete').hidden = false; planMessage('方案已删除，可撤销。'); } });
+    $('undoPlanDelete').addEventListener('click', function () { if (!deletedPlan || plans.length >= 12) { planMessage('没有可撤销项或方案数量已满。', true); return; } if (commitPlans(plans.concat([deletedPlan]))) { deletedPlan = null; $('undoPlanDelete').hidden = true; planMessage('已恢复删除的方案。'); } });
+    $('backupPlans').addEventListener('click', function () { download('电源计算器方案备份.json', JSON.stringify({ schema: 1, exportedAt: new Date().toISOString(), plans: plans }, null, 2), 'application/json'); });
+    $('importPlans').addEventListener('click', function () { $('planImportFile').click(); });
+    $('planImportFile').addEventListener('change', function () {
+      var file = this.files[0]; if (!file) return;
+      if (file.size > 1024 * 1024) { planMessage('文件超过 1MB，请使用本工具导出的配置或备份。', true); this.value = ''; return; }
+      var reader = new FileReader();
+      reader.onload = function () {
+        try {
+          var data = JSON.parse(reader.result), incoming;
+          if (data && Array.isArray(data.plans)) incoming = data.plans;
+          else if (data && data.config && typeof data.config === 'object') incoming = [{ name: file.name.replace(/\.json$/i, ''), state: data.config, dbVersion: data.dbVersion, updatedAt: data.exportedAt }];
+          else throw new Error('不是本工具的配置或方案备份');
+          if (!incoming.length || incoming.length + plans.length > 12) throw new Error('导入后超过 12 个方案或文件没有方案，请先整理已有方案');
+          var next = incoming.map(function (p) {
+            if (!p || !p.state || typeof p.state !== 'object' || Array.isArray(p.state)) throw new Error('方案格式不完整');
+            var n = newPlan(p.state, p.name);
+            if (typeof p.dbVersion === 'string') n.dbVersion = p.dbVersion.slice(0, 40);
+            if (typeof p.updatedAt === 'string' && isFinite(Date.parse(p.updatedAt))) n.updatedAt = new Date(p.updatedAt).toISOString();
+            if (!EN.calculate(toEngineConfig(n.state)).hasSelection) throw new Error('文件包含没有有效硬件的方案');
+            return n;
+          });
+          if (commitPlans(plans.concat(next))) planMessage('已导入 ' + next.length + ' 个方案；当前编辑区保持原配置。');
+        } catch (e) { planMessage('导入失败：' + e.message, true); }
+        $('planImportFile').value = '';
+      };
+      reader.onerror = function () { planMessage('文件无法读取，请重试。', true); $('planImportFile').value = ''; };
+      reader.readAsText(file);
+    });
   }
 
   /* ============================================================ 导出 === */
@@ -7861,14 +8878,17 @@ html:not(.psu-boot-active) details[open] > :not(summary),
     rows.push(['整机功耗与电源选型报告']);
     rows.push(['生成时间', new Date().toLocaleString('zh-CN')]);
     rows.push(['数据版本', DB.meta.version + '（更新于 ' + DB.meta.updated + '）']);
-    rows.push(['使用场景', r.scenarioInfo.label + '（负载系数 ' + r.scenarioInfo.factor + '，冗余系数 ' + r.redundancy.toFixed(2) + '）']);
+    rows.push(['使用场景', r.scenarioInfo.label + '（按分项负载区间估算，冗余系数 ' + r.redundancy.toFixed(2) + '）']);
+    rows.push(['配置完整度', r.canRecommend ? (S.mode === 'quick' ? '快速估算' : '按已填写部件估算') : '缺少 ' + r.missing.join('、')]);
+    rows.push(['快速估算默认项', r.assumptions.join('、') || '无']);
+    rows.push(['数据可信度', '估算等数据占规划功耗 ' + r.confidence.estimatedPercent + '%']);
     rows.push([]);
     rows.push(['—— 汇总 ——']);
     rows.push(['规划功耗（峰值合计）', r.subtotal + ' W']);
-    rows.push(['场景预期功耗', r.expected + ' W']);
+    rows.push(['场景功耗区间（部件侧）', scenarioRange(r) + '；工程假设，未由实测校准']);
     rows.push(['瞬时峰值（估算）', r.transient + ' W']);
-    rows.push(['推荐电源（安全下限）', r.recFloor + ' W']);
-    rows.push(['推荐电源（推荐目标）', r.recIdeal + ' W']);
+    rows.push(['推荐电源（安全下限）', r.canRecommend && !r.beyond ? r.recFloor + ' W' : '暂不推荐']);
+    rows.push(['推荐电源（推荐目标）', r.canRecommend && !r.beyond ? r.recIdeal + ' W' : '暂不推荐']);
     rows.push(['总价参考', '¥' + r.totalPrice]);
     rows.push([]);
     rows.push(['—— 计算逻辑 ——']);
@@ -7883,14 +8903,14 @@ html:not(.psu-boot-active) details[open] > :not(summary),
     rows.push(['', '合计', '', '规划功耗（峰值）', r.subtotal, '', '']);
     rows.push([]);
     rows.push(['—— 电源推荐方案 ——']);
-    rows.push(['定位', '品牌', '型号', '瓦数', '认证', '规范', '12V-2x6', 'PCIe 8pin', 'CPU 8pin', '参考价', '负载率']);
+    rows.push(['定位', '品牌', '型号', '瓦数', '认证', '规范', '随附16-pin', 'PCIe 8pin', 'CPU 8pin', '预算估值（非报价）', '负载率', '16-pin线缆额定功率', '版本', '规格核对日期', '厂家来源']);
     [['性价比之选', r.picks.value], ['均衡之选', r.picks.balanced], ['旗舰之选', r.picks.flagship]]
       .forEach(function (pair) {
         var p = pair[1];
         if (!p) return;
         rows.push([pair[0], p.brand, p.model, p.watts, p.efficiency, p.atx,
-                   p.conn12v2x6, p.pcie8pin, p.eps8pin, '¥' + p.price,
-                   Math.round(r.subtotal / p.watts * 100) + '%']);
+                   p.conn12v2x6, p.pcie8pin, p.eps8pin, psuPriceLabel(p),
+                   Math.round(r.subtotal / p.watts * 100) + '%', p.connector16Watts ? (p.connector16Watts.length ? p.connector16Watts.join('/') + 'W' : '无16-pin线缆') : '待核实', p.revision, p.checkedAt, [p.sourceUrl].concat(p.additionalSources || []).join(' ')]);
       });
     rows.push([]);
     rows.push(['—— 兼容性与风险提示 ——']);
@@ -7949,7 +8969,8 @@ html:not(.psu-boot-active) details[open] > :not(summary),
       dbVersion: DB.meta.version,
       config: S,
       result: lastResult ? {
-        subtotal: lastResult.subtotal, expected: lastResult.expected,
+        subtotal: lastResult.subtotal, expected: lastResult.expected, expectedRange: lastResult.expectedRange,
+        canRecommend: lastResult.canRecommend, assumptions: lastResult.assumptions,
         transient: lastResult.transient,
         recFloor: lastResult.recFloor, recIdeal: lastResult.recIdeal,
         redundancy: lastResult.redundancy
@@ -8303,6 +9324,7 @@ html:not(.psu-boot-active) details[open] > :not(summary),
       initCase();
       initExtras();
       initPsu();
+      initDecision();
       initFeedback();
 
       /* 首访渲染「空配置」，不静默灌入任何预设。
@@ -8446,7 +9468,10 @@ html:not(.psu-boot-active) details[open] > :not(summary),
         exportCsv: exportCsv,
         exportJson: exportJson,
         applyPreset: applyPreset,
-        calculate: function (cfg) { return EN.calculate(cfg); }
+        calculate: function (cfg) { return EN.calculate(cfg); },
+        toEngineConfig: toEngineConfig,
+        render: render,
+        plans: function () { return JSON.parse(JSON.stringify(plans)); }
       };
     } catch (e) { errMsg(e); }
   }

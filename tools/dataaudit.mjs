@@ -248,9 +248,19 @@ DB.psus.forEach(p => {
   psuIds.add(p.id);
   if (!(p.watts > 0)) add(problems, `电源瓦数缺失: ${p.id}`);
   if (!p.atx || !p.efficiency) add(problems, `电源规范/认证缺失: ${p.id}`);
-  if (p.conn12v2x6 == null || p.pcie8pin == null || p.eps8pin == null) {
-    add(problems, `电源接口数量缺失: ${p.id}`);
+  if (!p.verified) {
+    if (p.source || p.conn12v2x6 != null || p.pcie8pin != null || p.eps8pin != null) add(problems, `待核电源仍宣称有规格依据: ${p.id}`);
+    return;
   }
+  for (const field of ['conn12v2x6', 'pcie8pin', 'eps8pin']) {
+    if (!Number.isInteger(p[field]) || p[field] < 0) add(problems, `电源接口数量不合法: ${p.id}.${field}`);
+  }
+  if (p.sata != null && (!Number.isInteger(p.sata) || p.sata < 0)) add(problems, `SATA数量不合法: ${p.id}`);
+  if (!p.checkedAt || !p.revision || !DB.sources[p.source] || !/^https:\/\//.test(p.sourceUrl)) add(problems, `已核电源缺少版本/日期/厂家来源: ${p.id}`);
+  if (p.connector16Watts != null && (p.connector16Watts.length !== p.conn12v2x6 || p.connector16Watts.some(w => !(w > 0 && w <= 600)))) add(problems, `16-pin线缆功率与数量不自洽: ${p.id}`);
+  if (p.pcie8pinCables != null && (!Number.isInteger(p.pcie8pinCables) || p.pcie8pinCables < 0 || p.pcie8pinCables > p.pcie8pin)) add(problems, `PCIe线束数量不自洽: ${p.id}`);
+  if (p.rail12vWatts != null && !(p.rail12vWatts > 0 && p.rail12vWatts <= p.watts)) add(problems, `12V输出超过额定功率: ${p.id}`);
+  if (p.priceKind !== 'budget-estimate') add(problems, `未注明价格估算口径: ${p.id}`);
   if (!['ATX', 'SFX', 'SFX-L'].includes(p.formFactor || 'ATX')) {
     add(problems, `未知电源规格: ${p.id} ${p.formFactor}`);
   }

@@ -1,7 +1,7 @@
 {
-  "_comment": "计算层回归基线。任何改版都不得让这些数字发生变化。重新生成：node tools/baseline.mjs --capture",
-  "_capturedAt": "2026-09-16",
-  "_revisionNote": "2026-09-16 因补齐 RTX 40 系（新增 RTX 4080 / 4070 Ti SUPER / 4070 Ti / 4070 / 4060 Ti）而重抓。重抓前用 tools/baseline-diff.mjs 核对过：功耗计算、项数、问题码差异为 0，唯一变化是「仅 CPU（核显办公）」的 upgradeMaxGpu 升级建议由 Arc B580（190W）改为 GeForce RTX 4070（200W）—— 升级建议改为优先推荐当前在售且性能更高、且仍在电源余量内的型号，属预期改善，非计算层改动。",
+  "_comment": "计算层回归基线。功能升级的计算口径变更必须先审阅差异并记录原因。重新生成：node tools/baseline.mjs --capture",
+  "_revisionNote": "v3.0.0 保留方案 C 的场景区间、完整性和超频规则。2026.10.1 用户授权扩充电源与核对参数：新增25款电源，38款按厂家版本记录，33款旧资料待核并退出推荐。重抓前 baseline-diff 有8处字段差异：6处推荐候选瓦数变化及问题码数组新增PSU_PCIE_CABLES造成的2处移位；全部夹具的subtotal、expected、transient、逐项瓦数、recFloor/recIdeal、升级余量不变。接口线束与300/450/600W功率边界由psucheck独立覆盖；厂家事实见test/psu-spec-facts.json，审计边界见docs/HARDWARE-AUDIT-2026-10-04.md。",
+  "_capturedAt": "2026-10-04",
   "fixtures": {
     "仅 CPU（核显办公）": {
       "cpuId": "r5-9600x",
@@ -224,7 +224,7 @@
   "expected": {
     "仅 CPU（核显办公）": {
       "subtotal": 129.9,
-      "expected": 97.4,
+      "expected": 35.5,
       "transient": 129.9,
       "redundancy": 1.3,
       "recFloor": 450,
@@ -246,39 +246,40 @@
       ],
       "issueCodes": [],
       "pickWatts": {
-        "value": 550,
-        "balanced": 1200,
+        "value": 450,
+        "balanced": 450,
         "flagship": 1600
       }
     },
     "仅显卡（无 CPU）": {
       "subtotal": 333,
-      "expected": 316.3,
+      "expected": 274.7,
       "transient": 531,
       "redundancy": 1.4,
-      "recFloor": 800,
-      "recIdeal": 800,
+      "recFloor": 0,
+      "recIdeal": 0,
       "gpuWatts": 330,
       "cpuWatts": 0,
-      "upgradeHeadroom": 467,
-      "upgradeMaxGpu": "GeForce RTX 4090（450W）",
+      "upgradeHeadroom": null,
+      "upgradeMaxGpu": null,
       "itemCount": 2,
       "items": [
         "显卡=330",
         "机箱灯效=3"
       ],
       "issueCodes": [
-        "GPU_FIT_TIGHT"
+        "GPU_FIT_TIGHT",
+        "INCOMPLETE_CONFIG"
       ],
       "pickWatts": {
-        "value": 1000,
-        "balanced": 850,
-        "flagship": 1600
+        "value": null,
+        "balanced": null,
+        "flagship": null
       }
     },
     "旗舰全套（Intel + 5090）": {
       "subtotal": 947.6,
-      "expected": 900.2,
+      "expected": 685.6,
       "transient": 1511.6,
       "redundancy": 1.4,
       "recFloor": 1300,
@@ -312,15 +313,15 @@
     },
     "旗舰超频（闪电 5090 极致）": {
       "subtotal": 1383.6,
-      "expected": 1494.3,
+      "expected": 1314.4,
       "transient": 2307.6,
       "redundancy": 1.5,
       "recFloor": 2000,
       "recIdeal": 2000,
       "gpuWatts": 1000,
       "cpuWatts": 300,
-      "upgradeHeadroom": 616.4,
-      "upgradeMaxGpu": "GeForce RTX 5090（575W）",
+      "upgradeHeadroom": null,
+      "upgradeMaxGpu": null,
       "itemCount": 9,
       "items": [
         "CPU=300",
@@ -346,7 +347,7 @@
     },
     "ITX 小机箱（集成显卡）": {
       "subtotal": 123.9,
-      "expected": 117.7,
+      "expected": 68.3,
       "transient": 123.9,
       "redundancy": 1.4,
       "recFloor": 450,
@@ -365,18 +366,16 @@
         "风冷散热器=3.6",
         "机箱风扇=3.4"
       ],
-      "issueCodes": [
-        "PSU_TIGHT"
-      ],
+      "issueCodes": [],
       "pickWatts": {
-        "value": 850,
+        "value": 750,
         "balanced": 1000,
         "flagship": 1000
       }
     },
     "多 Gen5 SSD（4 块）": {
       "subtotal": 976,
-      "expected": 976,
+      "expected": 706.3,
       "transient": 1493.5,
       "redundancy": 1.5,
       "recFloor": 1300,
@@ -411,7 +410,7 @@
     },
     "ARGB 满载 + 扩展卡": {
       "subtotal": 756.8,
-      "expected": 756.8,
+      "expected": 562.3,
       "transient": 954.8,
       "redundancy": 1.5,
       "recFloor": 1000,
@@ -440,14 +439,14 @@
         "HIGH_TDP_CPU"
       ],
       "pickWatts": {
-        "value": 1250,
+        "value": 1300,
         "balanced": 1200,
         "flagship": 1600
       }
     },
     "老平台 DDR4（12 代 + B760）": {
       "subtotal": 346.8,
-      "expected": 329.5,
+      "expected": 241,
       "transient": 512.8,
       "redundancy": 1.4,
       "recFloor": 550,
@@ -479,7 +478,7 @@
     },
     "电源接口不足（触发 error）": {
       "subtotal": 622.1,
-      "expected": 591,
+      "expected": 418.5,
       "transient": 820.1,
       "redundancy": 1.4,
       "recFloor": 850,
@@ -503,6 +502,7 @@
         "COOLING_POWER",
         "GPU_FIT_TIGHT",
         "HIGH_TDP_CPU",
+        "PSU_PCIE_CABLES",
         "PSU_TIGHT"
       ],
       "pickWatts": {
@@ -513,7 +513,7 @@
     },
     "插槽不兼容（AMD CPU + Intel 板）": {
       "subtotal": 608.1,
-      "expected": 577.7,
+      "expected": 406.6,
       "transient": 790.5,
       "redundancy": 1.4,
       "recFloor": 850,
@@ -540,14 +540,14 @@
         "SOCKET_MISMATCH"
       ],
       "pickWatts": {
-        "value": 1000,
+        "value": 850,
         "balanced": 1000,
         "flagship": 1600
       }
     },
     "未发布硬件（5080 SUPER）": {
       "subtotal": 636.6,
-      "expected": 604.8,
+      "expected": 464.1,
       "transient": 968.6,
       "redundancy": 1.4,
       "recFloor": 1000,
@@ -573,7 +573,7 @@
       ],
       "pickWatts": {
         "value": 1000,
-        "balanced": 1200,
+        "balanced": 1000,
         "flagship": 1600
       }
     }

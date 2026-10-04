@@ -431,6 +431,93 @@ export async function checkBootBrowser(root, executable) {
     await evaluate('window.__PSU_DISCLAIMER__.close()');
     check('这段流程关掉声明后整页依然逐块出现', await waitFor(`window.__staggerSeen === true`, 6000));
 
+    /* ---- M. 可中断交互：真实时间采样，不用即时点击代替过程验证 ---- */
+    await open('?noanim=1&nodisclaimer=1');
+    await pause(400);
+    check('交互动效不新增或调整页面分区', await evaluate(`(() => {
+      window.__motionLayout = [document.querySelector('.decision-toolbar'), document.querySelector('.layout')]
+        .map(e => ({ top: e.offsetTop, width: e.offsetWidth, height: e.offsetHeight }));
+      return document.documentElement.classList.contains('psu-motion-ready') &&
+        document.querySelectorAll('.col-config > .card').length === 11;
+    })()`));
+    await evaluate(`document.getElementById('btnTheme').dispatchEvent(new PointerEvent('pointerdown', {bubbles:true,isPrimary:true,button:0}))`);
+    await pause(120);
+    check('按住按钮保持压下状态而非提前弹回', await evaluate(`(() => {
+      const b = document.getElementById('btnTheme'), matrix = new DOMMatrix(getComputedStyle(b).transform);
+      return Math.abs(matrix.a - .975) < .004 && b.getAnimations().length === 1;
+    })()`));
+    await evaluate(`document.dispatchEvent(new PointerEvent('pointerup', {bubbles:true,isPrimary:true,button:0}))`);
+    await pause(50);
+    check('松手回弹在进行且没有同时叠加多个动画', await evaluate(`document.getElementById('btnTheme').getAnimations().length === 1`));
+    await evaluate(`document.getElementById('btnTheme').dispatchEvent(new PointerEvent('pointerdown', {bubbles:true,isPrimary:true,button:0}))`);
+    await pause(35);
+    await evaluate(`document.dispatchEvent(new PointerEvent('pointercancel', {bubbles:true,isPrimary:true,button:0}))`);
+    await pause(400);
+    check('快速重按与指针取消后恢复且布局不变', await evaluate(`(() => {
+      const b = document.getElementById('btnTheme');
+      const layout = [document.querySelector('.decision-toolbar'), document.querySelector('.layout')]
+        .map(e => ({ top: e.offsetTop, width: e.offsetWidth, height: e.offsetHeight }));
+      return b.getAnimations().length === 0 && getComputedStyle(b).transform === 'none' &&
+        JSON.stringify(layout) === JSON.stringify(window.__motionLayout);
+    })()`));
+    await evaluate(`document.getElementById('btnTheme').dispatchEvent(new KeyboardEvent('keydown', {key:'Enter',bubbles:true}))`);
+    await pause(100);
+    check('键盘按压也有相同反馈', await evaluate(`new DOMMatrix(getComputedStyle(document.getElementById('btnTheme')).transform).a < .98`));
+    await evaluate(`document.dispatchEvent(new KeyboardEvent('keyup', {key:'Enter',bubbles:true}))`);
+    await pause(380);
+    await evaluate(`(() => {
+      const p = document.getElementById('planManager');
+      window.__closedHeight = p.getBoundingClientRect().height; p.querySelector('summary').click();
+    })()`);
+    await pause(85);
+    check('面板展开包含真实高度过渡', await evaluate(`document.getElementById('planManager').getAnimations().some(a => a.effect.getKeyframes().some(k => k.height))`));
+    await evaluate(`document.querySelector('#planManager > summary').click()`);
+    await pause(55);
+    await evaluate(`document.querySelector('#planManager > summary').click()`);
+    await pause(380);
+    check('展开中反向再展开后正确落位且无内联尺寸残留', await evaluate(`(() => {
+      const p = document.getElementById('planManager');
+      return p.open && p.getAnimations().length === 0 && !p.style.height && !p.style.overflow &&
+        !p.querySelector('summary').hasAttribute('aria-expanded');
+    })()`));
+    await evaluate(`document.querySelector('#planManager > summary').click()`);
+    await pause(260);
+    check('收起后恢复原始布局尺寸', await evaluate(`(() => {
+      const p = document.getElementById('planManager');
+      return !p.open && Math.abs(p.getBoundingClientRect().height - window.__closedHeight) < .5;
+    })()`));
+    await evaluate(`window.__PSU_DEBUG.applyPreset('office')`);
+    await pause(400);
+    await evaluate(`window.__PSU_DEBUG.render()`);
+    await pause(25);
+    check('相同计算结果重复渲染不会闪烁', await evaluate(`['recoBig','heroPower','heroExpected','heroTransient'].every(id=>document.getElementById(id).getAnimations().length===0)`));
+    await evaluate(`window.__PSU_DEBUG.applyPreset('flagship')`);
+    await pause(45);
+    check('真实数值变更即时显示答案并播放局部过渡', await evaluate(`document.getElementById('heroPower').getAnimations().length===1 && parseFloat(document.getElementById('heroPower').textContent)===window.__PSU_DEBUG.result().subtotal`));
+    await evaluate(`window.__PSU_DISCLAIMER__.open()`);
+    await pause(65);
+    await evaluate(`window.__PSU_DISCLAIMER__.close()`);
+    await pause(55);
+    await evaluate(`window.__PSU_DISCLAIMER__.open()`);
+    await pause(380);
+    check('弹窗关闭中重新打开不会被旧回调隐藏', await evaluate(`!document.getElementById('disclaimerModal').hidden && document.querySelector('header.top').inert && document.querySelector('.modal-card').getAnimations().length===0`));
+    await evaluate(`window.__PSU_DISCLAIMER__.close()`);
+    await pause(220);
+    check('弹窗动画完成后解除背景隔离并归还焦点', await evaluate(`document.getElementById('disclaimerModal').hidden && !document.querySelector('header.top').inert && !document.querySelector('.wrap').inert`));
+    await evaluate(`document.querySelector('#planManager > summary').click()`);
+    await pause(55);
+    await send('Emulation.setEmulatedMedia', { features: [{name:'prefers-reduced-motion',value:'reduce'}] });
+    await pause(40);
+    check('切换减少动态效果立即完成过渡并清理动画', await evaluate(`document.getElementById('planManager').open && document.getAnimations().every(a=>a.playState!=='running')`));
+    await evaluate(`document.querySelector('#planManager > summary').click()`);
+    check('减少动态效果下折叠采用原生即时行为', await evaluate(`!document.getElementById('planManager').open`));
+    await send('Emulation.setEmulatedMedia', { features: [] });
+    await evaluate(`document.querySelector('#planManager > summary').click()`);
+    await pause(50);
+    await evaluate(`window.dispatchEvent(new Event('beforeprint'))`);
+    check('打印中途终止过渡但保留用户的展开意图', await evaluate(`document.getElementById('planManager').open && !document.getElementById('planManager').style.overflow && document.getElementById('planManager').getAnimations().length===0`));
+    await evaluate(`window.dispatchEvent(new Event('afterprint'))`);
+
     check('浏览器无未捕获异常', errors.length === 0, errors.slice(0, 2).join(' / '));
     fs.writeFileSync(path.join(artifacts, 'results.json'), JSON.stringify({ results, errors }, null, 2));
   } catch (e) {

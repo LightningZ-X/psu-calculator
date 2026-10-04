@@ -1,6 +1,6 @@
 /* ============================================================================
  *  硬件功耗数据库  HWDB  ——  主装配文件
- *  数据版本: 2026.09.9   数据截止: 2026-09-16
+ *  数据版本: 2026.10.1   电源专项核对: 2026-10-04（其他硬件见审计说明）
  *  （下面 meta 里那两项才是界面与导出真正读的值，改数据时两处一起改。
  *    这里以前写的是 2026.09.7 / 2026-09-14，已经跟 meta 对不上了。）
  * ----------------------------------------------------------------------------
@@ -8,6 +8,7 @@
  *    js/db-cpus.js   桌面处理器（Intel 10/11/12/13/14 代 + Core Ultra 200S 系列；
  *                    AMD AM4 全系 + AM5 全系），164 款，含世代分组元数据
  *    js/db-aib.js    AIC 厂商系列目录 + 规则生成器（23 家厂商 / 86 系列）
+ *    js/db-psus.js   已核电源规格与厂家来源；旧版ID保留及待核隔离
  *    js/db.js        本文件：来源表、平台表、GPU、主板、内存、存储、散热、电源
  *
  *  confidence 语义:
@@ -21,16 +22,19 @@
   if (typeof module === 'object' && module.exports) {
     require('./db-cpus.js');
     require('./db-aib.js');
+    require('./db-psus.js');
   }
 
   var CPU_DB = root.HWDB_CPUS;
   var AIB_DB = root.HWDB_AIB;
-  if (!CPU_DB || !AIB_DB) {
-    throw new Error('db.js 依赖 db-cpus.js 与 db-aib.js，请先加载它们');
+  if (!CPU_DB || !AIB_DB || !root.HWDB_PSU_AUDIT) {
+    throw new Error('db.js 依赖 db-cpus.js、db-aib.js 与 db-psus.js，请先加载它们');
   }
 
   /* ------------------------------------------------------------------ 来源 */
   var SOURCES = {
+    amd9060spec: { label: 'AMD RX 9060 XT 发布规格：8GB 150W / 16GB 160W', url: 'https://www.amd.com/zh-tw/newsroom/press-releases/2025-5-20-amd-introduces-new-radeon-graphics-cards-and-ryzen.html' },
+    nvidia4060spec: { label: 'NVIDIA RTX 4060 Ti / 4060 官方规格', url: 'https://www.nvidia.com/en-us/geforce/graphics-cards/40-series/rtx-4060-4060ti/' },
     yesky200splus: {
       label: '天极网 — 酷睿Ultra 200S Plus系列首发评测',
       url: 'https://wap.yesky.com/diy/285/343785.shtml'
@@ -88,7 +92,7 @@
       url: 'https://www.intel.com/content/www/us/en/products/details/processors/core-ultra.html'
     },
     amdSpec: {
-      label: 'AMD 官方产品规格页（TDP / PPT）',
+      label: 'AMD 官方产品规格页（TDP / 插槽；PPT不等同TDP，另行估算）',
       url: 'https://www.amd.com/zh-cn/products/processors/desktops/ryzen.html'
     },
     gskill: {
@@ -210,10 +214,15 @@
       transient: 1.8, released: '2023-04', price: 4799,
       confidence: 'official', source: 'tpuGpuDb' },
     { id: 'rtx4060ti', brand: 'NVIDIA', family: 'GeForce RTX 40 (Ada)',
-      name: 'GeForce RTX 4060 Ti', tbp: 165, memory: '8GB / 16GB GDDR6 128-bit',
+      name: 'GeForce RTX 4060 Ti 16GB', tbp: 165, memory: '16GB GDDR6 128-bit',
       connector: '1× 8pin', pcie: 'PCIe 4.0 x8', slots: 2,
-      transient: 1.7, released: '2023-05', price: 3199,
-      confidence: 'official', source: 'tpuGpuDb' },
+      transient: 1.7, released: '2023-07', price: 3199,
+      confidence: 'official', source: 'nvidia4060spec', note: '16GB版165W；具体AIC接口可能为8pin或16pin，需按SKU核对。' },
+    { id: 'rtx4060ti-8gb', brand: 'NVIDIA', family: 'GeForce RTX 40 (Ada)',
+      name: 'GeForce RTX 4060 Ti 8GB', tbp: 160, memory: '8GB GDDR6 128-bit',
+      connector: '1× 12VHPWR (16pin)', pcie: 'PCIe 4.0 x8', slots: 2,
+      transient: 1.7, released: '2023-05', price: 0,
+      confidence: 'official', source: 'nvidia4060spec', note: '8GB版160W；此处按FE显卡侧16-pin记录，部分AIC使用8pin。' },
     { id: 'rtx4060', brand: 'NVIDIA', family: 'GeForce RTX 40 (Ada)',
       name: 'GeForce RTX 4060', tbp: 115, memory: '8GB GDDR6 128-bit',
       connector: '1× 8pin', pcie: 'PCIe 4.0 x8', slots: 2,
@@ -232,11 +241,16 @@
       transient: 1.6, released: '2025-03', price: 3999,
       confidence: 'official', source: 'guru3d9070' },
     { id: 'rx9060xt', brand: 'AMD', family: 'Radeon RX 9000 (RDNA 4)',
-      name: 'Radeon RX 9060 XT', tbp: 160, memory: '8GB / 16GB GDDR6 128-bit',
+      name: 'Radeon RX 9060 XT 16GB', tbp: 160, memory: '16GB GDDR6 128-bit',
       connector: '1× 8pin', pcie: 'PCIe 5.0 x16', slots: 2,
       transient: 1.6, released: '2025-06', price: 2299,
-      confidence: 'official', source: 'tpuGpuDb',
-      note: '16GB 版 TBP 160W，8GB 版 150W。' },
+      confidence: 'official', source: 'amd9060spec',
+      note: '16GB基准TBP从160W起；AIC功耗墙可能更高。' },
+    { id: 'rx9060xt-8gb', brand: 'AMD', family: 'Radeon RX 9000 (RDNA 4)',
+      name: 'Radeon RX 9060 XT 8GB', tbp: 150, memory: '8GB GDDR6 128-bit',
+      connector: '1× 8pin', pcie: 'PCIe 5.0 x16', slots: 2,
+      transient: 1.6, released: '2025-06', price: 0,
+      confidence: 'official', source: 'amd9060spec', note: '8GB基准TBP从150W起；AIC功耗墙可能更高。' },
     { id: 'rx7900xtx', brand: 'AMD', family: 'Radeon RX 7000 (RDNA 3)',
       name: 'Radeon RX 7900 XTX', tbp: 355, memory: '24GB GDDR6 384-bit',
       connector: '2× 8pin', pcie: 'PCIe 4.0 x16', slots: 2.5,
@@ -1051,205 +1065,381 @@
   ];
 
   /* ========================================================== 电源 ======
-   *  conn12v2x6 : 原生 12V-2x6 / 12VHPWR 接口数量
+   *  conn12v2x6 : 随附直连 12V-2x6 / 12VHPWR 显卡侧线缆数量（非电源侧插座数）
    *  pcie8pin   : PCIe 8pin (6+2) 接口数量
    *  eps8pin    : CPU 8pin (4+4) 接口数量 —— 高端主板可能需要 2 个
    * ======================================================================*/
+  // Legacy IDs retain saved-plan compatibility. db-psus.js replaces verified
+  // entries and quarantines all others; old guessed specifications are removed.
   var PSUS = [
-    { id: 'seasonic-prime-tx1300', brand: '海韵 Seasonic', series: 'PRIME TX', model: 'PRIME TX-1300',
-      watts: 1300, efficiency: '80 PLUS 钛金', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 4, eps8pin: 2, sata: 8, tier: '旗舰',
-      price: 3299, confidence: 'estimate', source: 'seasonic' },
-    { id: 'seasonic-prime-px1600', brand: '海韵 Seasonic', series: 'PRIME PX', model: 'PRIME PX-1600',
-      watts: 1600, efficiency: '80 PLUS 铂金', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 2, pcie8pin: 6, eps8pin: 3, sata: 12, tier: '旗舰',
-      price: 4299, confidence: 'estimate', source: 'seasonic' },
-    { id: 'seasonic-prime-tx1600', brand: '海韵 Seasonic', series: 'PRIME TX', model: 'PRIME TX-1600',
-      watts: 1600, efficiency: '80 PLUS 钛金', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 2, pcie8pin: 6, eps8pin: 3, sata: 12, tier: '旗舰',
-      price: 5299, confidence: 'estimate', source: 'seasonic',
-      note: 'PRIME TX 系列旗舰，钛金效率；双 12V-2x6 原生接口。' },
-    { id: 'seasonic-vertex-gx1200', brand: '海韵 Seasonic', series: 'VERTEX GX', model: 'VERTEX GX-1200',
-      watts: 1200, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 4, eps8pin: 2, sata: 6, tier: '均衡',
-      price: 1699, confidence: 'estimate', source: 'seasonic' },
-    { id: 'seasonic-focus-gx1000', brand: '海韵 Seasonic', series: 'FOCUS GX', model: 'FOCUS GX-1000 ATX 3.1',
-      watts: 1000, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 3, eps8pin: 2, sata: 5, tier: '均衡',
-      price: 1099, confidence: 'estimate', source: 'seasonic' },
-    { id: 'seasonic-focus-gx850', brand: '海韵 Seasonic', series: 'FOCUS GX', model: 'FOCUS GX-850 ATX 3.1',
-      watts: 850, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 3, eps8pin: 2, sata: 5, tier: '均衡',
-      price: 899, confidence: 'estimate', source: 'seasonic' },
-    { id: 'seasonic-focus-gx750', brand: '海韵 Seasonic', series: 'FOCUS GX', model: 'FOCUS GX-750 ATX 3.1',
-      watts: 750, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 3, eps8pin: 2, sata: 4, tier: '均衡',
-      price: 749, confidence: 'estimate', source: 'seasonic' },
-    { id: 'seasonic-focus-gx650', brand: '海韵 Seasonic', series: 'FOCUS GX', model: 'FOCUS GX-650 ATX 3.1',
-      watts: 650, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 0, pcie8pin: 3, eps8pin: 2, sata: 4, tier: '基础',
-      price: 599, confidence: 'estimate', source: 'seasonic' },
-    { id: 'superflower-leadex3-1000', brand: '振华 Super Flower', series: 'LEADEX III ARGB', model: 'LEADEX III ARGB 1000W',
-      watts: 1000, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 4, eps8pin: 2, sata: 6, tier: '均衡',
-      price: 1299, confidence: 'estimate', source: 'tpuGpuDb' },
-    { id: 'superflower-leadex3-1300', brand: '振华 Super Flower', series: 'LEADEX III ARGB', model: 'LEADEX III ARGB 1300W',
-      watts: 1300, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 6, eps8pin: 2, sata: 8, tier: '均衡',
-      price: 1899, confidence: 'estimate', source: 'tpuGpuDb',
-      note: 'ARGB 灯效 + 原生 12V-2x6，1300W 段位里较有性价比的选择。' },
-    { id: 'superflower-leadex7-1300', brand: '振华 Super Flower', series: 'LEADEX VII', model: 'LEADEX VII 1300W',
-      watts: 1300, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 2, pcie8pin: 4, eps8pin: 2, sata: 8, tier: '旗舰',
-      price: 2299, confidence: 'estimate', source: 'tpuGpuDb' },
-    { id: 'asus-rog-thor-1200p2', brand: '华硕 ASUS', series: 'ROG THOR', model: 'ROG THOR 1200P2 GAMING',
-      watts: 1200, efficiency: '80 PLUS 钛金', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 4, eps8pin: 2, sata: 6, tier: '旗舰',
-      price: 2999, confidence: 'estimate', source: 'asusAstral5090' },
-    { id: 'asus-rog-strix-1000', brand: '华硕 ASUS', series: 'ROG STRIX', model: 'ROG STRIX 1000W AURA',
-      watts: 1000, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 4, eps8pin: 2, sata: 6, tier: '均衡',
-      price: 1499, confidence: 'estimate', source: 'asusAstral5090' },
-    { id: 'msi-meg-ai1300p', brand: '微星 MSI', series: 'MEG', model: 'MEG Ai1300P PCIE5',
-      watts: 1300, efficiency: '80 PLUS 铂金', atx: 'ATX 3.0', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 6, eps8pin: 2, sata: 8, tier: '旗舰',
-      price: 2799, confidence: 'estimate', source: 'tpuGpuDb',
-      note: 'ATX 3.0 规范（12VHPWR 接口），若追求最新规范建议选 ATX 3.1 型号。' },
-    { id: 'msi-mpg-a1000g', brand: '微星 MSI', series: 'MPG', model: 'MPG A1000G PCIE5',
-      watts: 1000, efficiency: '80 PLUS 金牌', atx: 'ATX 3.0', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 4, eps8pin: 2, sata: 6, tier: '均衡',
-      price: 1099, confidence: 'estimate', source: 'tpuGpuDb' },
-    { id: 'greatwall-f1250', brand: '长城 Great Wall', series: '猎金部落', model: '猎金部落 F1250',
-      watts: 1250, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 6, eps8pin: 2, sata: 8, tier: '均衡',
-      price: 1299, confidence: 'estimate', source: 'tpuGpuDb' },
-    { id: 'huntkey-k850', brand: '航嘉 Huntkey', series: 'MVP', model: 'MVP K850',
-      watts: 850, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 3, eps8pin: 2, sata: 6, tier: '基础',
-      price: 699, confidence: 'estimate', source: 'tpuGpuDb' },
-    { id: 'huntkey-wd650k', brand: '航嘉 Huntkey', series: 'WD', model: 'WD650K',
-      watts: 650, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '非模组',
-      conn12v2x6: 0, pcie8pin: 2, eps8pin: 2, sata: 4, tier: '基础',
-      price: 399, confidence: 'estimate', source: 'tpuGpuDb' },
-    { id: 'fsp-hydro-gt-1000', brand: '全汉 FSP', series: 'HYDRO GT PRO', model: 'HYDRO GT PRO 1000W',
-      watts: 1000, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 4, eps8pin: 2, sata: 6, tier: '均衡',
-      price: 999, confidence: 'estimate', source: 'tpuGpuDb' },
-    { id: 'antec-ne1300g', brand: '安钛克 Antec', series: 'NE Gold', model: 'NE1300G M ATX 3.1',
-      watts: 1300, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 2, pcie8pin: 4, eps8pin: 2, sata: 8, tier: '旗舰',
-      price: 1899, confidence: 'estimate', source: 'tpuGpuDb' },
-    { id: 'greatwall-x6-750', brand: '长城 Great Wall', series: 'X', model: 'X6 750W ATX 3.1',
-      watts: 750, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 3, eps8pin: 2, sata: 6, tier: '基础',
-      price: 549, confidence: 'estimate', source: 'tpuGpuDb' },
-    { id: 'greatwall-x4-550', brand: '长城 Great Wall', series: 'X', model: 'X4 550W',
-      watts: 550, efficiency: '80 PLUS 铜牌', atx: 'ATX 3.0', modular: '非模组',
-      conn12v2x6: 0, pcie8pin: 2, eps8pin: 1, sata: 4, tier: '基础',
-      price: 299, confidence: 'estimate', source: 'tpuGpuDb',
-      note: '入门级办公机常用，注意只有 1 个 CPU 8pin。' },
-    { id: 'seasonic-sfx-750', brand: '海韵 Seasonic', series: 'SGX', model: 'SGX-750 (SFX-L)',
-      watts: 750, efficiency: '80 PLUS 金牌', atx: 'ATX 3.0', modular: '全模组', formFactor: 'SFX-L',
-      conn12v2x6: 1, pcie8pin: 3, eps8pin: 2, sata: 4, tier: '基础',
-      price: 1199, confidence: 'estimate', source: 'seasonic',
-      note: 'SFX-L 规格，仅适用于 ITX 机箱。' },
-    { id: 'coolermaster-v850-sfx', brand: '酷冷至尊 CoolerMaster', series: 'V SFX', model: 'V850 SFX Gold',
-      watts: 850, efficiency: '80 PLUS 金牌', atx: 'ATX 3.0', modular: '全模组', formFactor: 'SFX',
-      conn12v2x6: 1, pcie8pin: 3, eps8pin: 2, sata: 4, tier: '均衡',
-      price: 1099, confidence: 'estimate', source: 'tpuGpuDb',
-      note: '标准 SFX 规格，ITX 高性能装机的主力选择。' },
-    /* --------------------------------------- 2026.09.8 扩充：主流电源 --- */
-    { id: 'thermalright-tg-750', brand: '利民 Thermalright', series: 'TG', model: 'TG-750 金牌全模组',
-      watts: 750, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 3, eps8pin: 2, sata: 4, tier: '基础',
-      price: 449, confidence: 'estimate', source: 'expreview' },
-    { id: 'thermalright-tg-1000', brand: '利民 Thermalright', series: 'TG', model: 'TG-1000 金牌全模组',
-      watts: 1000, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 4, eps8pin: 2, sata: 6, tier: '均衡',
-      price: 549, confidence: 'estimate', source: 'expreview',
-      note: '千元内千 W 金牌里性价比突出的选择。' },
-    { id: 'superflower-leadex3-850', brand: '振华 Super Flower', series: 'LEADEX III ARGB', model: 'LEADEX III ARGB 850W',
-      watts: 850, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 3, eps8pin: 2, sata: 4, tier: '均衡',
-      price: 799, confidence: 'estimate', source: 'expreview' },
-    { id: 'phanteks-amp-gh850', brand: '追风者 Phanteks', series: 'AMP', model: 'AMP GH850',
-      watts: 850, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 3, eps8pin: 2, sata: 4, tier: '均衡',
-      price: 749, confidence: 'estimate', source: 'expreview' },
-    { id: 'antec-hcg-850', brand: '安钛克 Antec', series: 'HCG', model: 'HCG850 GOLD',
-      watts: 850, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 3, eps8pin: 2, sata: 6, tier: '均衡',
-      price: 799, confidence: 'estimate', source: 'expreview' },
-    { id: 'segotep-gm850w', brand: '鑫谷 Segotep', series: 'GM', model: 'GM850W',
-      watts: 850, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 3, eps8pin: 2, sata: 4, tier: '基础',
-      price: 599, confidence: 'estimate', source: 'expreview' },
-    { id: 'sama-xp1000', brand: '先马 SAMA', series: '黑洞', model: '黑洞 850P XP1000',
-      watts: 1000, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 4, eps8pin: 2, sata: 6, tier: '均衡',
-      price: 799, confidence: 'estimate', source: 'expreview' },
-    { id: 'deepcool-pq1000m', brand: '九州风神 DeepCool', series: 'PQ', model: 'PQ1000M',
-      watts: 1000, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 4, eps8pin: 2, sata: 6, tier: '均衡',
-      price: 899, confidence: 'estimate', source: 'expreview' },
-    { id: 'gigabyte-ud1000gm-pg5', brand: '技嘉 GIGABYTE', series: 'UD', model: 'UD1000GM PG5',
-      watts: 1000, efficiency: '80 PLUS 金牌', atx: 'ATX 3.0', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 4, eps8pin: 2, sata: 6, tier: '均衡',
-      price: 899, confidence: 'estimate', source: 'expreview',
-      note: 'ATX 3.0 规范（12VHPWR 接口）。' },
-    { id: 'corsair-rm1000e', brand: '海盗船 Corsair', series: 'RM', model: 'RM1000e',
-      watts: 1000, efficiency: '80 PLUS 金牌', atx: 'ATX 3.0', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 3, eps8pin: 2, sata: 6, tier: '均衡',
-      price: 1099, confidence: 'estimate', source: 'expreview' },
-    { id: 'msi-mag-a1000gl', brand: '微星 MSI', series: 'MAG', model: 'MAG A1000GL PCIE5.1',
-      watts: 1000, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 4, eps8pin: 2, sata: 6, tier: '均衡',
-      price: 999, confidence: 'estimate', source: 'expreview' },
-    { id: 'asus-tuf-1000g', brand: '华硕 ASUS', series: 'TUF GAMING', model: 'TUF GAMING 1000G',
-      watts: 1000, efficiency: '80 PLUS 金牌', atx: 'ATX 3.0', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 4, eps8pin: 2, sata: 6, tier: '均衡',
-      price: 1199, confidence: 'estimate', source: 'expreview' },
-    { id: 'msi-meg-ai1000p', brand: '微星 MSI', series: 'MEG', model: 'MEG Ai1000P PCIE5',
-      watts: 1000, efficiency: '80 PLUS 铂金', atx: 'ATX 3.0', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 5, eps8pin: 2, sata: 8, tier: '旗舰',
-      price: 1999, confidence: 'estimate', source: 'expreview' },
-    { id: 'fsp-hydro-ptm-x-1000', brand: '全汉 FSP', series: 'HYDRO PTM X PRO', model: 'HYDRO PTM X PRO 1000W',
-      watts: 1000, efficiency: '80 PLUS 铂金', atx: 'ATX 3.0', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 4, eps8pin: 2, sata: 8, tier: '旗舰',
-      price: 1599, confidence: 'estimate', source: 'expreview' },
-    { id: 'corsair-sf1000', brand: '海盗船 Corsair', series: 'SF', model: 'SF1000 Platinum (SFX-L)',
-      watts: 1000, efficiency: '80 PLUS 铂金', atx: 'ATX 3.0', modular: '全模组', formFactor: 'SFX-L',
-      conn12v2x6: 1, pcie8pin: 3, eps8pin: 2, sata: 4, tier: '旗舰',
-      price: 1599, confidence: 'estimate', source: 'expreview',
-      note: 'SFX-L 规格，ITX 高性能装机的高瓦数选择。' },
-    { id: 'phanteks-revolt-1200', brand: '追风者 Phanteks', series: 'REVOLT PRO', model: 'REVOLT PRO 1200W',
-      watts: 1200, efficiency: '80 PLUS 铂金', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 4, eps8pin: 2, sata: 8, tier: '旗舰',
-      price: 1999, confidence: 'estimate', source: 'expreview' },
-    { id: 'asus-tuf-1200g', brand: '华硕 ASUS', series: 'TUF GAMING', model: 'TUF GAMING 1200G',
-      watts: 1200, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 4, eps8pin: 2, sata: 8, tier: '均衡',
-      price: 1499, confidence: 'estimate', source: 'expreview' },
-    { id: 'deepcool-px1200g', brand: '九州风神 DeepCool', series: 'PX', model: 'PX1200G',
-      watts: 1200, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 4, eps8pin: 2, sata: 8, tier: '均衡',
-      price: 1299, confidence: 'estimate', source: 'expreview' },
-    { id: 'superflower-leadex7-1200', brand: '振华 Super Flower', series: 'LEADEX VII', model: 'LEADEX VII 1200W',
-      watts: 1200, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 2, pcie8pin: 4, eps8pin: 2, sata: 8, tier: '旗舰',
-      price: 1799, confidence: 'estimate', source: 'expreview' },
-    { id: 'segotep-kp1250g', brand: '鑫谷 Segotep', series: '昆仑 KL', model: '昆仑 KL-1250G',
-      watts: 1250, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 4, eps8pin: 2, sata: 8, tier: '均衡',
-      price: 1199, confidence: 'estimate', source: 'expreview' },
-    { id: 'corsair-hx1200i', brand: '海盗船 Corsair', series: 'HX', model: 'HX1200i',
-      watts: 1200, efficiency: '80 PLUS 铂金', atx: 'ATX 3.0', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 6, eps8pin: 2, sata: 12, tier: '旗舰',
-      price: 2299, confidence: 'estimate', source: 'expreview' },
-    { id: 'superflower-leadex7-1600', brand: '振华 Super Flower', series: 'LEADEX VII', model: 'LEADEX VII 1600W',
-      watts: 1600, efficiency: '80 PLUS 铂金', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 2, pcie8pin: 6, eps8pin: 2, sata: 12, tier: '旗舰',
-      price: 2999, confidence: 'estimate', source: 'expreview' }
+    {
+      "id": "seasonic-prime-tx1300",
+      "brand": "海韵 Seasonic",
+      "series": "PRIME TX",
+      "model": "PRIME TX-1300",
+      "watts": 1300,
+      "price": 3299
+    },
+    {
+      "id": "seasonic-prime-px1600",
+      "brand": "海韵 Seasonic",
+      "series": "PRIME PX",
+      "model": "PRIME PX-1600",
+      "watts": 1600,
+      "price": 4299
+    },
+    {
+      "id": "seasonic-prime-tx1600",
+      "brand": "海韵 Seasonic",
+      "series": "PRIME TX",
+      "model": "PRIME TX-1600",
+      "watts": 1600,
+      "price": 5299
+    },
+    {
+      "id": "seasonic-vertex-gx1200",
+      "brand": "海韵 Seasonic",
+      "series": "VERTEX GX",
+      "model": "VERTEX GX-1200",
+      "watts": 1200,
+      "price": 1699
+    },
+    {
+      "id": "seasonic-focus-gx1000",
+      "brand": "海韵 Seasonic",
+      "series": "FOCUS GX",
+      "model": "FOCUS GX-1000 ATX 3.1",
+      "watts": 1000,
+      "price": 1099
+    },
+    {
+      "id": "seasonic-focus-gx850",
+      "brand": "海韵 Seasonic",
+      "series": "FOCUS GX",
+      "model": "FOCUS GX-850 ATX 3.1",
+      "watts": 850,
+      "price": 899
+    },
+    {
+      "id": "seasonic-focus-gx750",
+      "brand": "海韵 Seasonic",
+      "series": "FOCUS GX",
+      "model": "FOCUS GX-750 ATX 3.1",
+      "watts": 750,
+      "price": 749
+    },
+    {
+      "id": "seasonic-focus-gx650",
+      "brand": "海韵 Seasonic",
+      "series": "FOCUS GX",
+      "model": "FOCUS GX-650 ATX 3.1",
+      "watts": 650,
+      "price": 599
+    },
+    {
+      "id": "superflower-leadex3-1000",
+      "brand": "振华 Super Flower",
+      "series": "LEADEX III ARGB",
+      "model": "LEADEX III ARGB 1000W",
+      "watts": 1000,
+      "price": 1299
+    },
+    {
+      "id": "superflower-leadex3-1300",
+      "brand": "振华 Super Flower",
+      "series": "LEADEX III ARGB",
+      "model": "LEADEX III ARGB 1300W",
+      "watts": 1300,
+      "price": 1899
+    },
+    {
+      "id": "superflower-leadex7-1300",
+      "brand": "振华 Super Flower",
+      "series": "LEADEX VII",
+      "model": "LEADEX VII 1300W",
+      "watts": 1300,
+      "price": 2299
+    },
+    {
+      "id": "asus-rog-thor-1200p2",
+      "brand": "华硕 ASUS",
+      "series": "ROG THOR",
+      "model": "ROG THOR 1200P2 GAMING",
+      "watts": 1200,
+      "price": 2999
+    },
+    {
+      "id": "asus-rog-strix-1000",
+      "brand": "华硕 ASUS",
+      "series": "ROG STRIX",
+      "model": "ROG STRIX 1000W AURA",
+      "watts": 1000,
+      "price": 1499
+    },
+    {
+      "id": "msi-meg-ai1300p",
+      "brand": "微星 MSI",
+      "series": "MEG",
+      "model": "MEG Ai1300P PCIE5",
+      "watts": 1300,
+      "price": 2799
+    },
+    {
+      "id": "msi-mpg-a1000g",
+      "brand": "微星 MSI",
+      "series": "MPG",
+      "model": "MPG A1000G PCIE5",
+      "watts": 1000,
+      "price": 1099
+    },
+    {
+      "id": "greatwall-f1250",
+      "brand": "长城 Great Wall",
+      "series": "猎金部落",
+      "model": "猎金部落 F1250",
+      "watts": 1250,
+      "price": 1299
+    },
+    {
+      "id": "huntkey-k850",
+      "brand": "航嘉 Huntkey",
+      "series": "MVP",
+      "model": "MVP K850",
+      "watts": 850,
+      "price": 699
+    },
+    {
+      "id": "huntkey-wd650k",
+      "brand": "航嘉 Huntkey",
+      "series": "WD",
+      "model": "WD650K",
+      "watts": 650,
+      "price": 399
+    },
+    {
+      "id": "fsp-hydro-gt-1000",
+      "brand": "全汉 FSP",
+      "series": "HYDRO GT PRO",
+      "model": "HYDRO GT PRO 1000W",
+      "watts": 1000,
+      "price": 999
+    },
+    {
+      "id": "antec-ne1300g",
+      "brand": "安钛克 Antec",
+      "series": "NE Gold",
+      "model": "NE1300G M ATX 3.1",
+      "watts": 1300,
+      "price": 1899
+    },
+    {
+      "id": "greatwall-x6-750",
+      "brand": "长城 Great Wall",
+      "series": "X",
+      "model": "X6 750W ATX 3.1",
+      "watts": 750,
+      "price": 549
+    },
+    {
+      "id": "greatwall-x4-550",
+      "brand": "长城 Great Wall",
+      "series": "X",
+      "model": "X4 550W",
+      "watts": 550,
+      "price": 299
+    },
+    {
+      "id": "seasonic-sfx-750",
+      "brand": "海韵 Seasonic",
+      "series": "SGX",
+      "model": "SGX-750 (SFX-L)",
+      "watts": 750,
+      "price": 1199
+    },
+    {
+      "id": "coolermaster-v850-sfx",
+      "brand": "酷冷至尊 CoolerMaster",
+      "series": "V SFX",
+      "model": "V850 SFX Gold",
+      "watts": 850,
+      "price": 1099
+    },
+    {
+      "id": "thermalright-tg-750",
+      "brand": "利民 Thermalright",
+      "series": "TG",
+      "model": "TG-750 金牌全模组",
+      "watts": 750,
+      "price": 449
+    },
+    {
+      "id": "thermalright-tg-1000",
+      "brand": "利民 Thermalright",
+      "series": "TG",
+      "model": "TG-1000 金牌全模组",
+      "watts": 1000,
+      "price": 549
+    },
+    {
+      "id": "superflower-leadex3-850",
+      "brand": "振华 Super Flower",
+      "series": "LEADEX III ARGB",
+      "model": "LEADEX III ARGB 850W",
+      "watts": 850,
+      "price": 799
+    },
+    {
+      "id": "phanteks-amp-gh850",
+      "brand": "追风者 Phanteks",
+      "series": "AMP",
+      "model": "AMP GH850",
+      "watts": 850,
+      "price": 749
+    },
+    {
+      "id": "antec-hcg-850",
+      "brand": "安钛克 Antec",
+      "series": "HCG",
+      "model": "HCG850 GOLD",
+      "watts": 850,
+      "price": 799
+    },
+    {
+      "id": "segotep-gm850w",
+      "brand": "鑫谷 Segotep",
+      "series": "GM",
+      "model": "GM850W",
+      "watts": 850,
+      "price": 599
+    },
+    {
+      "id": "sama-xp1000",
+      "brand": "先马 SAMA",
+      "series": "黑洞",
+      "model": "黑洞 850P XP1000",
+      "watts": 1000,
+      "price": 799
+    },
+    {
+      "id": "deepcool-pq1000m",
+      "brand": "九州风神 DeepCool",
+      "series": "PQ",
+      "model": "PQ1000M",
+      "watts": 1000,
+      "price": 899
+    },
+    {
+      "id": "gigabyte-ud1000gm-pg5",
+      "brand": "技嘉 GIGABYTE",
+      "series": "UD",
+      "model": "UD1000GM PG5",
+      "watts": 1000,
+      "price": 899
+    },
+    {
+      "id": "corsair-rm1000e",
+      "brand": "海盗船 Corsair",
+      "series": "RM",
+      "model": "RM1000e",
+      "watts": 1000,
+      "price": 1099
+    },
+    {
+      "id": "msi-mag-a1000gl",
+      "brand": "微星 MSI",
+      "series": "MAG",
+      "model": "MAG A1000GL PCIE5.1",
+      "watts": 1000,
+      "price": 999
+    },
+    {
+      "id": "asus-tuf-1000g",
+      "brand": "华硕 ASUS",
+      "series": "TUF GAMING",
+      "model": "TUF GAMING 1000G",
+      "watts": 1000,
+      "price": 1199
+    },
+    {
+      "id": "msi-meg-ai1000p",
+      "brand": "微星 MSI",
+      "series": "MEG",
+      "model": "MEG Ai1000P PCIE5",
+      "watts": 1000,
+      "price": 1999
+    },
+    {
+      "id": "fsp-hydro-ptm-x-1000",
+      "brand": "全汉 FSP",
+      "series": "HYDRO PTM X PRO",
+      "model": "HYDRO PTM X PRO 1000W",
+      "watts": 1000,
+      "price": 1599
+    },
+    {
+      "id": "corsair-sf1000",
+      "brand": "海盗船 Corsair",
+      "series": "SF",
+      "model": "SF1000 Platinum (SFX-L)",
+      "watts": 1000,
+      "price": 1599
+    },
+    {
+      "id": "phanteks-revolt-1200",
+      "brand": "追风者 Phanteks",
+      "series": "REVOLT PRO",
+      "model": "REVOLT PRO 1200W",
+      "watts": 1200,
+      "price": 1999
+    },
+    {
+      "id": "asus-tuf-1200g",
+      "brand": "华硕 ASUS",
+      "series": "TUF GAMING",
+      "model": "TUF GAMING 1200G",
+      "watts": 1200,
+      "price": 1499
+    },
+    {
+      "id": "deepcool-px1200g",
+      "brand": "九州风神 DeepCool",
+      "series": "PX",
+      "model": "PX1200G",
+      "watts": 1200,
+      "price": 1299
+    },
+    {
+      "id": "superflower-leadex7-1200",
+      "brand": "振华 Super Flower",
+      "series": "LEADEX VII",
+      "model": "LEADEX VII 1200W",
+      "watts": 1200,
+      "price": 1799
+    },
+    {
+      "id": "segotep-kp1250g",
+      "brand": "鑫谷 Segotep",
+      "series": "昆仑 KL",
+      "model": "昆仑 KL-1250G",
+      "watts": 1250,
+      "price": 1199
+    },
+    {
+      "id": "corsair-hx1200i",
+      "brand": "海盗船 Corsair",
+      "series": "HX",
+      "model": "HX1200i",
+      "watts": 1200,
+      "price": 2299
+    },
+    {
+      "id": "superflower-leadex7-1600",
+      "brand": "振华 Super Flower",
+      "series": "LEADEX VII",
+      "model": "LEADEX VII 1600W",
+      "watts": 1600,
+      "price": 2999
+    }
   ];
 
   /* ==================================================== 其他 / 外设 ==== */
@@ -1265,13 +1455,15 @@
   ];
 
   /* ------------------------------------------------------------ 装配 ---- */
+  PSUS = root.HWDB_PSU_AUDIT.apply(PSUS, SOURCES);
   var AIBS = AIB_DB.build(GPUS);
 
   root.HWDB = {
     meta: {
-      toolVersion: '2.2.0',
-      version: '2026.09.9',
-      updated: '2026-09-16',
+      toolVersion: '3.0.0',
+      version: '2026.10.1',
+      updated: '2026-10-04',
+      psuCheckedAt: root.HWDB_PSU_AUDIT.checkedAt,
       title: '台式机功耗与电源选型数据库',
       counts: {
         cpu: CPU_DB.length, gpu: GPUS.length, aib: AIBS.length,

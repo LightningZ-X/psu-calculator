@@ -364,8 +364,10 @@ setTimeout(function () {
     t('引导已改为直白短文案',
        $('guideCard').textContent.indexOf('选硬件') >= 0 &&
        $('guideCard').textContent.indexOf('看瓦数') >= 0);
-    t('推荐结论直接给出"买多大"',
-       $('recoSub').textContent.indexOf('买') >= 0 && $('recoSub').textContent.indexOf('W') >= 0,
+    t('推荐结论按配置完整度给出瓦数或补齐提示',
+       window.__PSU_DEBUG.result().canRecommend
+         ? $('recoSub').textContent.indexOf('买') >= 0 && $('recoSub').textContent.indexOf('W') >= 0
+         : $('recoSub').textContent.indexOf('补齐') >= 0,
        $('recoSub').textContent.replace(/\\s+/g, ' ').slice(0, 56));
     t('核心数字配白话解释',
        $('heroPowerNote').textContent.indexOf('电源至少要扛得住') >= 0,
@@ -621,7 +623,7 @@ if (!fs.existsSync(STANDALONE)) {
   /* 产物是否已过期：源文件比产物新就说明忘了重新构建 */
   const srcFiles = ['index.html', 'assets/style.css', 'assets/lightning-mark.png', 'assets/lightning-wordmark.png', 'favicon.svg',
     'assets/apple-touch-icon.png',
-    'js/db-cpus.js', 'js/db-aib.js', 'js/db.js', 'js/engine.js', 'js/app.js', 'js/ui.js']
+    'js/db-cpus.js', 'js/db-aib.js', 'js/db-psus.js', 'js/db.js', 'js/engine.js', 'js/app.js', 'js/ui.js']
     .map(f => path.join(root, f));
   const newestSrc = Math.max(...srcFiles.map(f => fs.statSync(f).mtimeMs));
   const builtAt = fs.statSync(STANDALONE).mtimeMs;

@@ -23,7 +23,7 @@ for (const name of ['boot-mark.png', 'boot-wordmark.png']) {
 }
 
 const css = read('assets/style.css');
-const JS_ORDER = ['js/db-cpus.js', 'js/db-aib.js', 'js/db.js', 'js/engine.js', 'js/app.js', 'js/boot-animation.js', 'js/ui.js'];
+const JS_ORDER = ['js/db-cpus.js', 'js/db-aib.js', 'js/db-psus.js', 'js/db.js', 'js/engine.js', 'js/app.js', 'js/boot-animation.js', 'js/ui.js'];
 const jsSources = JS_ORDER.map(f => ({ file: f, code: read(f) }));
 
 /* --------------------------------------------------- 校验：不能有遗漏 */
