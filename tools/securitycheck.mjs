@@ -177,6 +177,38 @@ try {
     ocOn === true && afterPreset.oc === false,
     'ocOn=' + ocOn + ' after=' + afterPreset.oc + ' cpu=' + afterPreset.cpu);
 
+  /* 畸形字段不能截断初始化；合法字符串应能往返。 */
+  await goto(base + '?nodisclaimer=1&noanim=1&t=9#c=%=x&cpuId=cu7-270kp&gpuCustomName=%E0%A4%A');
+  const malformed = await ev(`({ ready: !!window.__PSU_DEBUG, errors: window.__PSU_ERRORS,
+    cpu: document.querySelector('#cpuSelect').value })`);
+  check('⑦ 畸形编码被跳过且其他字段正常启动', malformed.ready && !malformed.errors.length && malformed.cpu === 'cu7-270kp');
+  const name = '测试显卡 & 50%';
+  await goto(base + '?nodisclaimer=1&noanim=1&t=10#c=cpuId=cu7-270kp&gpuCustomName=' + encodeURIComponent(name) + '&gpuCustomW=100');
+  const roundtrip = await ev(`({ name: __PSU_DEBUG.state.gpuCustomName, hash: location.hash })`);
+  check('⑧ 中文、百分号与分隔符字符串只解码一次', roundtrip.name === name);
+  await goto(base + '?nodisclaimer=1&noanim=1&t=11' + roundtrip.hash);
+  check('⑧ 分享后重载名称不重复编码', (await ev(`__PSU_DEBUG.state.gpuCustomName`)) === name);
+  await ev(`location.hash = '#c=%=x&cpuId=cu7-270kp'`);
+  await pause(200);
+  check('⑦ 页内畸形 hash 不抛异常', (await ev(`window.__PSU_ERRORS.length`)) === 0);
+
+  /* 同一导出链覆盖链接和 JSON 方案导入，公式按纯文本输出。 */
+  const formulaLabels = ['=1+1', '+1+1', '-1+1', '@SUM(1)', '  =1+1', '\t=1+1', 'line\rbreak'];
+  const csvBlob = encodeURIComponent(JSON.stringify({ customItems: formulaLabels.map(label => ({ label, watts: 10 })) }));
+  await goto(base + '?nodisclaimer=1&noanim=1&t=12#c=cpuId=cu7-270kp&gpuId=__igpu__&j=' + csvBlob);
+  const csv = await ev(`__PSU_DEBUG.toCsv()`);
+  check('⑨ 分享链接的公式名称导出为文本', formulaLabels.slice(0, 6).every(label => csv.includes("'" + label)));
+  check('⑨ CR 单元格正确引用', csv.includes('"line\rbreak"'));
+  await ev(`{
+    const file = new File([JSON.stringify({config:{cpuId:'cu7-270kp',gpuId:'__igpu__',customItems:[{label:'=2+2',watts:10}]}})], 'formula.json', {type:'application/json'});
+    const dt = new DataTransfer(); dt.items.add(file);
+    document.querySelector('#planImportFile').files = dt.files;
+    document.querySelector('#planImportFile').dispatchEvent(new Event('change'));
+  }`);
+  await waitFor(`__PSU_DEBUG.plans().length > 0`);
+  await ev(`document.querySelector('#savedPlan').value = __PSU_DEBUG.plans().at(-1).id; document.querySelector('#savedPlan').dispatchEvent(new Event('change')); document.querySelector('#loadPlan').click()`);
+  check('⑨ JSON 导入名称的 CSV 公式也被阻断', (await ev(`__PSU_DEBUG.toCsv()`)).includes("'=2+2"));
+
   check('全程无未捕获异常', errors.length === 0, errors.slice(0, 2).join(' / '));
 } catch (e) {
   results.push({ name: '安全自检异常: ' + e.message, ok: false, detail: '' });

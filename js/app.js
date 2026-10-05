@@ -1714,7 +1714,9 @@
 
   function csvCell(v) {
     var s = String(v == null ? '' : v);
-    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+    // 外来名称必须保持文本，防止 Excel 等软件把它当作公式。
+    if (typeof v !== 'number' && (/^[\s\uFEFF]*[=+\-@]/.test(s) || /^[\t\r\n]/.test(s))) s = "'" + s;
+    return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
   }
 
   function exportCsv() {
@@ -1873,11 +1875,14 @@
     String(str || '').split('&').forEach(function (kv) {
       var i = kv.indexOf('=');
       if (i < 0) return;
-      var k = decodeURIComponent(kv.slice(0, i));
-      var raw = kv.slice(i + 1);
+      var k, raw;
+      try {
+        k = decodeURIComponent(kv.slice(0, i));
+        raw = decodeURIComponent(kv.slice(i + 1));
+      } catch (e) { return; } // 单个损坏字段不能中断启动或 hashchange。
       if (k === 'j') {
         try {
-          var blob = JSON.parse(decodeURIComponent(raw)) || {};
+          var blob = JSON.parse(raw) || {};
           CFG_COMPLEX.forEach(function (key) {
             var v = blob[key];
             if (v == null) return;
@@ -1890,7 +1895,7 @@
         } catch (e) { /* 坏掉的 j 段直接忽略 */ }
         return;
       }
-      if (!(k in def)) return;
+      if (!hasOwn(def, k)) return;
       var d = def[k];
       if (typeof d === 'number') {
         var n = parseFloat(raw);
