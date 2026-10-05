@@ -8,7 +8,7 @@
  *
  *  为什么要有这个脚本，而不是直接把整个项目推上去：
  *    线上仓库是**只放可运行文件**的发布仓库（用户当初用网页版 "Add files via upload"
- *    传的），里面没有 tools/ docs/ dist/ README.md。
+ *    传的），里面没有 tools/ docs/ dist/。README 使用专门的发布说明。
  *    如果直接把项目根推上去，会把构建脚本、核查记录、42KB 的 README 一起公开，
  *    既不是原样，也把仓库搞脏。所以这里用**白名单**：只发布真正被浏览器请求的东西。
  *
@@ -41,11 +41,8 @@ const SITE = 'https://lightningz-x.github.io/';
 const PUSH = process.argv.includes('--push');
 const PRUNE = process.argv.includes('--prune');
 /* CI（GitHub Actions）往另一个仓库推送时没有本机凭据，靠这个 token 认证；
-   本地没有它时照旧走本机 git 凭据管理器。token 只用来拼 clone URL，从不打印。 */
+   本地没有它时照旧走本机 git 凭据管理器。CI 认证仅通过子进程环境传入，不写远端 URL。 */
 const DEPLOY_TOKEN = process.env.DEPLOY_TOKEN || '';
-const CLONE_URL = DEPLOY_TOKEN
-  ? REPO.replace('https://', 'https://x-access-token:' + DEPLOY_TOKEN + '@')
-  : REPO;
 
 /* ------------------------------------------------------- 发布白名单 ------ */
 const FILES = [
@@ -79,6 +76,7 @@ DIRS.forEach(d => {
     plan.push({ rel: d + '/' + f, from: path.join(dir, f) });
   });
 });
+plan.push({ rel: 'README.md', from: path.join(root, 'docs', 'PAGES-README.md') });
 
 /* ------------------------------------------- 2. 引用完整性（发布前把关）----
    静态站最典型的翻车方式是「漏传一个文件」：页面在本地好好的，
@@ -121,9 +119,19 @@ plan.forEach(p => console.log('    ' + (fs.statSync(p.from).size / 1024).toFixed
 /* --------------------------------------------------------------- 3. 克隆 -- */
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'psu-pages-'));
 const env = { ...process.env, GIT_TERMINAL_PROMPT: '0' };
+if (DEPLOY_TOKEN) {
+  // Git 的运行时配置只存在于子进程环境；失败时留下的 .git/config 不含凭据。
+  const count = Number.parseInt(env.GIT_CONFIG_COUNT || '0', 10);
+  if (!Number.isInteger(count) || count < 0) throw new Error('Invalid GIT_CONFIG_COUNT');
+  env.GIT_CONFIG_COUNT = String(count + 2);
+  env['GIT_CONFIG_KEY_' + count] = 'http.https://github.com/.extraHeader';
+  env['GIT_CONFIG_VALUE_' + count] = 'AUTHORIZATION: basic ' + Buffer.from('x-access-token:' + DEPLOY_TOKEN).toString('base64');
+  env['GIT_CONFIG_KEY_' + (count + 1)] = 'credential.helper';
+  env['GIT_CONFIG_VALUE_' + (count + 1)] = '';
+}
 console.log('\n克隆到 ' + tmp);
 try {
-  run('git', ['clone', '--depth', '1', CLONE_URL, tmp], { env, stdio: 'inherit' });
+  run('git', ['clone', '--depth', '1', REPO, tmp], { env, stdio: 'inherit' });
   /* CI 上没有全局 git 身份，先给这个临时仓库配上才能提交 */
   run('git', ['-C', tmp, 'config', 'user.name', 'LightningZ-X'], { env });
   run('git', ['-C', tmp, 'config', 'user.email', 'yao080120@qq.com'], { env });
@@ -166,7 +174,7 @@ const existing = [];
     else existing.push(rel);
   }
 })(tmp);
-const orphans = existing.filter(f => !planned.has(f));
+const orphans = existing.filter(f => !planned.has(f) && !['CNAME', '.nojekyll'].includes(f));
 
 /* --------------------------------------------------------------- 5. 差异 -- */
 console.log('\n变更内容');

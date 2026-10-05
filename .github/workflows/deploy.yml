@@ -3,6 +3,8 @@ name: 自检并发布
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -68,6 +70,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: 发布到 GitHub Pages
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         shell: pwsh
         env:
           DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
