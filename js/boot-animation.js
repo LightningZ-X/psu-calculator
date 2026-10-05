@@ -1,5 +1,5 @@
 /* Native, time-driven reconstruction of the approved V2. No video decoder.
- * Landscape: 1280x720. Portrait: 720x1280, with a centered unchanged logo.
+ * Full viewport stage; the reference composition scales uniformly on every device.
  * Keyframes retain the reference's 30 fps timing; rendering uses display RAF.
  */
 (function () {
@@ -14,14 +14,25 @@
   window.startLightningBoot = function (canvas, onEnd) {
     var ctx = canvas.getContext('2d'), stopped = false, raf = 0, start = null;
     if (!ctx) { onEnd(); return function () {}; }
-    var portrait = matchMedia('(orientation: portrait)');
+    var width = 0, height = 0, density = 1;
     function resize() {
-      canvas.width = portrait.matches ? 720 : 1280;
-      canvas.height = portrait.matches ? 1280 : 720;
+      var bounds = canvas.getBoundingClientRect();
+      width = Math.max(1, bounds.width);
+      height = Math.max(1, bounds.height);
+      density = Math.min(2, window.devicePixelRatio || 1);
+      var pixelWidth = Math.round(width * density), pixelHeight = Math.round(height * density);
+      if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+        canvas.width = pixelWidth; canvas.height = pixelHeight;
+      }
     }
-    resize(); portrait.addEventListener('change', resize);
+    resize(); window.addEventListener('resize', resize);
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
+    var observer = typeof ResizeObserver === 'function' ? new ResizeObserver(resize) : null;
+    if (observer) observer.observe(canvas);
     function stop() {
-      stopped = true; cancelAnimationFrame(raf); portrait.removeEventListener('change', resize);
+      stopped = true; cancelAnimationFrame(raf); window.removeEventListener('resize', resize);
+      if (window.visualViewport) window.visualViewport.removeEventListener('resize', resize);
+      if (observer) observer.disconnect();
     }
     function image(src) {
       return new Promise(function (resolve, reject) {
@@ -52,19 +63,17 @@
         var f=(now-start)*.03;
         if (f>=121) { stop(); onEnd(); return; }
         canvas.dataset.frame=f.toFixed(2);
+        ctx.setTransform(1,0,0,1,0,0);
         ctx.clearRect(0,0,canvas.width,canvas.height); ctx.fillStyle='#000'; ctx.fillRect(0,0,canvas.width,canvas.height);
-        ctx.save();
-        // Draw the approved 1280x720 composition as one unit. Portrait phones
-        // use a 9:16 canvas and fit that unit proportionally, with no stretching.
-        if (portrait.matches) {
-          var fit = canvas.width / 1280;
-          ctx.translate(0, (canvas.height - 720 * fit) / 2);
-          ctx.scale(fit, fit);
-        } else {
-          ctx.translate(canvas.width / 2 - 640, canvas.height / 2 - 360);
-        }
         ctx.save(); ctx.globalAlpha=k(f,[16,17,18,19,20,21,22,23,24,36],[0,.013,.025,.04,.06,.33,.07,.055,0,0]);
-        ctx.fillStyle='#c50020'; ctx.fillRect(640-canvas.width/2,360-canvas.height/2,canvas.width,canvas.height); ctx.restore();
+        ctx.fillStyle='#c50020'; ctx.fillRect(0,0,canvas.width,canvas.height); ctx.restore();
+        ctx.save();
+        // Keep the logo and lettering as one undistorted unit. Portrait stages
+        // enlarge the focal content; atmospheric rays may extend beyond the edge.
+        var fit = Math.min(width / (height > width ? 480 : 1280), height / 720, 1.5);
+        ctx.scale(density, density);
+        ctx.translate(width / 2, height / 2);
+        ctx.scale(fit, fit); ctx.translate(-640,-360);
         haze(655,335,710,510,k(f,[16,17,19,20,21,22,23,24,28,34,40],[0,.05,.19,.24,.68,.25,.15,.085,.046,.012,0]));
         haze(1220,20,680,580,k(f,[18,21,23,24,30,36,42],[0,.16,.29,.24,.09,.035,0]));
         var settle=k(f,[23,24,25,27,30,34,40],[1,1,.8,.6,.35,.16,0]);

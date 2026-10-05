@@ -77,6 +77,12 @@ setTimeout(async function () {
     input.blur(); click('addStorage');
     var qty = document.querySelector('#storageList .s-qty'); qty.focus(); qty.value = '7'; qty.dispatchEvent(new Event('input', { bubbles: true }));
     t('存储数量输入不重建焦点节点', qty.isConnected && document.activeElement === qty && dbg.state.storage[0].qty === 7);
+    [['99', 8], ['', 1], ['2.6', 3]].forEach(function (pair) {
+      qty.focus(); qty.value = pair[0]; qty.dispatchEvent(new Event('input', { bubbles: true })); qty.blur();
+      var stored = JSON.parse(localStorage.getItem('psu-calc-2026-v1') || 'null');
+      t('数量失焦校正 ' + JSON.stringify(pair[0]), qty.isConnected && qty.value === String(pair[1]) &&
+        dbg.state.storage[0].qty === pair[1] && stored.s.storage[0].qty === pair[1] && dbg.result().items.some(it => it.name.endsWith('×' + pair[1])));
+    });
     qty.blur(); document.querySelector('#storageList .del').click();
     t('移除存储立即更新列表', dbg.state.storage.length === 0 && !document.querySelector('#storageList .s-qty'));
     dbg.applyPreset('flagship');
@@ -89,6 +95,26 @@ setTimeout(async function () {
     t('界面只开 CPU 超频不影响显卡', dbg.result().gpuWatts === gW);
     set('cpuCustomW', '65', 'input');
     t('自定义 CPU 功耗在信息与结果中一致', dbg.result().cpuWatts === 65 && $('cpuInfo').textContent.includes('65 W'));
+    var sameCpu = dbg.state.cpuId;
+    set('cpuSelect', sameCpu);
+    t('下拉重选同型号保留自定义功耗与超频', dbg.state.cpuCustomW === '65' && dbg.state.cpuOc);
+    set('searchCategory', 'cpu'); set('hardwareSearch', '9950x3d2', 'input');
+    document.querySelector('#hardwareResults button').click();
+    t('搜索换 CPU 清除旧功耗墙和超频并同步输入框', dbg.state.cpuId === 'r9-9950x3d2' && !dbg.state.cpuCustomW && !dbg.state.cpuOc &&
+      $('cpuCustomW').value === '' && !$('cpuOc').checked && dbg.result().cpuWatts === HWDB.cpus.find(c => c.id === 'r9-9950x3d2').maxTurbo);
+    set('cpuCustomW', '65', 'input'); $('cpuOc').checked = true; $('cpuOc').dispatchEvent(new Event('change'));
+    set('hardwareSearch', '9950x3d2', 'input'); document.querySelector('#hardwareResults button').click();
+    t('搜索重选同型号保留设置', dbg.state.cpuCustomW === '65' && dbg.state.cpuOc);
+    set('savedPlan', baseId); click('updatePlan');
+    set('cpuSelect', 'r5-9600x');
+    t('下拉换 CPU 清除旧功耗墙和超频', !dbg.state.cpuCustomW && !dbg.state.cpuOc && dbg.result().cpuWatts !== 65);
+    click('loadPlan');
+    t('载入方案仍完整恢复功耗墙与超频', dbg.state.cpuCustomW === '65' && dbg.state.cpuOc && dbg.result().cpuWatts === 65 && $('cpuCustomW').value === '65' && $('cpuOc').checked);
+    dbg.applyPreset('office');
+    set('gpuCustomName', '自定义显卡', 'input'); set('gpuCustomW', '300', 'input'); set('psuSelect', 'msi-mag-a650gl');
+    set('compareBase', ''); set('compareTarget', '');
+    t('自定义显卡的已有电源与对比结论均不确认复用', dbg.result().existingPsu.reusable === null && $('psuInfo').textContent.includes('显卡接口尚未核实') && $('compareOutput').textContent.includes('显卡接口尚未核实'));
+    t('自定义显卡的主推荐与完整候选注明接口待核', $('psuPicks').textContent.includes('显卡接口需核实') && $('allPsuCandidates').textContent.includes('显卡接口需核实'));
     var blobs = [], originalCreate = URL.createObjectURL, originalClick = HTMLAnchorElement.prototype.click;
     HTMLAnchorElement.prototype.click = function () {};
     URL.createObjectURL = function (b) { blobs.push(b); return originalCreate.call(URL, b); };
