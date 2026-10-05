@@ -1071,7 +1071,7 @@ html.psu-boot-pending .psu-boot { display: flex; }
 /* 跳过提示：纯视觉。遮罩恒为黑底，与站点主题无关，所以这里用绝对色而不是主题 token。
    动作本身是「点任意位置 / 按任意键」，由 js/ui.js 的捕获监听实现。 */
 .psu-boot-skip {
-  position: absolute; right: 24px; bottom: 20px;
+  position: absolute; right: max(24px, env(safe-area-inset-right, 0px)); bottom: max(20px, env(safe-area-inset-bottom, 0px));
   font-size: var(--fs-xs); letter-spacing: .08em;
   color: rgba(255, 255, 255, .42);
 }
@@ -1339,18 +1339,11 @@ html.psu-motion-ready .modal-backdrop > .modal-card { animation: none; }
 }
 .print-only { display: none; }
 
-/* Native animation: complete 16:9 desktop or 9:16 portrait stage, never stretched. */
+/* Canvas fills the visible stage; drawing applies one uniform responsive scale. */
 .psu-boot { overflow: hidden; height: 100vh; height: 100dvh; }
 .psu-boot-canvas {
   display: block; flex: none; max-width: none;
-  width: min(100vw, 177.777778vh); width: min(100vw, 177.777778dvh);
-  height: auto; aspect-ratio: 16 / 9; background: #000;
-}
-@media (orientation: portrait) {
-  .psu-boot-canvas {
-    width: min(100vw, 56.25vh); width: min(100vw, 56.25dvh);
-    aspect-ratio: 9 / 16;
-  }
+  width: 100%; height: 100%; background: #000;
 }
 
 /* 配置管理与对比沿用平面分区、细分隔线和现有文字尺度。 */
@@ -1397,7 +1390,7 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
 <!-- js/boot-animation.js -->
 <script>
 /* Native, time-driven reconstruction of the approved V2. No video decoder.
- * Landscape: 1280x720. Portrait: 720x1280, with a centered unchanged logo.
+ * Full viewport stage; the reference composition scales uniformly on every device.
  * Keyframes retain the reference's 30 fps timing; rendering uses display RAF.
  */
 (function () {
@@ -1412,14 +1405,25 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
   window.startLightningBoot = function (canvas, onEnd) {
     var ctx = canvas.getContext('2d'), stopped = false, raf = 0, start = null;
     if (!ctx) { onEnd(); return function () {}; }
-    var portrait = matchMedia('(orientation: portrait)');
+    var width = 0, height = 0, density = 1;
     function resize() {
-      canvas.width = portrait.matches ? 720 : 1280;
-      canvas.height = portrait.matches ? 1280 : 720;
+      var bounds = canvas.getBoundingClientRect();
+      width = Math.max(1, bounds.width);
+      height = Math.max(1, bounds.height);
+      density = Math.min(2, window.devicePixelRatio || 1);
+      var pixelWidth = Math.round(width * density), pixelHeight = Math.round(height * density);
+      if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+        canvas.width = pixelWidth; canvas.height = pixelHeight;
+      }
     }
-    resize(); portrait.addEventListener('change', resize);
+    resize(); window.addEventListener('resize', resize);
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
+    var observer = typeof ResizeObserver === 'function' ? new ResizeObserver(resize) : null;
+    if (observer) observer.observe(canvas);
     function stop() {
-      stopped = true; cancelAnimationFrame(raf); portrait.removeEventListener('change', resize);
+      stopped = true; cancelAnimationFrame(raf); window.removeEventListener('resize', resize);
+      if (window.visualViewport) window.visualViewport.removeEventListener('resize', resize);
+      if (observer) observer.disconnect();
     }
     function image(src) {
       return new Promise(function (resolve, reject) {
@@ -1450,19 +1454,17 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
         var f=(now-start)*.03;
         if (f>=121) { stop(); onEnd(); return; }
         canvas.dataset.frame=f.toFixed(2);
+        ctx.setTransform(1,0,0,1,0,0);
         ctx.clearRect(0,0,canvas.width,canvas.height); ctx.fillStyle='#000'; ctx.fillRect(0,0,canvas.width,canvas.height);
-        ctx.save();
-        // Draw the approved 1280x720 composition as one unit. Portrait phones
-        // use a 9:16 canvas and fit that unit proportionally, with no stretching.
-        if (portrait.matches) {
-          var fit = canvas.width / 1280;
-          ctx.translate(0, (canvas.height - 720 * fit) / 2);
-          ctx.scale(fit, fit);
-        } else {
-          ctx.translate(canvas.width / 2 - 640, canvas.height / 2 - 360);
-        }
         ctx.save(); ctx.globalAlpha=k(f,[16,17,18,19,20,21,22,23,24,36],[0,.013,.025,.04,.06,.33,.07,.055,0,0]);
-        ctx.fillStyle='#c50020'; ctx.fillRect(640-canvas.width/2,360-canvas.height/2,canvas.width,canvas.height); ctx.restore();
+        ctx.fillStyle='#c50020'; ctx.fillRect(0,0,canvas.width,canvas.height); ctx.restore();
+        ctx.save();
+        // Keep the logo and lettering as one undistorted unit. Portrait stages
+        // enlarge the focal content; atmospheric rays may extend beyond the edge.
+        var fit = Math.min(width / (height > width ? 480 : 1280), height / 720, 1.5);
+        ctx.scale(density, density);
+        ctx.translate(width / 2, height / 2);
+        ctx.scale(fit, fit); ctx.translate(-640,-360);
         haze(655,335,710,510,k(f,[16,17,19,20,21,22,23,24,28,34,40],[0,.05,.19,.24,.68,.25,.15,.085,.046,.012,0]));
         haze(1220,20,680,580,k(f,[18,21,23,24,30,36,42],[0,.16,.29,.24,.09,.035,0]));
         var settle=k(f,[23,24,25,27,30,34,40],[1,1,.8,.6,.35,.16,0]);
@@ -6595,6 +6597,8 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
     }
 
     /* ---------------------------------------------- 15. 已有电源评估 ----- */
+    var gpuConnectorKnown = cfg.gpuId === '__igpu__' || !!(aib ? aib.connector : gpu && gpu.connector);
+    if (canRecommend && !gpuConnectorKnown) reasons.push('显卡接口未知：候选仅满足功率及其他已录入条件，显卡接口需核实');
     var existingPsu = null;
     var userPsu = byId(HWDB.psus, cfg.psuId);
     if (userPsu && canRecommend) {
@@ -6616,10 +6620,11 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
       }
       var psuErrors = issues.filter(function (i) { return i.level === 'error' && /^PSU_/.test(i.code); });
       if (psuErrors.length || beyond) { verdict = '接口、安装规格或功率不满足要求'; vlevel = 'error'; }
-      var verificationComplete = userPsu.verified && !issues.some(function (i) {
+      var verificationComplete = userPsu.verified && gpuConnectorKnown && !issues.some(function (i) {
         return /^(PSU_SPEC_UNVERIFIED|PSU_16PIN_UNVERIFIED|PSU_SATA_UNVERIFIED|PSU_NO_12V2X6|PSU_PCIE_CABLES|EPS_COUNT)$/.test(i.code);
       });
       if (!verificationComplete && vlevel !== 'error') { verdict = '规格或线束资料未齐，暂不能确认可复用'; vlevel = 'warn'; }
+      if (!gpuConnectorKnown && vlevel !== 'error') verdict = '功率满足要求，显卡接口尚未核实，暂不能确认可复用';
       if (!userPsu.verified) { verdict = '具体版本与规格未核实；原录额定功率仅用于暂估，不能确认可复用'; vlevel = 'warn'; }
       existingPsu = {
         psu: userPsu,
@@ -6652,6 +6657,7 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
     return {
       hasSelection: hasSelection,
       canRecommend: canRecommend, missing: missing, missingPowerParts: missingPowerParts, assumptions: assumptions,
+      gpuConnectorKnown: gpuConnectorKnown,
       beyond: beyond,
       confidence: { estimatedWatts: round1(estimatedWatts),
         estimatedPercent: subtotal ? Math.round(estimatedWatts / subtotal * 100) : 0,
@@ -7554,7 +7560,7 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
       if (!b || b.dataset.b === S.cpuBrand) return;
       S.cpuBrand = b.dataset.b;
       S.cpuGen = '';       // 换品牌后原来的世代筛选必然失效，清掉
-      S.cpuId = '';        // 已选型号也不属于新品牌了，必须一起清
+      selectCpu(S, '');    // 已选型号也不属于新品牌了，必须一起清
       render();
     });
 
@@ -7562,13 +7568,24 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
       S.cpuGen = this.value;
       /* 只有「已选型号掉到新筛选范围之外」时才清空。
          以前这里无条件清空，用户切一下世代看看有什么，型号就没了。 */
-      if (S.cpuId && !cpuMatchesFilter(S.cpuId)) S.cpuId = '';
+      if (S.cpuId && !cpuMatchesFilter(S.cpuId)) selectCpu(S, '');
       render();
     });
 
-    $('cpuSelect').addEventListener('change', function () { S.cpuId = this.value; render(); });
+    $('cpuSelect').addEventListener('change', function () { selectCpu(S, this.value); render(); });
     $('cpuOc').addEventListener('change', function () { S.cpuOc = this.checked; render(); });
     $('cpuCustomW').addEventListener('input', function () { S.cpuCustomW = this.value === '' ? '' : String(clampNum(this.value, 0, 3000, 0)); render(); });
+  }
+
+  function selectCpu(state, id) {
+    if (state.cpuId === id) return;
+    state.cpuId = id;
+    state.cpuCustomW = '';
+    state.cpuOc = false;
+    if (state === S) {
+      $('cpuCustomW').value = '';
+      $('cpuOc').checked = false;
+    }
   }
 
   /* 型号是否落在当前的「品牌 + 世代」筛选范围内 */
@@ -7926,6 +7943,14 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
     wrap.querySelectorAll('.s-qty').forEach(function (el) {
       el.addEventListener('input', function () {
         S.storage[+el.dataset.qi].qty = Math.round(clampNum(el.value, 1, 8, 1)); renderResults(); renderDecision(); save();
+      });
+      el.addEventListener('blur', function () {
+        var qty = Math.round(clampNum(el.value, 1, 8, 1));
+        var corrected = el.value !== String(qty);
+        S.storage[+el.dataset.qi].qty = qty;
+        el.value = String(qty);
+        renderResults(); renderDecision(); save();
+        if (corrected) toast('每行数量须为 1–8 的整数，已调整为 ' + qty);
       });
     });
     wrap.querySelectorAll('.del').forEach(function (el) {
@@ -8453,6 +8478,7 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
         '<div class="sp">' + esc(p.efficiency) + ' · ' + esc(p.atx) + ' · ' + esc(p.modular) + '</div>' +
         '<div class="sp">' + esc(psuConnSummary(p)) + '</div>' +
         '<div class="sp">负载率 ' + Math.round(r.subtotal / p.watts * 100) + '%</div>' +
+        (!r.gpuConnectorKnown ? '<div class="sp">仅满足功率条件，显卡接口需核实</div>' : '') +
         '<div class="sp">入选理由：' + ({ value: '推荐池内预算估值最低', balanced: '优先贴近下限，按效率认证与预算估值排序', flagship: '推荐池内额定瓦数最高，其次按效率认证排序' }[role.k]) +
           '；额定余量 ' + Math.round(p.watts - r.subtotal) + 'W。</div>' +
         '<div class="sp">' + psuSourceNote(p) + '</div>' +
@@ -8469,7 +8495,7 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
       notes.push('该功率段（≥' + r.recFloor + 'W）的 ATX 3.1 电源在市场上本身就集中在旗舰价位，可选型号较少，属正常现象。');
     }
     if (r.picks.belowFloor && r.picks.belowFloor.length) {
-      notes.push('数据库另有 ' + r.picks.belowFloor.length + ' 款接口兼容但低于安全下限的型号，已排除，不作为购买候选。');
+      notes.push('数据库另有 ' + r.picks.belowFloor.length + ' 款' + (r.gpuConnectorKnown ? '接口兼容但' : '显卡接口待核实且') + '低于安全下限的型号，已排除，不作为购买候选。');
     }
     if (r.picks.filteredByCase) {
       notes.push('已按所选机箱的电源规格（' + esc((DB.cases.filter(function (c) { return c.id === S.caseId; })[0] || {}).psuFormFactor || '') + '）过滤不兼容型号。');
@@ -8711,7 +8737,7 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
     if (!$('compareTarget').value) tp = null;
     var base = cleanSnapshot(bp ? bp.state : S), target = cleanSnapshot(tp ? tp.state : S);
     var uc = $('upgradeCpu').value, ug = $('upgradeGpu').value;
-    if (uc) { target.cpuId = uc; target.cpuCustomW = ''; target.cpuOc = false; }
+    if (uc) selectCpu(target, uc);
     if (ug) { target.gpuId = ug; target.gpuAibId = $('upgradeAib').value; target.gpuCustomName = ''; target.gpuCustomW = ''; target.gpuOc = false; }
     simulatedState = target;
     var br = EN.calculate(toEngineConfig(base)), tr = EN.calculate(toEngineConfig(target));
@@ -8771,7 +8797,7 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
     var candidates = r.picks.list || [];
     $('candidateCount').textContent = '（' + candidates.length + ' 款）';
     $('allPsuCandidates').innerHTML = candidates.length ? candidates.map(function (p) {
-      return '<div class="candidate-row"><b>' + esc(p.brand + ' ' + p.model) + ' · ' + p.watts + 'W</b><p>' + esc(p.efficiency + ' · ' + p.atx + ' · ' + psuPriceLabel(p)) + '</p><p>' + (p.watts >= r.recIdeal ? '达到推荐目标' : '达到安全下限，未达推荐目标') + '；额定余量 ' + Math.round(p.watts - r.subtotal) + 'W，' + esc(psuConnSummary(p)) + '</p><p>' + psuSourceNote(p) + '</p><button type="button" data-pick-psu="' + esc(p.id) + '">选为当前电源</button></div>';
+      return '<div class="candidate-row"><b>' + esc(p.brand + ' ' + p.model) + ' · ' + p.watts + 'W</b><p>' + esc(p.efficiency + ' · ' + p.atx + ' · ' + psuPriceLabel(p)) + '</p><p>' + (p.watts >= r.recIdeal ? '达到推荐目标' : '达到安全下限，未达推荐目标') + '；额定余量 ' + Math.round(p.watts - r.subtotal) + 'W，' + esc(psuConnSummary(p)) + '</p>' + (!r.gpuConnectorKnown ? '<p>仅满足功率条件，显卡接口需核实</p>' : '') + '<p>' + psuSourceNote(p) + '</p><button type="button" data-pick-psu="' + esc(p.id) + '">选为当前电源</button></div>';
     }).join('') : '<div class="empty">暂无合格候选，补齐配置或调整需求后再查看。</div>';
     renderComparison();
   }
@@ -8789,7 +8815,7 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
       var b = e.target.closest('[data-search-index]'); if (!b) return;
       var it = searchMatches[+b.dataset.searchIndex], next = cleanSnapshot(S), cat = $('searchCategory').value;
       if (!it) return;
-      if (cat === 'cpu') { next.cpuId = it.id; next.cpuGen = ''; }
+      if (cat === 'cpu') { selectCpu(next, it.id); next.cpuGen = ''; }
       if (cat === 'gpu' || cat === 'aib') { next.gpuId = cat === 'aib' ? it.gpuId : it.id; next.gpuAibId = cat === 'aib' ? it.id : ''; next.gpuGen = ''; next.gpuCustomName = ''; next.gpuCustomW = ''; }
       if (cat === 'mobo') next.moboId = it.id;
       if (cat === 'psu') next.psuId = it.id;

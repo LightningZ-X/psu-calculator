@@ -18,7 +18,7 @@ import { pathToFileURL } from 'node:url';
 import { spawn } from 'node:child_process';
 import { setTimeout as pause } from 'node:timers/promises';
 
-export async function checkBootBrowser(root, executable) {
+export async function checkBootBrowser(root, executable, options = {}) {
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'psu-boot-browser-'));
   const artifacts = process.env.PSU_BOOT_ARTIFACTS || fs.mkdtempSync(path.join(os.tmpdir(), 'psu-boot-evidence-'));
   fs.mkdirSync(artifacts, { recursive: true });
@@ -42,6 +42,7 @@ export async function checkBootBrowser(root, executable) {
   const base = `http://127.0.0.1:${server.address().port}/`;
 
   const browser = spawn(executable, ['--headless=new', '--disable-gpu', '--no-sandbox', '--no-first-run',
+    '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows',
     '--remote-debugging-port=0', '--user-data-dir=' + profile, 'about:blank'], { stdio: 'ignore', windowsHide: true });
 
   let socket, send;
@@ -173,12 +174,13 @@ export async function checkBootBrowser(root, executable) {
       fs.writeFileSync(path.join(artifacts, name + '.png'), Buffer.from(r.data, 'base64'));
     };
     const open = async (query = '') => {
-      await evaluate(`try { sessionStorage.clear(); localStorage.clear(); } catch (e) {}`);
+      await evaluate(`window.__bootLeaving = true; try { sessionStorage.clear(); localStorage.clear(); } catch (e) {}`);
       await send('Page.navigate', { url: base + query });
       for (let i = 0; i < 150; i++) {
-        if (await evaluate(`document.readyState === 'complete' && !!document.querySelector('#cpuSelect')`)) break;
+        if (await evaluate(`!window.__bootLeaving && document.readyState === 'complete' && !!document.querySelector('#cpuSelect')`)) break;
         await pause(20);
       }
+      await send('Page.bringToFront');
     };
     // 两段都结束：没有启动类名残留、各块也放完了。
     const settled = `document.querySelectorAll('.psu-boot-item').length === 0 &&
@@ -188,6 +190,7 @@ export async function checkBootBrowser(root, executable) {
     const notShown = s => '未就位=' + s.itemInfo.filter(x => !x.startsWith('0.00')).join(' / ');
     const notSettled = s => '未落位=' + s.itemInfo.filter(x => !x.startsWith('1.00')).join(' / ');
 
+    if (!options.responsiveOnly) {
     /* ------------------------------------------------ A. 正常路径（含自动声明） */
     await open('');
     let s = await snapshot();
@@ -517,6 +520,79 @@ export async function checkBootBrowser(root, executable) {
     await evaluate(`window.dispatchEvent(new Event('beforeprint'))`);
     check('打印中途终止过渡但保留用户的展开意图', await evaluate(`document.getElementById('planManager').open && !document.getElementById('planManager').style.overflow && document.getElementById('planManager').getAnimations().length===0`));
     await evaluate(`window.dispatchEvent(new Event('afterprint'))`);
+
+    }
+    /* Responsive canvas: inspect actual rendered pixels, including phone rotation. */
+    for (const viewport of [
+      { name: 'desktop', width: 1440, height: 900, dpr: 1 },
+      { name: 'ultrawide', width: 2560, height: 1080, dpr: 1 },
+      { name: 'tablet', width: 768, height: 1024, dpr: 2 },
+      { name: 'phone', width: 390, height: 844, dpr: 3 },
+      { name: 'small-phone', width: 320, height: 568, dpr: 2 },
+      { name: 'phone-landscape', width: 844, height: 390, dpr: 3 }
+    ]) {
+      await send('Emulation.setDeviceMetricsOverride', { width: viewport.width, height: viewport.height,
+        deviceScaleFactor: viewport.dpr, mobile: viewport.name.includes('phone') });
+      await open('?noanim=1&nodisclaimer=1');
+      await send('Page.bringToFront');
+      await evaluate(`(() => {
+        const canvas = document.querySelector('.psu-boot-canvas');
+        document.documentElement.classList.add('psu-boot-active');
+        canvas.parentElement.style.display = 'flex';
+        delete canvas.dataset.frame;
+        // Geometry snapshots use a controlled jump to the settled logo frame.
+        // The timing/skip/replay tests above continue to use the real RAF clock.
+        const nativeRaf = window.requestAnimationFrame, seen = new WeakSet();
+        window.__restoreResponsiveRaf = () => { window.requestAnimationFrame = nativeRaf; };
+        window.requestAnimationFrame = callback => nativeRaf(time => {
+          const offset = seen.has(callback) ? 2100 : 0;
+          seen.add(callback); callback(time + offset);
+        });
+        window.__stopResponsiveBoot = startLightningBoot(canvas, () => {});
+      })()`);
+      const rendered = await waitFor(`+document.querySelector('.psu-boot-canvas').dataset.frame >= 62`, 7000);
+      const geometry = await evaluate(`(() => {
+        const c = document.querySelector('.psu-boot-canvas'), bounds = c.getBoundingClientRect();
+        const pixels = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+        let left = c.width, right = -1, top = c.height, bottom = -1;
+        for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) {
+          const i = (y * c.width + x) * 4;
+          if (pixels[i] > 80 && pixels[i] > pixels[i + 1] * 2) {
+            left = Math.min(left, x); right = Math.max(right, x);
+            top = Math.min(top, y); bottom = Math.max(bottom, y);
+          }
+        }
+        const density = c.width / bounds.width;
+        return { width: bounds.width, height: bounds.height, pixels: [c.width, c.height],
+          contentWidth: (right - left + 1) / density, contentHeight: (bottom - top + 1) / density,
+          centerX: (left + right) / 2 / density, centerY: (top + bottom) / 2 / density,
+          frame: +c.dataset.frame, ratio: (right - left + 1) / (bottom - top + 1) };
+      })()`);
+      check(viewport.name + '：画布填满视口且按像素密度清晰绘制', rendered &&
+        Math.abs(geometry.width - viewport.width) < 1 && Math.abs(geometry.height - viewport.height) < 1 &&
+        geometry.pixels[0] === viewport.width * Math.min(2, viewport.dpr) &&
+        geometry.pixels[1] === viewport.height * Math.min(2, viewport.dpr),
+        geometry.width + '×' + geometry.height + ' CSS px / ' + geometry.pixels.join('×') + ' pixels');
+      check(viewport.name + '：主体完整居中、尺寸可读且未拉伸',
+        geometry.contentWidth >= (viewport.height > viewport.width ? 115 : 95) &&
+        geometry.contentWidth < viewport.width * .8 && geometry.contentHeight < viewport.height * .8 &&
+        Math.abs(geometry.centerX - viewport.width / 2) < viewport.width * .03 &&
+        Math.abs(geometry.centerY - viewport.height / 2) < viewport.height * .04 &&
+        geometry.ratio > .9 && geometry.ratio < 1.3,
+        Math.round(geometry.contentWidth) + '×' + Math.round(geometry.contentHeight) + ' CSS px');
+      await shot('responsive-' + viewport.name);
+      if (viewport.name === 'phone') {
+        await send('Emulation.setDeviceMetricsOverride', { width: 844, height: 390, deviceScaleFactor: 3, mobile: true });
+        await pause(150);
+        const rotated = await evaluate(`(() => {
+          const c = document.querySelector('.psu-boot-canvas');
+          return { width: c.width, height: c.height, frame: +c.dataset.frame };
+        })()`);
+        check('手机播放中旋转：画布即时调整且时间轴继续', rotated.width === 1688 && rotated.height === 780 && rotated.frame > geometry.frame);
+        await shot('responsive-phone-rotated');
+      }
+      await evaluate('window.__stopResponsiveBoot(); window.__restoreResponsiveRaf()');
+    }
 
     check('浏览器无未捕获异常', errors.length === 0, errors.slice(0, 2).join(' / '));
     fs.writeFileSync(path.join(artifacts, 'results.json'), JSON.stringify({ results, errors }, null, 2));

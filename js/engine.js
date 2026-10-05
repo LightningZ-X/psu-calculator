@@ -520,6 +520,8 @@
     }
 
     /* ---------------------------------------------- 15. 已有电源评估 ----- */
+    var gpuConnectorKnown = cfg.gpuId === '__igpu__' || !!(aib ? aib.connector : gpu && gpu.connector);
+    if (canRecommend && !gpuConnectorKnown) reasons.push('显卡接口未知：候选仅满足功率及其他已录入条件，显卡接口需核实');
     var existingPsu = null;
     var userPsu = byId(HWDB.psus, cfg.psuId);
     if (userPsu && canRecommend) {
@@ -541,10 +543,11 @@
       }
       var psuErrors = issues.filter(function (i) { return i.level === 'error' && /^PSU_/.test(i.code); });
       if (psuErrors.length || beyond) { verdict = '接口、安装规格或功率不满足要求'; vlevel = 'error'; }
-      var verificationComplete = userPsu.verified && !issues.some(function (i) {
+      var verificationComplete = userPsu.verified && gpuConnectorKnown && !issues.some(function (i) {
         return /^(PSU_SPEC_UNVERIFIED|PSU_16PIN_UNVERIFIED|PSU_SATA_UNVERIFIED|PSU_NO_12V2X6|PSU_PCIE_CABLES|EPS_COUNT)$/.test(i.code);
       });
       if (!verificationComplete && vlevel !== 'error') { verdict = '规格或线束资料未齐，暂不能确认可复用'; vlevel = 'warn'; }
+      if (!gpuConnectorKnown && vlevel !== 'error') verdict = '功率满足要求，显卡接口尚未核实，暂不能确认可复用';
       if (!userPsu.verified) { verdict = '具体版本与规格未核实；原录额定功率仅用于暂估，不能确认可复用'; vlevel = 'warn'; }
       existingPsu = {
         psu: userPsu,
@@ -577,6 +580,7 @@
     return {
       hasSelection: hasSelection,
       canRecommend: canRecommend, missing: missing, missingPowerParts: missingPowerParts, assumptions: assumptions,
+      gpuConnectorKnown: gpuConnectorKnown,
       beyond: beyond,
       confidence: { estimatedWatts: round1(estimatedWatts),
         estimatedPercent: subtotal ? Math.round(estimatedWatts / subtotal * 100) : 0,

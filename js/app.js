@@ -297,7 +297,7 @@
       if (!b || b.dataset.b === S.cpuBrand) return;
       S.cpuBrand = b.dataset.b;
       S.cpuGen = '';       // 换品牌后原来的世代筛选必然失效，清掉
-      S.cpuId = '';        // 已选型号也不属于新品牌了，必须一起清
+      selectCpu(S, '');    // 已选型号也不属于新品牌了，必须一起清
       render();
     });
 
@@ -305,13 +305,24 @@
       S.cpuGen = this.value;
       /* 只有「已选型号掉到新筛选范围之外」时才清空。
          以前这里无条件清空，用户切一下世代看看有什么，型号就没了。 */
-      if (S.cpuId && !cpuMatchesFilter(S.cpuId)) S.cpuId = '';
+      if (S.cpuId && !cpuMatchesFilter(S.cpuId)) selectCpu(S, '');
       render();
     });
 
-    $('cpuSelect').addEventListener('change', function () { S.cpuId = this.value; render(); });
+    $('cpuSelect').addEventListener('change', function () { selectCpu(S, this.value); render(); });
     $('cpuOc').addEventListener('change', function () { S.cpuOc = this.checked; render(); });
     $('cpuCustomW').addEventListener('input', function () { S.cpuCustomW = this.value === '' ? '' : String(clampNum(this.value, 0, 3000, 0)); render(); });
+  }
+
+  function selectCpu(state, id) {
+    if (state.cpuId === id) return;
+    state.cpuId = id;
+    state.cpuCustomW = '';
+    state.cpuOc = false;
+    if (state === S) {
+      $('cpuCustomW').value = '';
+      $('cpuOc').checked = false;
+    }
   }
 
   /* 型号是否落在当前的「品牌 + 世代」筛选范围内 */
@@ -669,6 +680,14 @@
     wrap.querySelectorAll('.s-qty').forEach(function (el) {
       el.addEventListener('input', function () {
         S.storage[+el.dataset.qi].qty = Math.round(clampNum(el.value, 1, 8, 1)); renderResults(); renderDecision(); save();
+      });
+      el.addEventListener('blur', function () {
+        var qty = Math.round(clampNum(el.value, 1, 8, 1));
+        var corrected = el.value !== String(qty);
+        S.storage[+el.dataset.qi].qty = qty;
+        el.value = String(qty);
+        renderResults(); renderDecision(); save();
+        if (corrected) toast('每行数量须为 1–8 的整数，已调整为 ' + qty);
       });
     });
     wrap.querySelectorAll('.del').forEach(function (el) {
@@ -1196,6 +1215,7 @@
         '<div class="sp">' + esc(p.efficiency) + ' · ' + esc(p.atx) + ' · ' + esc(p.modular) + '</div>' +
         '<div class="sp">' + esc(psuConnSummary(p)) + '</div>' +
         '<div class="sp">负载率 ' + Math.round(r.subtotal / p.watts * 100) + '%</div>' +
+        (!r.gpuConnectorKnown ? '<div class="sp">仅满足功率条件，显卡接口需核实</div>' : '') +
         '<div class="sp">入选理由：' + ({ value: '推荐池内预算估值最低', balanced: '优先贴近下限，按效率认证与预算估值排序', flagship: '推荐池内额定瓦数最高，其次按效率认证排序' }[role.k]) +
           '；额定余量 ' + Math.round(p.watts - r.subtotal) + 'W。</div>' +
         '<div class="sp">' + psuSourceNote(p) + '</div>' +
@@ -1212,7 +1232,7 @@
       notes.push('该功率段（≥' + r.recFloor + 'W）的 ATX 3.1 电源在市场上本身就集中在旗舰价位，可选型号较少，属正常现象。');
     }
     if (r.picks.belowFloor && r.picks.belowFloor.length) {
-      notes.push('数据库另有 ' + r.picks.belowFloor.length + ' 款接口兼容但低于安全下限的型号，已排除，不作为购买候选。');
+      notes.push('数据库另有 ' + r.picks.belowFloor.length + ' 款' + (r.gpuConnectorKnown ? '接口兼容但' : '显卡接口待核实且') + '低于安全下限的型号，已排除，不作为购买候选。');
     }
     if (r.picks.filteredByCase) {
       notes.push('已按所选机箱的电源规格（' + esc((DB.cases.filter(function (c) { return c.id === S.caseId; })[0] || {}).psuFormFactor || '') + '）过滤不兼容型号。');
@@ -1454,7 +1474,7 @@
     if (!$('compareTarget').value) tp = null;
     var base = cleanSnapshot(bp ? bp.state : S), target = cleanSnapshot(tp ? tp.state : S);
     var uc = $('upgradeCpu').value, ug = $('upgradeGpu').value;
-    if (uc) { target.cpuId = uc; target.cpuCustomW = ''; target.cpuOc = false; }
+    if (uc) selectCpu(target, uc);
     if (ug) { target.gpuId = ug; target.gpuAibId = $('upgradeAib').value; target.gpuCustomName = ''; target.gpuCustomW = ''; target.gpuOc = false; }
     simulatedState = target;
     var br = EN.calculate(toEngineConfig(base)), tr = EN.calculate(toEngineConfig(target));
@@ -1514,7 +1534,7 @@
     var candidates = r.picks.list || [];
     $('candidateCount').textContent = '（' + candidates.length + ' 款）';
     $('allPsuCandidates').innerHTML = candidates.length ? candidates.map(function (p) {
-      return '<div class="candidate-row"><b>' + esc(p.brand + ' ' + p.model) + ' · ' + p.watts + 'W</b><p>' + esc(p.efficiency + ' · ' + p.atx + ' · ' + psuPriceLabel(p)) + '</p><p>' + (p.watts >= r.recIdeal ? '达到推荐目标' : '达到安全下限，未达推荐目标') + '；额定余量 ' + Math.round(p.watts - r.subtotal) + 'W，' + esc(psuConnSummary(p)) + '</p><p>' + psuSourceNote(p) + '</p><button type="button" data-pick-psu="' + esc(p.id) + '">选为当前电源</button></div>';
+      return '<div class="candidate-row"><b>' + esc(p.brand + ' ' + p.model) + ' · ' + p.watts + 'W</b><p>' + esc(p.efficiency + ' · ' + p.atx + ' · ' + psuPriceLabel(p)) + '</p><p>' + (p.watts >= r.recIdeal ? '达到推荐目标' : '达到安全下限，未达推荐目标') + '；额定余量 ' + Math.round(p.watts - r.subtotal) + 'W，' + esc(psuConnSummary(p)) + '</p>' + (!r.gpuConnectorKnown ? '<p>仅满足功率条件，显卡接口需核实</p>' : '') + '<p>' + psuSourceNote(p) + '</p><button type="button" data-pick-psu="' + esc(p.id) + '">选为当前电源</button></div>';
     }).join('') : '<div class="empty">暂无合格候选，补齐配置或调整需求后再查看。</div>';
     renderComparison();
   }
@@ -1532,7 +1552,7 @@
       var b = e.target.closest('[data-search-index]'); if (!b) return;
       var it = searchMatches[+b.dataset.searchIndex], next = cleanSnapshot(S), cat = $('searchCategory').value;
       if (!it) return;
-      if (cat === 'cpu') { next.cpuId = it.id; next.cpuGen = ''; }
+      if (cat === 'cpu') { selectCpu(next, it.id); next.cpuGen = ''; }
       if (cat === 'gpu' || cat === 'aib') { next.gpuId = cat === 'aib' ? it.gpuId : it.id; next.gpuAibId = cat === 'aib' ? it.id : ''; next.gpuGen = ''; next.gpuCustomName = ''; next.gpuCustomW = ''; }
       if (cat === 'mobo') next.moboId = it.id;
       if (cat === 'psu') next.psuId = it.id;

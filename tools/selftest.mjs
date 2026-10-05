@@ -657,6 +657,21 @@ ok(invalidScenario.scenario === 'gaming' && Number.isFinite(invalidScenario.expe
 ok(JSON.stringify(quickCfg) === JSON.stringify({ cpuId: 'r5-9600x', gpuId: '__igpu__', mode: 'quick', scenario: 'office' }),
   '快速估算保持输入配置不变');
 
+const customGpuConfig = { cpuId: 'r5-9600x', gpuName: '自定义显卡', gpuCustomWatts: 300,
+  psuId: 'msi-mag-a650gl', mode: 'quick' };
+const customGpuReuse = engine.calculate(customGpuConfig);
+ok(!customGpuReuse.gpuConnectorKnown && !customGpuReuse.existingPsu.verificationComplete &&
+  customGpuReuse.existingPsu.reusable === null && customGpuReuse.existingPsu.level === 'warn',
+  '自定义显卡功率达标但接口未知时不能确认复用');
+ok(engine.calculate({ ...customGpuConfig, gpuCustomWatts: 600 }).existingPsu.reusable === false,
+  '接口未知不能覆盖已确定的功率不足');
+const knownGpuReuse = engine.calculate({ cpuId: 'r5-9600x', gpuId: 'rtx4060',
+  psuId: 'msi-mag-a650gl', mode: 'quick' });
+ok(knownGpuReuse.gpuConnectorKnown && knownGpuReuse.existingPsu.reusable === true,
+  '已知显卡接口与功率满足时仍可确认复用');
+ok(engine.calculate({ cpuId: 'r5-9600x', gpuId: '__igpu__', psuId: 'msi-mag-a650gl', mode: 'quick' }).existingPsu.reusable === true,
+  '明确使用核显无需独立显卡接口');
+
 /* ------------------------------------------------------------ 汇总 ----- */
 console.log('\n' + '='.repeat(56));
 console.log('通过 ' + pass + ' / ' + (pass + fail) + '  失败 ' + fail);
