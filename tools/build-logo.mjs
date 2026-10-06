@@ -4,9 +4,10 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
+import {svgDataUri} from './brand-svg.mjs';
 const root = process.cwd();
 const read = name => fs.readFileSync(path.join(root, name), 'utf8');
-const uri = svg => 'data:image/svg+xml;base64,' + Buffer.from(svg).toString('base64');
+const uri = svgDataUri;
 function write(name, content) {
   const file = path.join(root, name);
   if (!fs.existsSync(file) || fs.readFileSync(file, 'utf8') !== content) fs.writeFileSync(file, content);

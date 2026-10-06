@@ -9,6 +9,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {svgDataUri} from './brand-svg.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, '..');
@@ -87,8 +88,8 @@ if (problems.length) {
 /* Logo 遮罩已内嵌在源 CSS 中，网页和单文件版共用同一数据。 */
 const cssInlined = css;
 for (const part of ['mark', 'wordmark']) {
-  const data = fs.readFileSync(path.join(root, 'assets', 'veltrix-' + part + '.svg')).toString('base64');
-  if (!css.includes('data:image/svg+xml;base64,' + data)) {
+  const svg = fs.readFileSync(path.join(root, 'assets', 'veltrix-' + part + '.svg'), 'utf8');
+  if (!css.includes(svgDataUri(svg))) {
     throw new Error('CSS 中的 VELTRIX 遮罩与素材不一致: ' + part);
   }
 }
