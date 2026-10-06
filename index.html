@@ -91,7 +91,7 @@
 </head>
 <body>
 <div class="psu-boot" aria-hidden="true">
-  <canvas class="psu-boot-canvas" width="1280" height="720" data-mark="assets/boot-mark.png" data-wordmark="assets/boot-wordmark.png"></canvas>
+  <canvas class="psu-boot-canvas" width="1920" height="1080" data-logo="assets/veltrix-boot.png"></canvas>
   <!-- 纯视觉提示：跳过这个动作对所有输入方式都已可用（点任意处 / 按任意键），
        所以这里不需要单独暴露给无障碍树，用 span 而不是 button 也顺便避免了
        「aria-hidden 里放可聚焦元素」这个问题。 -->
@@ -110,9 +110,9 @@
 <header class="top">
   <div class="top-inner">
     <div class="logo" title="点击重播开场动画" style="cursor:pointer">
-      <!-- MSI LIGHTNING 闪电标记与字标；CSS mask 跟随站点主题色。 -->
-      <span class="mark" role="img" aria-label="MSI LIGHTNING 闪电标记"></span>
-      <span class="wordmark" role="img" aria-label="MSI LIGHTNING"></span>
+      <!-- VELTRIX 标志与字标；CSS mask 跟随站点主题色。 -->
+      <span class="mark" role="img" aria-label="VELTRIX 标志"></span>
+      <span class="wordmark" role="img" aria-label="VELTRIX"></span>
       <div class="logo-text">
         <h1>台式机功耗计算器</h1>
         <small>v<span id="toolVersion">—</span> · 数据版本 <span id="dbVersion">—</span> · 截止 <span id="dbDate">—</span></small>
@@ -670,8 +670,8 @@
   <div class="modal-card" role="dialog" aria-modal="true"
        aria-labelledby="dmTitle" aria-describedby="dmSummary">
     <div class="modal-head">
-      <span class="mark" role="img" aria-label="MSI LIGHTNING 闪电标记"></span>
-      <span class="wordmark" role="img" aria-label="MSI LIGHTNING"></span>
+      <span class="mark" role="img" aria-label="VELTRIX 标志"></span>
+      <span class="wordmark" role="img" aria-label="VELTRIX"></span>
       <h2 id="dmTitle">使用须知</h2>
       <button type="button" class="modal-x" id="dmClose" aria-label="关闭声明">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"

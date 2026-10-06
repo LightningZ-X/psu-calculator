@@ -553,7 +553,7 @@
      打开网页看不到启动动画了 —— 对一个靠开场动画立住调性的站点来说，
      「打开就有」比「少看几遍」重要得多，所以退回按标签页。
      同时清掉那个 24 小时的旧标记，免得它继续压着动画不放。 */
-  var key = 'psu-boot-seen-native-v5';
+  var key = 'psu-boot-seen-veltrix-v6';
   var motion = window.matchMedia('(prefers-reduced-motion: reduce)');
   var seen = false;
   try {

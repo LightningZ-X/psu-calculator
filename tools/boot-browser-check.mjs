@@ -209,7 +209,7 @@ export async function checkBootBrowser(root, executable, options = {}) {
     /* 关键：确认开场那一段 Canvas 动画真的放了。
        少了这条，即使动画被整段跳过（比如「已看过」标记一直压着不放），
        上面几条也全部会通过。 */
-    check('开场真的在放：Canvas 闪电动画跑起来了（不是直接跳到声明）', s.introSeen === true,
+    check('开场真的在放：VELTRIX Canvas 动画跑起来了（不是直接跳到声明）', s.introSeen === true,
       'introSeen=' + s.introSeen);
     await shot('02-dialog');
 
@@ -359,7 +359,7 @@ export async function checkBootBrowser(root, executable, options = {}) {
     check('本地双击打开：Logo 遮罩可解码且含可见像素', await evaluate(`(async () => {
       for (const selector of ['.logo .mark', '.logo .wordmark', '.modal-head .mark']) {
         const mask = getComputedStyle(document.querySelector(selector)).maskImage;
-        if (!mask.startsWith('url("data:image/png;base64,')) return false;
+        if (!mask.startsWith('url("data:image/svg+xml;base64,')) return false;
         const img = new Image(); img.src = mask.slice(5, -2);
         try { await img.decode(); } catch { return false; }
         const canvas = document.createElement('canvas'); canvas.width = img.width; canvas.height = img.height;
@@ -575,10 +575,10 @@ export async function checkBootBrowser(root, executable, options = {}) {
         geometry.width + '×' + geometry.height + ' CSS px / ' + geometry.pixels.join('×') + ' pixels');
       check(viewport.name + '：主体完整居中、尺寸可读且未拉伸',
         geometry.contentWidth >= (viewport.height > viewport.width ? 115 : 95) &&
-        geometry.contentWidth < viewport.width * .8 && geometry.contentHeight < viewport.height * .8 &&
+        geometry.contentWidth < viewport.width * .85 && geometry.contentHeight < viewport.height * .8 &&
         Math.abs(geometry.centerX - viewport.width / 2) < viewport.width * .03 &&
         Math.abs(geometry.centerY - viewport.height / 2) < viewport.height * .04 &&
-        geometry.ratio > .9 && geometry.ratio < 1.3,
+        geometry.ratio > 4.3 && geometry.ratio < 4.9,
         Math.round(geometry.contentWidth) + '×' + Math.round(geometry.contentHeight) + ' CSS px');
       await shot('responsive-' + viewport.name);
       if (viewport.name === 'phone') {
@@ -594,6 +594,22 @@ export async function checkBootBrowser(root, executable, options = {}) {
       await evaluate('window.__stopResponsiveBoot(); window.__restoreResponsiveRaf()');
     }
 
+    await open('?noanim=1&nodisclaimer=1');
+    check('VELTRIX 素材加载失败会结束，不留下黑幕', await evaluate(`new Promise(resolve => {
+      const canvas = document.querySelector('.psu-boot-canvas');
+      const src = canvas.dataset.logo; canvas.dataset.logo = 'missing-veltrix-test.png';
+      let count = 0;
+      const stop = startLightningBoot(canvas, () => { count++; });
+      setTimeout(() => { stop(); canvas.dataset.logo = src; resolve(count === 1); }, 500);
+    })`));
+    check('加载期间跳过不会触发迟到的结束回调', await evaluate(`new Promise(resolve => {
+      const canvas = document.querySelector('.psu-boot-canvas');
+      const src = canvas.dataset.logo; canvas.dataset.logo = 'missing-veltrix-cancel-test.png';
+      let count = 0;
+      const stop = startLightningBoot(canvas, () => { count++; });
+      stop(); canvas.dataset.logo = src;
+      setTimeout(() => resolve(count === 0), 500);
+    })`));
     check('浏览器无未捕获异常', errors.length === 0, errors.slice(0, 2).join(' / '));
     fs.writeFileSync(path.join(artifacts, 'results.json'), JSON.stringify({ results, errors }, null, 2));
   } catch (e) {

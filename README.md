@@ -44,8 +44,9 @@ favicon.svg  robots.txt  sitemap.xml
 DEPLOY.md                   部署步骤
 assets/
   style.css                 样式（深浅主题 / 响应式 / 打印报表）
-  rog-eye.png               标志图形（build-logo.mjs 从官方 logo 图提取）
-  rog-wordmark.png          REPUBLIC OF GAMERS 字标
+  veltrix-mark.svg          VELTRIX 矢量标志（来自用户确认的 Logo）
+  veltrix-wordmark.svg      VELTRIX 定制字标
+  veltrix-boot.png          启动动画素材，已去掉下方小图标
   og-image.png              分享卡片（1200×630）
 js/
   db-cpus.js                CPU 数据库（164 款）+ 世代元数据

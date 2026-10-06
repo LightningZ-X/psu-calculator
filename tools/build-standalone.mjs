@@ -18,7 +18,7 @@ const OUT_NAME = '整机功耗计算器.html';
 /* ------------------------------------------------------------------ 读取 */
 const read = p => fs.readFileSync(path.join(root, p), 'utf8');
 let html = read('index.html');
-for (const name of ['boot-mark.png', 'boot-wordmark.png']) {
+for (const name of ['veltrix-boot.png']) {
   html = html.replace('assets/' + name, 'data:image/png;base64,' + fs.readFileSync(path.join(root, 'assets', name)).toString('base64'));
 }
 
@@ -49,8 +49,8 @@ JS_ORDER.forEach(src => {
 if (!fs.existsSync(path.join(root, 'favicon.svg'))) {
   problems.push('favicon.svg 不存在（单文件版需要内联它）');
 }
-// MSI LIGHTNING 透明 PNG 会被 CSS 的 mask 引用，必须一起内联。
-['lightning-mark.png', 'lightning-wordmark.png'].forEach(f => {
+// VELTRIX 矢量标志被 CSS mask 引用，须与内联数据一致。
+['veltrix-mark.svg', 'veltrix-wordmark.svg'].forEach(f => {
   if (!fs.existsSync(path.join(root, 'assets', f))) {
     problems.push('assets/' + f + ' 不存在（需要经用户授权提取的标志文件）');
   }
@@ -87,9 +87,9 @@ if (problems.length) {
 /* Logo 遮罩已内嵌在源 CSS 中，网页和单文件版共用同一数据。 */
 const cssInlined = css;
 for (const part of ['mark', 'wordmark']) {
-  const data = fs.readFileSync(path.join(root, 'assets', 'lightning-' + part + '.png')).toString('base64');
-  if (!css.includes('data:image/png;base64,' + data)) {
-    throw new Error('CSS 中的 LIGHTNING 遮罩与素材不一致: ' + part);
+  const data = fs.readFileSync(path.join(root, 'assets', 'veltrix-' + part + '.svg')).toString('base64');
+  if (!css.includes('data:image/svg+xml;base64,' + data)) {
+    throw new Error('CSS 中的 VELTRIX 遮罩与素材不一致: ' + part);
   }
 }
 
@@ -157,16 +157,19 @@ const localRefPatterns = [
 checks.push(['无残留本地样式表引用', !localRefPatterns[0].test(built)]);
 checks.push(['无残留本地图标引用', !localRefPatterns[1].test(built)]);
 checks.push(['无残留 <script src>', !/<script[^>]+src=/.test(built)]);
+checks.push(['VELTRIX 启动素材完整内联，无离线图片依赖',
+  built.includes('data-logo="data:image/png;base64,' + fs.readFileSync(path.join(root, 'assets', 'veltrix-boot.png')).toString('base64') + '"') &&
+  !built.includes('data-logo="assets/')]);
 checks.push(['favicon 已内联为 data URI', built.indexOf('data:image/svg+xml;base64,') > 0]);
 checks.push(['无残留 favicon.svg 引用', built.indexOf('href="favicon.svg"') === -1]);
 checks.push(['apple-touch-icon 已内联为 data URI',
   built.includes('rel="apple-touch-icon"') && built.indexOf('apple-touch-icon.png') === -1]);
-checks.push(['MSI LIGHTNING 图形已内联为 data URI', built.indexOf('data:image/svg+xml;base64,') > 0]);
-checks.push(['无残留 lightning-mark.png 相对引用', built.indexOf('url(lightning-mark.png)') === -1]);
-checks.push(['无残留 lightning-wordmark.png 相对引用', built.indexOf('url(lightning-wordmark.png)') === -1]);
+checks.push(['VELTRIX 图形已内联为 data URI', built.indexOf('data:image/svg+xml;base64,') > 0]);
+checks.push(['无残留 veltrix-mark.svg 相对引用', built.indexOf('url(veltrix-mark.svg)') === -1]);
+checks.push(['无残留 veltrix-wordmark.svg 相对引用', built.indexOf('url(veltrix-wordmark.svg)') === -1]);
 checks.push(['logo 仍用 mask 引用 logo 图（未变成死引用）',
-  ['mark', 'wordmark'].every(part => built.includes('mask-image: var(--lightning-' + part + ')') &&
-    built.includes('--lightning-' + part + ': url("data:image/png;base64,'))]);
+  ['mark', 'wordmark'].every(part => built.includes('mask-image: var(--veltrix-' + part + ')') &&
+    built.includes('--veltrix-' + part + ': url("data:image/svg+xml;base64,'))]);
 // SEO 元信息必须完整保留
 checks.push(['title 已保留', /<title>[^<]+<\/title>/.test(built)]);
 checks.push(['meta description 已保留', /name="description"[^>]+content="[^"]{20,}"/.test(built)]);

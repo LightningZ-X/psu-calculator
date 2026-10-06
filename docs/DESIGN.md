@@ -44,7 +44,7 @@
 
 ## 2. 启动动画契约
 
-**实现**：Canvas 版，无视频解码器。`js/boot-animation.js` 的 `window.startLightningBoot(canvas, onEnd)` 按 121 帧 / 30fps 的时间轴重绘 LIGHTNING 标志，横屏 1280×720、竖屏 720×1280 居中不拉伸，整段约 4.4s。素材 `assets/boot-mark.png`、`assets/boot-wordmark.png` 由 `canvas.dataset` 传入。
+**实现**：Canvas 版，无视频解码器。`js/boot-animation.js` 保留 `window.startLightningBoot(canvas, onEnd)` 入口，按用户确认的 VELTRIX 动画重绘 121 帧 / 30fps（约 4.03s）：黑场 → 红色斜向光刃 → 主标志闪现收稳 → 标志左移、VELTRIX 字样渐显 → 横版 Logo 停留。素材 `assets/veltrix-boot.png` 由 `canvas.dataset.logo` 传入，使用原图区域绘制主标志和字标；下方圆角框小图标已去掉。网页保持静音自动播放。
 
 **两段流程**（编排在 `js/ui.js` 末尾的 IIFE）
 
@@ -75,7 +75,7 @@
 | 新增 / 改名关键帧或 animation 声明 | `assets/style.css` 定义 + `tools/boot-motion-check.mjs` 的 `BOOT_NAMES` 与 forms 白名单 |
 | 就位名单、逐块间隔 | `js/ui.js` 的 `ITEM_SELECTOR` / `STAGGER_MS` / `ITEM_MS`；`psu-content-in` 的 `.36s` 要与 `ITEM_MS` 对齐，改一处要改两处 |
 | 时间轴断言 | `tools/boot-browser-check.mjs`（真实时钟采样：靠页面内 RAF 采样器判定「一部分已出现 + 一部分还没」的中间态；并断言 `psu:boot-end` 恰好派发一次、结束后无启动类名残留、各块 opacity 归 1、弹窗背后没有漏藏的块） |
-| Canvas 时间轴与素材 | `js/boot-animation.js`、`assets/boot-*.png` |
+| Canvas 时间轴与素材 | `js/boot-animation.js`、`assets/veltrix-boot.png` |
 | 单文件产物 | `tools/build-standalone.mjs`（JS 顺序与内联清单）+ `tools/browsertest.mjs` 的 `srcFiles` 产物过期检测 |
 
 **跳过与抑制**
@@ -88,7 +88,7 @@
 
 **会话偏好（不是永久偏好）**
 
-- 启动动画「已看过」存 sessionStorage `psu-boot-seen-native-v5`：**按标签页**记一次，新开标签页会完整播一遍，同一标签页刷新不重播。曾经改成 localStorage + 24 小时「同一台机器只放一次」，结果是用户打开网页看不到动画了 —— 对一个靠开场动画立住调性的站点，「打开就有」比「少看几遍」重要得多，所以退回按标签页（并顺手清掉那个会继续压着动画的旧 localStorage 标记）。遮罩右下角有「点击任意处跳过」的纯视觉提示：跳过动作对所有输入方式都已可用（点任意位置 / 按任意键），所以那行提示用 `span` 且不进无障碍树，避免「aria-hidden 里放可聚焦元素」。
+- 启动动画「已看过」存 sessionStorage `psu-boot-seen-veltrix-v6`：**按标签页**记一次，新开标签页会完整播一遍，同一标签页刷新不重播。曾经改成 localStorage + 24 小时「同一台机器只放一次」，结果是用户打开网页看不到动画了 —— 对一个靠开场动画立住调性的站点，「打开就有」比「少看几遍」重要得多，所以退回按标签页（并顺手清掉那个会继续压着动画的旧 localStorage 标记）。遮罩右下角有「点击任意处跳过」的纯视觉提示：跳过动作对所有输入方式都已可用（点任意位置 / 按任意键），所以那行提示用 `span` 且不进无障碍树，避免「aria-hidden 里放可聚焦元素」。
 - **这里踩过的坑，改动画前必读**：跳过 canvas 只省掉开场那一段，弹窗编排照旧 —— 所以当时 40 条启动用例**没有一条**能发现「动画被整段跳过」，它们全都在断言各块就位 / 弹窗 / 逐块显现，而这些在跳过后照样成立。现在 `tools/boot-browser-check.mjs` 用 `window.__introSeen` 闩锁（rAF 采样 `psu-boot-running` 类名与 canvas 实际宽度）在正常路径与 `file://` 上断言「开场真的在放」，并在同标签刷新那条上断言 `introSeen === false`。别删这几条。
 - 注入脚本（`Page.addScriptToEvaluateOnNewDocument`）第一次是**同步**执行的，那时 `documentElement` 还是 `null`：不要在里面无条件访问 `document.documentElement`，否则整个 rAF 采样链当场死掉，表现为所有依赖采样的用例集体失败。
 - 声明的「不再提示」存 sessionStorage `psu-calc-2026-v1-disclaimer`，存的是**数据版本号**而不是布尔值：数据库升版会再提示一次；取消勾选会真的清掉；旧 localStorage 键会被主动删除。
@@ -174,7 +174,7 @@
 
 asrock.com 官网显卡产品页逐条抓取的型号表（104 行，格式「完整型号名 | 所属 GPU | 厂内 SKU 代号」）。它是唯一逐条核实过覆盖型号的 AIC 厂商证据，`js/db-aib.js` 里 `asrock-*` 系列的 `onlyGpus` 由它生成。文件行尾是 CRLF / LF 混用，这是原始证据的样子，不要当成编码问题去修，也不要删。
 
-标志素材的来源记在 `assets/lightning-source.md`（用户提供的截图，未声称为官方下载件）；品牌标志属商标，商用前自行确认授权。
+标志素材的来源记在 `assets/veltrix-source.md`（用户提供并确认的 Logo）；品牌标志属商标，商用前自行确认授权。
 
 ## 6. 已知遗留
 
@@ -182,7 +182,7 @@ asrock.com 官网显卡产品页逐条抓取的型号表（104 行，格式「�
 2. 单文件产物冒烟测试与主测试共用同一个 `--user-data-dir`（`PROFILE_ARGS`），主测试写进 localStorage 的状态会留给单文件测试，所以「示例配置已计算」这条实际可能验证的是「状态恢复」而非「载入示例」。
 3. **404 页样式表被静默截断的根因没有定位**：最小复现里各种 mask 写法、引号、data URI 长度都正常。现在的规避是 404 页用 `<img>` 承载标志，并加了常驻断言（规则数 ≥200、尾部规则仍生效、mask 真的生效、图片真的加载、404 规则数 ≥11）。再遇到「某些规则整段失效但页面不报错」，先查这个方向。
 4. `tools/dataaudit.mjs` 有一条不阻断提醒：`air-stock-amd` 散热器没有 Intel 插槽（缺 LGA1851 / 1700 / 1200）。
-5. 资产与命名：品牌已换成 MSI LIGHTNING，但强调色 token 仍叫 `--rog`（全站 `var(--rog)` 用量已到 30 处上限，新增红色用法要先腾位置）。三份无引用的死资产（`lightningz-boot-v2.mp4`、`power-z-mark.svg`、`power-z-wordmark.svg`）已删除，`ASSET_ALLOW` 仍然放开 `.svg/.mp4` 是为了将来不因为加一种媒体类型就要改发布白名单。
+5. 资产与命名：品牌已统一为 VELTRIX，但强调色 token 仍叫 `--rog`（全站 `var(--rog)` 用量已到 30 处上限，新增红色用法要先腾位置）。三份无引用的死资产（`lightningz-boot-v2.mp4`、`power-z-mark.svg`、`power-z-wordmark.svg`）已删除，`ASSET_ALLOW` 仍然放开 `.svg/.mp4` 是为了将来不因为加一种媒体类型就要改发布白名单。
 
 ## 7. v3 配置与升级决策契约
 
@@ -215,7 +215,7 @@ asrock.com 官网显卡产品页逐条抓取的型号表（104 行，格式「�
 ## 9. 启动动画屏幕适配
 
 - 启动画布铺满遮罩，由实际可见尺寸确定绘制区域，不再把横屏分镜二次缩进固定 9:16 画布。
-- 标志与文字作为同一主体等比缩放：横屏以 1280×720 为参考，竖屏按 480px 参考宽度放大主体，同时受可见高度及 1.5 倍上限约束。光束与氛围允许延伸至屏幕边缘，主体保持居中且完整可见。
+- 标志与文字作为同一主体等比缩放：横屏以 1920×1080 为参考，竖屏按 1100px 参考宽度缩放完整横版 Logo，同时受可见高度及 1.5 倍上限约束。光束与氛围允许延伸至屏幕边缘，主体保持居中且完整可见。像素边界回归检查横版主体约 4.6:1 的比例，手机主体宽度不超过视口的 85%。
 - Canvas 按设备像素密度绘制，最高取 2 倍，兼顾文字清晰度与手机绘制开销。窗口、可见视口及画布尺寸变化时更新绘制尺寸，横竖屏切换不重启时间轴；结束时清理尺寸监听。
 - 跳过提示避开屏幕安全区域。减少动态效果、跳过、声明弹窗和内容逐块出现沿用原有行为。
 - 浏览器回归检查桌面、超宽屏、平板、普通手机、小屏手机及手机横屏的实际像素边界、主体尺寸与居中情况，并检查播放中旋转。

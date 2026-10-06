@@ -17,7 +17,7 @@ import { createRequire } from 'node:module';
 import { execFileSync } from 'node:child_process';
 
 const root = process.cwd();
-const edge = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
+const edge = process.env.CHROME_PATH || 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'og-'));
 const require = createRequire(import.meta.url);
 
@@ -36,7 +36,8 @@ const N = {
 
 /* ---------------------------------------------------------- 1. 抓真实界面 --
    用载入示例后的右栏（结论区）作为卡片配图，而不是画一个假界面。 */
-const idx = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+const idx = fs.readFileSync(path.join(root, 'index.html'), 'utf8').replace('<head>',
+  '<head><script>window.__PSU_NOANIM=true;localStorage.setItem("psu-calc-2026-v1-theme","dark");</script>');
 const appShot = path.join(tmp, 'app.png');
 
 const clickQuick = `<script>
@@ -60,16 +61,16 @@ fs.writeFileSync(appProbe, idx.replace('</body>', clickQuick + '</body>'), 'utf8
 execFileSync(edge, ['--headless=new', '--disable-gpu', '--no-sandbox', '--hide-scrollbars',
   '--user-data-dir=' + path.join(tmp, 'p1'),
   '--window-size=760,560', '--screenshot=' + appShot, '--virtual-time-budget=7000',
-  'file:///' + appProbe.replace(/\\/g, '/') + '?nodisclaimer=1'], { stdio: ['ignore', 'pipe', 'ignore'] });
+  'file:///' + appProbe.replace(/\\/g, '/') + '?nodisclaimer=1&noanim=1'], { stdio: ['ignore', 'pipe', 'ignore'] });
 fs.unlinkSync(appProbe);
 
 const appB64 = fs.readFileSync(appShot).toString('base64');
 
-/* ROG 官方锁定版（图形 + REPUBLIC OF GAMERS 字标），与站点同源，
-   都由 tools/build-logo.mjs 从官方 logo 图提取。
+/* VELTRIX 矢量标志和字标，与站点同源，
+   均来自用户确认的 VELTRIX Logo。
    分享卡片是最显眼的品牌面，这里用真图形而不是手画的近似形。 */
-const eyeB64 = fs.readFileSync(path.join(root, 'assets', 'rog-eye.png')).toString('base64');
-const wordB64 = fs.readFileSync(path.join(root, 'assets', 'rog-wordmark.png')).toString('base64');
+const eyeB64 = fs.readFileSync(path.join(root, 'assets', 'veltrix-mark.svg')).toString('base64');
+const wordB64 = fs.readFileSync(path.join(root, 'assets', 'veltrix-wordmark.svg')).toString('base64');
 
 /* ------------------------------------------------------------- 2. 组装卡片 --
    设计遵循《01-设计系统-ROG奥创.md》：中性近黑、ROG 红极小面积、
@@ -84,18 +85,18 @@ const html = `<!DOCTYPE html>
     font-family:"Segoe UI","Microsoft YaHei","PingFang SC",system-ui,sans-serif;
     padding:48px 52px; display:flex; gap:36px;
   }
-  /* ROG 官方锁定版：图形 + REPUBLIC OF GAMERS 字标。
+  /* VELTRIX 横版标志与字标。
      分享卡片空间充足，这里放到能看清字标的尺寸。 */
   .slash { display:flex; align-items:center; gap:16px; }
   .slash .mark {
-    width:74px; height:38px; background:#ff0033;
-    -webkit-mask:url(data:image/png;base64,${eyeB64}) center/contain no-repeat;
-            mask:url(data:image/png;base64,${eyeB64}) center/contain no-repeat;
+    width:56px; height:47px; background:#ff0033;
+    -webkit-mask:url(data:image/svg+xml;base64,${eyeB64}) center/contain no-repeat;
+            mask:url(data:image/svg+xml;base64,${eyeB64}) center/contain no-repeat;
   }
   .slash .wordmark {
-    width:246px; height:51px; background:#ff0033;
-    -webkit-mask:url(data:image/png;base64,${wordB64}) center/contain no-repeat;
-            mask:url(data:image/png;base64,${wordB64}) center/contain no-repeat;
+    width:246px; height:28px; background:#ff0033;
+    -webkit-mask:url(data:image/svg+xml;base64,${wordB64}) center/contain no-repeat;
+            mask:url(data:image/svg+xml;base64,${wordB64}) center/contain no-repeat;
   }
 
   .left { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; }

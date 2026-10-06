@@ -566,7 +566,10 @@ const PROFILE_ARGS = ['--user-data-dir=' + PROFILE_DIR];
 process.on('exit', () => { try { fs.rmSync(PROFILE_DIR, { recursive: true, force: true }); } catch (e) {} });
 
 // Existing functional tests deliberately skip the intro; its real timeline has separate coverage below.
-const readTestPage = () => fs.readFileSync(SRC, 'utf8').replace('<head>', '<head><script>window.__PSU_NOANIM = true;</script>');
+// The color/toggle assertions begin in dark mode; make that precondition explicit
+// instead of depending on the host OS or Chromium's preferred color scheme.
+const readTestPage = () => fs.readFileSync(SRC, 'utf8').replace('<head>',
+  '<head><script>window.__PSU_NOANIM = true; localStorage.setItem("psu-calc-2026-v1-theme", "dark");</script>');
 const html = readTestPage();
 fs.writeFileSync(TMP, html.replace('</body>', TEST + '</body>'), 'utf8');
 
@@ -621,8 +624,8 @@ if (!fs.existsSync(STANDALONE)) {
   console.log('\u2500'.repeat(56));
 
   /* 产物是否已过期：源文件比产物新就说明忘了重新构建 */
-  const srcFiles = ['index.html', 'assets/style.css', 'assets/lightning-mark.png', 'assets/lightning-wordmark.png', 'favicon.svg',
-    'assets/apple-touch-icon.png',
+  const srcFiles = ['index.html', 'assets/style.css', 'assets/veltrix-mark.svg', 'assets/veltrix-wordmark.svg', 'favicon.svg',
+    'assets/apple-touch-icon.png', 'assets/veltrix-boot.png', 'js/boot-animation.js',
     'js/db-cpus.js', 'js/db-aib.js', 'js/db-psus.js', 'js/db.js', 'js/engine.js', 'js/app.js', 'js/ui.js']
     .map(f => path.join(root, f));
   const newestSrc = Math.max(...srcFiles.map(f => fs.statSync(f).mtimeMs));
@@ -1179,7 +1182,7 @@ setTimeout(async function () {
  *  表现是「标志变成一块红矩形 + 按钮掉回浏览器默认样式」。
  *  这种失败**不会报错**，只能靠「后面那条规则到底生效没有」来发现。
  *  所以这里同时钉住两件事：
- *    · MSI LIGHTNING 闪电确实渲染出来了（mask 生效 / 图片加载成功，不是一块实心方块）
+ *    · VELTRIX 闪电确实渲染出来了（mask 生效 / 图片加载成功，不是一块实心方块）
  *    · 样式表尾部的规则仍然生效（解析没有被截断）
  * ========================================================================*/
 console.log('\n品牌标志与样式表完整性检查');
@@ -1210,7 +1213,7 @@ try {
     var r = mark.getBoundingClientRect();
     out.push('MARK_SIZE=' + Math.round(r.width) + 'x' + Math.round(r.height));
   }
-  /* 字标：MSI LIGHTNING 截图提取字标。窄屏会被隐藏，这里在宽视口下断言它可见 */
+  /* 字标：VELTRIX 截图提取字标。窄屏会被隐藏，这里在宽视口下断言它可见 */
   var wm = document.querySelector('.logo .wordmark');
   if (!wm) { out.push('WORDMARK=missing'); }
   else {
@@ -1279,12 +1282,12 @@ setTimeout(function () {
   /* 230 是当前值。给一点余量，但不能低太多 ——
      低于这个量级基本就是样式表被从中间截断了。 */
   chk('首页样式表解析完整（未被静默截断）', rules >= 200, rules + ' 条规则');
-  chk('顶栏标志是用LIGHTNING 闪电图形 + CSS mask 上色',
+  chk('顶栏标志是用VELTRIX图形 + CSS mask 上色',
     val('MARK_MASK') === 'set' && val('MARK_BG') !== 'rgba(0, 0, 0, 0)',
     'mask=' + val('MARK_MASK') + ' bg=' + val('MARK_BG'));
   chk('顶栏标志尺寸正常（没有被 mask 撑成一整块）',
     /^\d+x\d+$/.test(val('MARK_SIZE')) && parseInt(val('MARK_SIZE'), 10) > 0, val('MARK_SIZE'));
-  chk('MSI LIGHTNING 字标 已渲染',
+  chk('VELTRIX 字标 已渲染',
     val('WORDMARK_MASK') === 'set', val('WORDMARK_MASK') + ' ' + val('WORDMARK_SIZE'));
   /* 字标是细笔画定制字形，低于 120px 就开始糊 —— 顶栏里必须给它足够宽度 */
   chk('字标宽度足够看清定制字形（≥120px）',
@@ -1303,7 +1306,7 @@ setTimeout(function () {
 <pre id="L">x</pre><script>
 setTimeout(function () {
   var o = [];
-  /* 404 页显示的是MSI LIGHTNING 纵向组合：图形在上、字标在下，两张图都要真的加载出来 */
+  /* 404 页显示的是VELTRIX 横向组合：图形在上、字标在下，两张图都要真的加载出来 */
   var imgs = document.querySelectorAll('.lockup img');
   o.push('IMG_COUNT=' + imgs.length);
   var okAll = imgs.length === 2, sizes = [];
@@ -1347,7 +1350,7 @@ setTimeout(function () {
     console.log('  ' + (ok ? '\u2713' : '\u2717') + ' ' + label + (extra ? '  [' + extra + ']' : ''));
   };
 
-  chk4('404 页显示MSI LIGHTNING 纵向组合（图形 + 字标两张图）',
+  chk4('404 页显示VELTRIX 横向组合（图形 + 字标两张图）',
     v4('IMG_COUNT') === '2', v4('IMG_COUNT') + ' 张');
   chk4('404 页两张图都真的加载出来了（不是 alt 文字 / 也不是一块实心红）',
     v4('IMG_OK') === 'true', v4('IMG_SIZES'));
