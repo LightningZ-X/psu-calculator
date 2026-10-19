@@ -10,6 +10,8 @@
 
 ## 版本历史
 
+- **v3.0.2**（2026-10-19）：恢复微星 LIGHTNING 图标、字标和 `build to be perfect` 口号；开场使用用户指定的原版视频，同步网站图标、分享卡片、404 和单文件离线版。
+
 - **v3.0.1**（2026-10-05）：修复畸形分享链接中断初始化、中文名称重复编码和 CSV 公式注入；部署认证改为运行时传入，令牌不再写入 Git 远端地址。正式站点增加源码与反馈入口说明。
 
 - **v3.0.0**（2026-10-04）：配置与升级决策。新增快速估算、跨品牌硬件搜索、最多 12 个本地方案、方案更新/重命名/删除撤销、JSON 备份与导入、双方案比较和 CPU/显卡升级模拟；按原配置的实际电源判断复用条件。修正 CPU/GPU 超频互相串扰、只填风扇也推荐整机电源、连续输入重建焦点等问题；场景功耗改为分项区间，默认预算、估算占比、推荐档位敏感性与兼容性检查范围可查看。双 16pin 显卡按接口数量筛选；未给出厂商来源的 1000W 规则明确标为工具规则。
@@ -44,9 +46,9 @@ favicon.svg  robots.txt  sitemap.xml
 DEPLOY.md                   部署步骤
 assets/
   style.css                 样式（深浅主题 / 响应式 / 打印报表）
-  veltrix-mark.svg          VELTRIX 矢量标志（来自用户确认的 Logo）
-  veltrix-wordmark.svg      VELTRIX 定制字标
-  veltrix-boot.png          启动动画素材，已去掉下方小图标
+  lightning-mark.png       用户提供的红色微星闪电图标
+  lightning-wordmark.png   用户提供的 LIGHTNING 字标
+  lightningz-gap-cut-v2.mp4 启动视频，含 build to be perfect 口号
   og-image.png              分享卡片（1200×630）
 js/
   db-cpus.js                CPU 数据库（164 款）+ 世代元数据

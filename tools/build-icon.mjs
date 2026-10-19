@@ -3,7 +3,7 @@
  *
  *  为什么不复用 favicon.svg：iOS 的 apple-touch-icon **不认 SVG**，
  *  加到主屏只会得到一个空白方块。所以这里单独出一张 PNG：深色底 +
- *  居中的 VELTRIX 图形，使用站点的 assets/veltrix-mark.svg。
+ *  居中的 MSI LIGHTNING 图形，使用站点的 assets/lightning-mark.png。
  *
  *  渲染沿用项目里其它资产工具的做法：用本机已有的 Edge 无头模式截图，
  *  不引入任何 npm 依赖。
@@ -22,9 +22,9 @@ const edge = process.env.CHROME_PATH || 'C:\\Program Files (x86)\\Microsoft\\Edg
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'icon-'));
 const out = path.join(root, 'assets', 'apple-touch-icon.png');
 
-const markPath = path.join(root, 'assets', 'veltrix-mark.svg');
+const markPath = path.join(root, 'assets', 'lightning-mark.png');
 if (!fs.existsSync(markPath)) {
-  console.error('✗ 缺少 assets/veltrix-mark.svg（主屏图标要居中放这个图形）');
+  console.error('✗ 缺少 assets/lightning-mark.png（主屏图标要居中放这个图形）');
   process.exit(1);
 }
 const mark = fs.readFileSync(markPath).toString('base64');
@@ -36,9 +36,9 @@ const html = `<!DOCTYPE html>
   body { background: #121212; display: grid; place-items: center; }
   /* 与站点保持一致：mask 取矢量形状，background 提供品牌色。 */
   .mark {
-    width: ${MARK_H}px; height: ${MARK_H}px; background: #ff0033;
-    -webkit-mask: url(data:image/svg+xml;base64,${mark}) center / contain no-repeat;
-            mask: url(data:image/svg+xml;base64,${mark}) center / contain no-repeat;
+    width: ${Math.round(MARK_H * 94 / 172)}px; height: ${MARK_H}px; background: #ff0033;
+    -webkit-mask: url(data:image/png;base64,${mark}) center / contain no-repeat;
+            mask: url(data:image/png;base64,${mark}) center / contain no-repeat;
   }
 </style></head>
 <body><span class="mark"></span></body></html>`;

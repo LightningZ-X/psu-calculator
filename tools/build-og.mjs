@@ -66,11 +66,11 @@ fs.unlinkSync(appProbe);
 
 const appB64 = fs.readFileSync(appShot).toString('base64');
 
-/* VELTRIX 矢量标志和字标，与站点同源，
-   均来自用户确认的 VELTRIX Logo。
+/* MSI LIGHTNING 矢量标志和字标，与站点同源，
+   均来自用户确认的 MSI LIGHTNING Logo。
    分享卡片是最显眼的品牌面，这里用真图形而不是手画的近似形。 */
-const eyeB64 = fs.readFileSync(path.join(root, 'assets', 'veltrix-mark.svg')).toString('base64');
-const wordB64 = fs.readFileSync(path.join(root, 'assets', 'veltrix-wordmark.svg')).toString('base64');
+const eyeB64 = fs.readFileSync(path.join(root, 'assets', 'lightning-mark.png')).toString('base64');
+const wordB64 = fs.readFileSync(path.join(root, 'assets', 'lightning-wordmark.png')).toString('base64');
 
 /* ------------------------------------------------------------- 2. 组装卡片 --
    设计遵循《01-设计系统-ROG奥创.md》：中性近黑、ROG 红极小面积、
@@ -85,18 +85,18 @@ const html = `<!DOCTYPE html>
     font-family:"Segoe UI","Microsoft YaHei","PingFang SC",system-ui,sans-serif;
     padding:48px 52px; display:flex; gap:36px;
   }
-  /* VELTRIX 横版标志与字标。
+  /* MSI LIGHTNING 横版标志与字标。
      分享卡片空间充足，这里放到能看清字标的尺寸。 */
   .slash { display:flex; align-items:center; gap:16px; }
   .slash .mark {
-    width:56px; height:47px; background:#ff0033;
-    -webkit-mask:url(data:image/svg+xml;base64,${eyeB64}) center/contain no-repeat;
-            mask:url(data:image/svg+xml;base64,${eyeB64}) center/contain no-repeat;
+    width:32px; height:60px; background:#ff0033;
+    -webkit-mask:url(data:image/png;base64,${eyeB64}) center/contain no-repeat;
+            mask:url(data:image/png;base64,${eyeB64}) center/contain no-repeat;
   }
   .slash .wordmark {
     width:246px; height:28px; background:#ff0033;
-    -webkit-mask:url(data:image/svg+xml;base64,${wordB64}) center/contain no-repeat;
-            mask:url(data:image/svg+xml;base64,${wordB64}) center/contain no-repeat;
+    -webkit-mask:url(data:image/png;base64,${wordB64}) center/contain no-repeat;
+            mask:url(data:image/png;base64,${wordB64}) center/contain no-repeat;
   }
 
   .left { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; }
@@ -123,7 +123,7 @@ const html = `<!DOCTYPE html>
 </style></head>
 <body>
   <div class="left">
-    <div class="slash"><span class="mark"></span><span class="wordmark"></span></div>
+    <div class="slash"><span class="mark"></span><span style="display:flex;flex-direction:column;align-items:center;gap:4px"><span class="wordmark"></span><span style="font:700 14px Arial;color:#ff0033;letter-spacing:.7px">build to be perfect</span></span></div>
     <h1>你这台电脑<br>该配<em>多大瓦数</em>的电源？</h1>
     <p class="sub">选好 CPU、显卡、主板即可算出整机功耗，<br>并直接给出该买多大瓦数的 ATX 3.1 电源。</p>
     <div class="facts">
