@@ -100,16 +100,13 @@ html = html.replace(
   '<style>\n' + cssInlined + '\n</style>'
 );
 
-// 2. favicon 必须内联成 data URI，否则单文件版会残留一个外部引用（自检会拦下）
-const faviconPath = path.join(root, 'favicon.svg');
-if (fs.existsSync(faviconPath)) {
-  const favSvg = fs.readFileSync(faviconPath, 'utf8').trim();
-  const favData = 'data:image/svg+xml;base64,' +
-    Buffer.from(favSvg, 'utf8').toString('base64');
-  const before = html;
-  html = html.replace(/href="favicon\.svg"/g, 'href="' + favData + '"');
-  if (html === before) problems.push('index.html 中未找到 favicon.svg 引用（可能已被移除）');
-}
+// 2. Inline every favicon format, including cache-busting query strings.
+html = html.replace(/<link rel="icon"[^>]*>/g, tag => tag.replace(/href="([^"]+)"/, (attribute, src) => {
+  if (src.startsWith('data:')) return attribute;
+  const file = src.split('?')[0];
+  const mime = file.endsWith('.ico') ? 'image/x-icon' : file.endsWith('.png') ? 'image/png' : 'image/svg+xml';
+  return 'href="data:' + mime + ';base64,' + fs.readFileSync(path.join(root, file)).toString('base64') + '"';
+}));
 
 // 2b. apple-touch-icon 是 PNG，同样必须内联 —— 自检要求图标 href 一律是 data:
 const iconPath = path.join(root, 'assets', 'apple-touch-icon.png');
@@ -161,7 +158,7 @@ checks.push(['无残留 <script src>', !/<script[^>]+src=/.test(built)]);
 checks.push(['MSI LIGHTNING 启动素材完整内联，无离线图片依赖',
   built.includes('data-video="data:video/mp4;base64,' + fs.readFileSync(path.join(root, 'assets', 'lightningz-gap-cut-v2.mp4')).toString('base64') + '"') &&
   !built.includes('data-video="assets/')]);
-checks.push(['favicon 已内联为 data URI', built.indexOf('data:image/svg+xml;base64,') > 0]);
+checks.push(['favicon 已内联为 data URI', built.indexOf('data:image/png;base64,') > 0]);
 checks.push(['无残留 favicon.svg 引用', built.indexOf('href="favicon.svg"') === -1]);
 checks.push(['apple-touch-icon 已内联为 data URI',
   built.includes('rel="apple-touch-icon"') && built.indexOf('apple-touch-icon.png') === -1]);

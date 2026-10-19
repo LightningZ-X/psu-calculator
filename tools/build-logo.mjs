@@ -17,3 +17,5 @@ page = page.replace(/(<link rel="icon"[^>]+href=")[^"]+/, '$1data:image/svg+xml;
 for (const [cls, part] of [['eye', 'mark'], ['wordmark', 'wordmark']]) page = page.replace(new RegExp('(<img class="' + cls + '" src=")[^"]+'), '$1' + uri(part));
 write('404.html', page);
 console.log('MSI LIGHTNING：页头、弹窗、favicon 与 404 的 PNG 素材已同步。');
+
+await import('./build-favicon.mjs');

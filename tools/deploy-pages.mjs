@@ -49,6 +49,7 @@ const FILES = [
   'index.html',
   '404.html',
   'favicon.svg',
+  'favicon.ico',
   'robots.txt',
   'sitemap.xml'
 ];
