@@ -388,7 +388,7 @@ button .ico { display: inline-block; vertical-align: -2px; }
   color: var(--text);
   padding: 6px 12px;
 }
-#btnTheme .ico { color: var(--rog); flex: 0 0 auto; }
+#btnTheme .ico { color: var(--rog); flex: 0 0 20px; width: 20px; height: 20px; }
 #btnTheme .theme-label { font-weight: 700; letter-spacing: .02em; }
 #btnTheme:hover { border-color: var(--rog); }
 #btnTheme:active { background: var(--bg-soft); }
@@ -419,7 +419,7 @@ button .ico { display: inline-block; vertical-align: -2px; }
 .field:has(> .chk-grid) > label,
 .field:has(> div) > label { margin-bottom: 8px; }
 
-select, input[type="text"], input[type="number"] {
+select, input[type="text"], input[type="number"], input[type="search"] {
   width: 100%; padding: 7px 10px;
   background: var(--bg-soft); color: var(--text);
   border: 1px solid var(--line); border-radius: var(--radius);
@@ -923,7 +923,7 @@ body.modal-open { overflow: hidden; }
   .col-config .card > .card-toggle { grid-column: 2; grid-row: 1; }
 
   /* 触控目标 ≥44px */
-  button, .btn, select, input[type="text"], input[type="number"] { min-height: 44px; }
+  button, .btn, select, input[type="text"], input[type="number"], input[type="search"] { min-height: 44px; }
   .card-toggle { width: 32px; height: 32px; }
   .storage-row { grid-template-columns: 1fr 68px 44px; }
   .storage-row .del { min-height: 44px; }
@@ -1168,6 +1168,141 @@ html.psu-motion-ready .modal-backdrop > .modal-card { animation: none; }
   }
 }
 
+
+.print-only { display: none; }
+
+/* Canvas fills the visible stage; drawing applies one uniform responsive scale. */
+.psu-boot { overflow: hidden; height: 100vh; height: 100dvh; }
+.psu-boot-canvas {
+  display: block; flex: none; max-width: none;
+  width: 100%; height: 100%; background: #000;
+}
+
+/* 配置管理与对比沿用平面分区、细分隔线和现有文字尺度。 */
+.decision-toolbar { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; padding: 18px 0; border-block: 1px solid var(--line); }
+.decision-toolbar > *, .search-controls > *, .comparison-table td { min-width: 0; }
+.decision-toolbar label { display: block; font-size: var(--fs-sm); color: var(--text-2); margin-bottom: 6px; }
+.decision-toolbar p { margin: 8px 0 0; }
+.search-controls { display: grid; grid-template-columns: 100px 1fr; gap: 8px; }
+.search-results { max-height: 320px; overflow-y: auto; }
+.search-results button { display: block; width: 100%; text-align: left; padding: 10px; border: 0; border-bottom: 1px solid var(--line); background: var(--bg-soft); white-space: normal; overflow-wrap: anywhere; }
+.search-results button:hover { background: var(--surface-2); }
+.plan-manager { grid-column: 1 / -1; }
+.plan-manager > summary { cursor: pointer; font-weight: 600; padding: 8px 0; }
+.plan-manager .hint { margin-left: 12px; }
+.plan-panel { padding-top: 14px; }
+.plan-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.coverage-list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 12px 0; font-size: var(--fs-sm); color: var(--text-2); }
+.decision-quality .note + .note { margin-top: 10px; }
+.decision-quality input { max-width: 140px; }
+.candidate-list { max-height: 300px; overflow-y: auto; }
+.candidate-row { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.candidate-row p { margin: 4px 0; color: var(--text-2); font-size: var(--fs-sm); }
+.candidate-row button { margin-top: 6px; }
+.hero .v.blue { font-size: clamp(20px, 3vw, 32px); overflow-wrap: anywhere; }
+.comparison-table { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); margin: 16px 0; }
+.comparison-table th, .comparison-table td { padding: 9px 6px; border-bottom: 1px solid var(--line); text-align: left; overflow-wrap: anywhere; }
+.comparison-table th { color: var(--text-2); font-weight: 600; }
+#compareOutput .note { margin-top: 10px; }
+#comparisonCard .grid2 { grid-template-columns: 1fr 1fr; }
+#comparisonCard .field { display: block; min-width: 0; }
+#comparisonCard .field > label { display: block; margin-bottom: 8px; }
+#comparisonCard .field > select { width: 100%; max-width: 100%; }
+html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: none; }
+.no-js .decision-toolbar { display: none; }
+@media (max-width: 640px) {
+  .decision-toolbar { grid-template-columns: 1fr; gap: 14px; }
+  #comparisonCard .grid2, .coverage-list { grid-template-columns: 1fr; }
+  .plan-actions button { flex: 1 1 140px; }
+  .comparison-table th, .comparison-table td { padding: 8px 4px; }
+}
+
+/* LIGHTNING slogan follows the original opening lockup. */
+.brand-lockup { display: inline-flex; flex: none; flex-direction: column; align-items: center; gap: 2px; color: var(--rog); }
+.brand-lockup .wordmark { display: block; flex: none; }
+.brand-tagline { display: block; font: 700 10px/1.2 Arial, sans-serif; letter-spacing: .35px; white-space: nowrap; }
+.modal-head .brand-lockup .wordmark { width: 110px; }
+.modal-head .brand-tagline { letter-spacing: .1px; }
+
+/* 快速选型：核心填写优先，结果与字段共用一致的交互反馈。 */
+.page-intro { padding-top: 24px; padding-bottom: 20px; }
+.page-intro .eyebrow { display: none; }
+.page-intro h2 { font-size: clamp(24px, 2.5vw, 32px); }
+.decision-toolbar { margin-bottom: 14px; padding-block: 12px; gap: 12px 24px; }
+.top-actions { flex-wrap: wrap; }
+#dbCounts { display: none; }
+.core-search { margin-bottom: 16px; }
+.core-search > label { display: block; margin-bottom: 8px; color: var(--text-2); }
+.core-search input { width: 100%; min-width: 0; }
+.search-controls input { width: 100%; min-width: 0; }
+.search-category { color: var(--text-3); font-size: var(--fs-xs); }
+.search-results button:focus-visible { outline: 2px solid var(--err); outline-offset: -2px; }
+.quick-budget { padding: 16px 0; border-bottom: 1px solid var(--line); color: var(--text-2); font-size: var(--fs-sm); }
+.quick-budget[hidden] { display: none; }
+.quick-budget p { margin: 0 0 10px; line-height: 1.7; }
+#resultNext { margin-top: 16px; }
+.reco.has-conflict { border-color: var(--err); }
+.reco.has-conflict .big { font-size: var(--fs-sec); color: var(--text-3); }
+.reco.has-conflict .reco-label { color: var(--err); font-size: 18px; }
+.existing-summary { padding-top: 14px; margin-top: 14px; border-top: 1px solid var(--line); font-size: var(--fs-sm); line-height: 1.7; }
+.col-config .card, #resultPanel { scroll-margin-top: 140px; }
+#resultPanel:focus-visible { outline: 2px solid var(--err); outline-offset: 6px; }
+.card-toggle { min-width: 44px; min-height: 44px; }
+input[type="search"]:focus-visible { outline: 2px solid var(--err); outline-offset: 2px; }
+@media (max-width: 1180px) {
+  .wrap { padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px)); }
+  .mobile-bar { display: flex; position: fixed; inset: auto 0 0; z-index: 60; align-items: center; gap: 12px; padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)); background: var(--bg-nav); border-top: 2px solid var(--err); }
+  .mobile-bar .mb-label { color: var(--text-2); font-size: var(--fs-sm); }
+  .mobile-bar .mb-value { font-family: var(--mono); font-size: 22px; font-variant-numeric: tabular-nums; margin-left: auto; white-space: nowrap; }
+  .mobile-bar button { min-height: 44px; flex-shrink: 0; }
+}
+@media (max-width: 640px) {
+  .top-inner { gap: 6px; padding-block: 8px; }
+  .top-actions { gap: 6px; }
+  .logo small { display: none; }
+  .page-intro { padding-top: 18px; padding-bottom: 16px; }
+  input[type="search"] { min-height: 44px; }
+  .mobile-bar { gap: 8px; }
+  .mobile-bar .mb-label { max-width: 42%; }
+  .col-config .card { grid-template-columns: minmax(0, 1fr) 44px; }
+}
+
+
+.hardware-search > summary { cursor: pointer; color: var(--text-2); padding: 6px 0; }
+.hardware-search[open] > summary { margin-bottom: 10px; }
+.decision-toolbar { align-items: start; }
+#guideCard { border-bottom: 0; }
+#guideCard > h2 { display: none; }
+#guideCard .card-body { padding-block: 4px; }
+.core-search .note:empty { display: none; }
+.core-search .search-results:empty { display: none; }
+.col-config .card { column-gap: 16px; }
+.col-config .card > .card-toggle { justify-self: end; }
+.existing-summary[data-level="error"] { color: var(--err); }
+#resolveConflict { margin-top: 12px; }
+@media (max-width: 640px) {
+  .decision-toolbar { gap: 6px; }
+  .top .logo-text h1 { font-size: var(--fs-base); }
+}
+
+
+.hardware-filters > summary { cursor: pointer; padding-block: 10px; font-size: var(--fs-sm); color: var(--text-2); }
+.hardware-filters[open] > summary { margin-bottom: 10px; }
+.header-more { position: relative; }
+.header-more > summary { cursor: pointer; padding: 10px 14px; min-height: 44px; box-sizing: border-box; color: var(--text-2); border: 1px solid var(--line); }
+.header-more-panel { position: absolute; top: calc(100% + 6px); right: 0; padding: 10px; min-width: 160px; display: grid; gap: 8px; background: var(--bg-nav); border: 1px solid var(--line); z-index: 80; }
+.header-more-panel button { width: 100%; min-height: 44px; text-align: left; }
+@media (max-width: 640px) {
+  .top-inner { flex-wrap: nowrap; }
+  .top-actions { width: auto; margin-left: auto; flex-wrap: nowrap; }
+  .answer-chip { display: none !important; }
+  .header-more-panel #btnReplayIntro { display: block; }
+  .top .logo .mark { width: 16px; height: 30px; }
+  #btnTheme { padding-inline: 9px; }
+  .theme-label { display: none; }
+  .hardware-filters > summary, .advanced-options > summary, .hardware-search > summary { min-height: 44px; display: flex; align-items: center; box-sizing: border-box; }
+}
+
 /* ------------------------------------------------------------- 打印 ----
    ⚠️ 这是导出 PDF 的唯一实现。改版后必须回归验证：
       配置列隐藏、按钮隐藏、折叠内容全部展开、红色指示条压平成黑色。
@@ -1242,58 +1377,5 @@ html.psu-motion-ready .modal-backdrop > .modal-card { animation: none; }
   .print-only { display: block !important; }
   a { color: #000; border-bottom: none; }
   a[href^="http"]::after { content: " (" attr(href) ")"; font-size: 8pt; color: #555; }
+  .core-search, .quick-budget, #chooseIgpu, #resultNext, #resolveConflict { display: none !important; }
 }
-.print-only { display: none; }
-
-/* Canvas fills the visible stage; drawing applies one uniform responsive scale. */
-.psu-boot { overflow: hidden; height: 100vh; height: 100dvh; }
-.psu-boot-canvas {
-  display: block; flex: none; max-width: none;
-  width: 100%; height: 100%; background: #000;
-}
-
-/* 配置管理与对比沿用平面分区、细分隔线和现有文字尺度。 */
-.decision-toolbar { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; padding: 18px 0; border-block: 1px solid var(--line); }
-.decision-toolbar > *, .search-controls > *, .comparison-table td { min-width: 0; }
-.decision-toolbar label { display: block; font-size: var(--fs-sm); color: var(--text-2); margin-bottom: 6px; }
-.decision-toolbar p { margin: 8px 0 0; }
-.search-controls { display: grid; grid-template-columns: 100px 1fr; gap: 8px; }
-.search-results { max-height: 320px; overflow-y: auto; }
-.search-results button { display: block; width: 100%; text-align: left; padding: 10px; border: 0; border-bottom: 1px solid var(--line); background: var(--bg-soft); white-space: normal; overflow-wrap: anywhere; }
-.search-results button:hover { background: var(--surface-2); }
-.plan-manager { grid-column: 1 / -1; }
-.plan-manager > summary { cursor: pointer; font-weight: 600; padding: 8px 0; }
-.plan-manager .hint { margin-left: 12px; }
-.plan-panel { padding-top: 14px; }
-.plan-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.coverage-list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 12px 0; font-size: var(--fs-sm); color: var(--text-2); }
-.decision-quality .note + .note { margin-top: 10px; }
-.decision-quality input { max-width: 140px; }
-.candidate-list { max-height: 300px; overflow-y: auto; }
-.candidate-row { padding: 10px 0; border-bottom: 1px solid var(--line); }
-.candidate-row p { margin: 4px 0; color: var(--text-2); font-size: var(--fs-sm); }
-.candidate-row button { margin-top: 6px; }
-.hero .v.blue { font-size: clamp(20px, 3vw, 32px); overflow-wrap: anywhere; }
-.comparison-table { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); margin: 16px 0; }
-.comparison-table th, .comparison-table td { padding: 9px 6px; border-bottom: 1px solid var(--line); text-align: left; overflow-wrap: anywhere; }
-.comparison-table th { color: var(--text-2); font-weight: 600; }
-#compareOutput .note { margin-top: 10px; }
-#comparisonCard .grid2 { grid-template-columns: 1fr 1fr; }
-#comparisonCard .field { display: block; min-width: 0; }
-#comparisonCard .field > label { display: block; margin-bottom: 8px; }
-#comparisonCard .field > select { width: 100%; max-width: 100%; }
-html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: none; }
-.no-js .decision-toolbar { display: none; }
-@media (max-width: 640px) {
-  .decision-toolbar { grid-template-columns: 1fr; gap: 14px; }
-  #comparisonCard .grid2, .coverage-list { grid-template-columns: 1fr; }
-  .plan-actions button { flex: 1 1 140px; }
-  .comparison-table th, .comparison-table td { padding: 8px 4px; }
-}
-
-/* LIGHTNING slogan follows the original opening lockup. */
-.brand-lockup { display: inline-flex; flex: none; flex-direction: column; align-items: center; gap: 2px; color: var(--rog); }
-.brand-lockup .wordmark { display: block; flex: none; }
-.brand-tagline { display: block; font: 700 10px/1.2 Arial, sans-serif; letter-spacing: .35px; white-space: nowrap; }
-.modal-head .brand-lockup .wordmark { width: 110px; }
-.modal-head .brand-tagline { letter-spacing: .1px; }

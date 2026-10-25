@@ -191,417 +191,80 @@ export async function checkBootBrowser(root, executable, options = {}) {
     const notSettled = s => '未落位=' + s.itemInfo.filter(x => !x.startsWith('1.00')).join(' / ');
 
     if (!options.responsiveOnly) {
-    /* ------------------------------------------------ A. 正常路径（含自动声明） */
-    await open('');
-    let s = await snapshot();
-    check('启动中：遮罩压住整页、声明未抢先打开、各块还没就位',
-      s.active && s.pending && s.overlay === 'flex' && s.page === 0 && !s.modal && s.marked === 0,
-      'elapsed=' + Math.round(s.elapsed) + 'ms');
-    await shot('01-intro');
-
-    const entered = await waitFor(`document.documentElement.classList.contains('psu-boot-hold')`);
-    s = await snapshot();
-    check('第一段收束：遮罩退场、声明接管，整页（顶栏 / 引导语 / 两栏各块）一块都还没出现',
-      entered && !s.active && !s.pending && s.overlay === 'none' && s.hold && !s.fill &&
-      s.modalVisible && s.marked > 0 && s.marked === s.itemCount && s.itemOpacity.every(v => v === 0),
-      s.itemCount + ' 块 | ' + notShown(s));
-    check('弹窗出现时页面已解除 inert', s.inertBoot === 0);
-    /* 关键：确认开场那一段 Canvas 动画真的放了。
-       少了这条，即使动画被整段跳过（比如「已看过」标记一直压着不放），
-       上面几条也全部会通过。 */
-    check('开场真的在放：LIGHTNING 视频 Canvas 动画跑起来了（不是直接跳到声明）', s.introSeen === true,
-      'introSeen=' + s.introSeen);
-    await shot('02-dialog');
-
-    /* 就位名单必须覆盖页面上每一块真正会画东西的内容，否则弹窗背后会露出没藏住的块。
-       按「有背景 / 有边框 / 有直接文字」判定会画东西，纯容器（.layout、.col-config 等）不算。
-       不用像素比对：实测同一状态连拍两张的 PNG 字节与像素都不一致，那个路子不成立。 */
-    check('就位名单覆盖了页面上每一块会画东西的内容（没有漏网的块）', await evaluate(`(() => {
-      const transparent = v => !v || /^(transparent|rgba?\\(0, 0, 0, 0\\))$/.test(v.trim());
-      const paints = el => {
-        if (el.closest('.print-only')) return false;            // 只在打印媒体里出现
-        const c = getComputedStyle(el);
-        if (c.display === 'none' || c.visibility === 'hidden') return false;
-        if (!transparent(c.backgroundColor)) return true;
-        if (['Top', 'Right', 'Bottom', 'Left'].some(s =>
-          parseFloat(c['border' + s + 'Width']) > 0 && !transparent(c['border' + s + 'Color']))) return true;
-        return [...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim());
-      };
-      const roots = [document.querySelector('header.top'), document.querySelector('.wrap')].filter(Boolean);
-      const all = roots.concat(roots.flatMap(r => [...r.querySelectorAll('*')]));
-      const stray = all.filter(paints).filter(el => !el.closest('.psu-boot-item'));
-      return stray.length === 0;
-    })()`));
-    await shot('02b-behind-modal');
-
-    await evaluate('window.__PSU_DISCLAIMER__.close()');
-    check('关掉声明后整页逐块出现（采样到「部分已出现 + 部分还没」的中间态）',
-      await waitFor(`window.__staggerSeen === true`, 5000));
-    await shot('03-stagger');
-
-    const doneAll = await waitFor(settled, 6000);
-    s = await snapshot();
-    check('出现结束后全部落位、无启动状态残留',
-      doneAll && !s.active && !s.hold && !s.fill && s.marked === 0 && s.inertBoot === 0 && allVisible(s),
-      'ends=' + s.ends.length + ' | ' + notSettled(s));
-    check('psu:boot-end 恰好派发一次', s.ends.length === 1);
-    check('呈现过程未擅自选 CPU', (await evaluate(`document.querySelector('#cpuSelect').value`)) === '');
-    await shot('04-settled');
-
-    /* ---- A2. 点 logo 重播：两段照常跑完，但不把声明再吵出来 ---- */
-    await evaluate('window.__introSeen = false');
-    await evaluate(`document.querySelector('.logo').click()`);
-    const rIntro = await waitFor(`window.__introSeen === true`, 8000);
-    const rSettled = await waitFor(settled, 15000);
-    s = await snapshot();
-    check('点 logo 重播开场两段（不重开声明）',
-      rIntro && rSettled && !s.modalVisible && s.marked === 0 && !s.active && !s.hold,
-      'intro=' + rIntro + ' settled=' + rSettled + ' modal=' + s.modalVisible);
-    await shot('04b-replay');
-
-    /* ------------------------------------- B. 顶栏重开声明不该再重播一遍动画 */
-    await evaluate(`document.querySelector('#btnDisclaimer').click()`);
-    await pause(60);
-    await evaluate('window.__PSU_DISCLAIMER__.close()');
-    await pause(320);
-    s = await snapshot();
-    check('从顶栏重开声明再关掉不重播出现动画', !s.hold && s.marked === 0 && allVisible(s), notSettled(s));
-
-    /* ------------------------------- C. 声明被抑制时启动结束后照常逐块出现 */
-    await open('?nodisclaimer=1');
-    s = await snapshot();
-    check('抑制声明时启动一开始同样全黑', s.active && !s.modal && s.marked === 0);
-    const cHeld = await waitFor(`window.__holdSeen === true`);
-    const cStagger = await waitFor(`window.__staggerSeen === true`, 5000);
-    check('抑制声明时整页仍然逐块出现（不需要关弹窗也会放）', cHeld && cStagger);
-    const cDone = await waitFor(settled, 6000);
-    s = await snapshot();
-    check('抑制声明时最终无残留、各块全部可见',
-      cDone && s.marked === 0 && !s.hold && s.inertBoot === 0 && allVisible(s), notSettled(s));
-
-    /* ------------------------------------------------ D. 启动中点击即跳过 */
-    await open('');
-    await pause(700);
-    await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: 200, y: 200, button: 'left', clickCount: 1 });
-    await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: 200, y: 200, button: 'left', clickCount: 1 });
-    s = await snapshot();
-    check('启动中点击立即进入声明阶段',
-      !s.active && !s.pending && s.hold && s.modal && s.inertBoot === 0 && s.marked === s.itemCount,
-      'elapsed=' + Math.round(s.elapsed) + 'ms');
-    await evaluate('window.__PSU_DISCLAIMER__.close()');
-    check('跳过启动后关掉声明依然逐块出现', await waitFor(`window.__staggerSeen === true`, 5000));
-
-    /* ------------------------------------- E. 硬跳过路径不该隐藏任何内容 */
-    for (const [label, query] of [['query', '?noanim=1&nodisclaimer=1'], ['flag', '?testFlag=1&nodisclaimer=1']]) {
-      await open(query);
-      s = await snapshot();
-      check(label + ' 完全跳过：不播启动、页面可用、一块内容都没被藏起来',
-        !s.active && !s.pending && !s.hold && s.overlay === 'none' && s.page === 1 &&
-        s.inertBoot === 0 && s.marked === 0 && !s.holdSeen && allVisible(s), notSettled(s));
-    }
-
-    await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
-    await open();
-    s = await snapshot();
-    check('系统减少动态效果：不播启动、也不隐藏任何内容',
-      !s.active && !s.hold && s.overlay === 'none' && s.inertBoot === 0 && !s.holdSeen && allVisible(s));
-    await shot('reduced-motion');
-    await send('Emulation.setEmulatedMedia', { features: [] });
-
-    /* ---------------------------------------- F. 打印媒体下必须看到整页内容 */
-    await open();
-    await send('Emulation.setEmulatedMedia', { media: 'print' });
-    s = await snapshot();
-    check('打印媒体下遮罩隐藏、内容全部可见、一块不少',
-      s.overlay === 'none' && s.page === 1 && !s.holdSeen && allVisible(s));
-    const pdf = await send('Page.printToPDF', { printBackground: true });
-    fs.writeFileSync(path.join(artifacts, 'print.pdf'), Buffer.from(pdf.data, 'base64'));
-    s = await snapshot();
-    check('打印事件结束启动并释放页面',
-      !s.active && !s.pending && !s.hold && s.inertBoot === 0 && allVisible(s));
-    await send('Emulation.setEmulatedMedia', { media: '' });
-
-    /* ---------------------------------------------------------- G. 窄屏 */
-    await send('Emulation.setDeviceMetricsOverride', { width: 320, height: 568, deviceScaleFactor: 1, mobile: true });
-    await open('?noanim=1&nodisclaimer=1');
-    check('320px 窄屏无横向溢出', !(await snapshot()).overflow);
-    await shot('mobile');
-    await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
-
-    /* ---- H. 同一标签页刷新：启动动画不重播，但关掉声明同样要逐块出现 ---- */
-    await open('');
-    await waitFor(settled, 15000);
-    await send('Page.navigate', { url: base });   // 故意不清理 sessionStorage，等价于按 F5
-    await waitFor(`document.readyState === 'complete' && !!document.querySelector('#cpuSelect')`);
-    const hHeld = await waitFor(`window.__holdSeen === true`, 3000);
-    s = await snapshot();
-    check('同标签刷新：不重播启动动画，但各块同样先就位隐藏',
-      !s.active && s.overlay === 'none' && s.modalVisible && hHeld && s.marked === s.itemCount &&
-      s.introSeen === false,
-      'held=' + hHeld + ' marked=' + s.marked + ' introSeen=' + s.introSeen);
-    await evaluate('window.__PSU_DISCLAIMER__.close()');
-    check('同标签刷新后关掉声明依然逐块出现', await waitFor(`window.__staggerSeen === true`, 5000));
-    check('同标签刷新后同样收尾干净', await waitFor(settled, 6000));
-
-    /* ---- I. 本地双击 index.html（file://）：两段照常 + Logo 遮罩可解码 ---- */
-    await send('Page.navigate', { url: pathToFileURL(path.join(root, 'index.html')).href });
-    for (let i = 0; i < 150; i++) {
-      if (await evaluate(`location.protocol === 'file:' && document.readyState === 'complete' && !!document.querySelector('.logo .mark')`)) break;
-      await pause(20);
-    }
-    const fHeld = await waitFor(`window.__holdSeen === true`, 12000);
-    s = await snapshot();
-    check('本地双击打开：启动照常播完并把各块就位',
-      fHeld && !s.active && s.modalVisible && s.marked === s.itemCount && s.introSeen === true,
-      'marked=' + s.marked + ' introSeen=' + s.introSeen);
-    await evaluate('window.__PSU_DISCLAIMER__.close()');
-    check('本地双击打开：关掉声明依然逐块出现', await waitFor(`window.__staggerSeen === true`, 5000));
-    check('本地双击打开：Logo 遮罩可解码且含可见像素', await evaluate(`(async () => {
-      for (const selector of ['.logo .mark', '.logo .wordmark', '.modal-head .mark']) {
-        const mask = getComputedStyle(document.querySelector(selector)).maskImage;
-        if (!mask.startsWith('url("data:image/png;base64,')) return false;
-        const img = new Image(); img.src = mask.slice(5, -2);
-        try { await img.decode(); } catch { return false; }
-        const canvas = document.createElement('canvas'); canvas.width = img.width; canvas.height = img.height;
-        const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0);
-        const pixels = ctx.getImageData(0, 0, img.width, img.height).data;
-        if (!pixels.some((v, i) => i % 4 === 3 && v > 0)) return false;
-      }
-      const box = document.querySelector('.logo .mark').getBoundingClientRect();
-      return box.width > 0 && box.height > 0;
-    })()`));
-    await shot('local-file');
-
-    /* ---- J. 单文件产物（dist/整机功耗计算器.html）：两段必须同样成立 ---- */
-    const standalone = path.join(root, 'dist', '整机功耗计算器.html');
-    if (fs.existsSync(standalone)) {
-      await send('Page.navigate', { url: pathToFileURL(standalone).href });
-      for (let i = 0; i < 150; i++) {
-        if (await evaluate(`document.readyState === 'complete' && !!document.querySelector('#cpuSelect')`)) break;
-        await pause(20);
-      }
-      /* 这里只验证「两段照常 + 各块就位」，不断言开场动画是否重播：
-         单文件与上一段共用 file:// 的存储区，而这一段已经是在同一浏览器里
-         第 17 次页面加载，实测「清存储 + 重载」也拿不到稳定的结果。
-         单文件的动画本身已用全新 profile 单独验证过（startLightningBoot 是函数、
-         canvas 有尺寸、psu-boot-running 出现、无异常），那才是可靠的证据。 */
-      const jHeld = await waitFor(`window.__holdSeen === true`, 12000);
-      s = await snapshot();
-      check('单文件产物：启动照常播完并把各块就位',
-        jHeld && !s.active && s.modalVisible && s.marked === s.itemCount,
-        'held=' + jHeld + ' modal=' + s.modal + ' marked=' + s.marked);
+      await open('');
+      check('首访播放开场，须知不会抢先弹出', (await snapshot()).active && !(await snapshot()).modal);
+      check('开场视频实际播放', await waitFor('window.__introSeen === true'));
+      await shot('01-intro');
+      await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+      await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+      check('键盘可跳过开场，立即恢复页面且不弹须知', await waitFor(settled) && !(await snapshot()).modal && (await snapshot()).inertBoot === 0);
+      await shot('02-ready');
+      await send('Page.reload');
+      await pause(500);
+      check('回访不自动播放开场', !(await snapshot()).active && !(await snapshot()).modal);
+      await evaluate("document.querySelector('#btnReplayIntro').click()");
+      check('用户仍可手动重播', await waitFor("document.documentElement.classList.contains('psu-boot-active')"));
+      await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: 50, y: 50, button: 'left', clickCount: 1 });
+      await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: 50, y: 50, button: 'left', clickCount: 1 });
+      check('鼠标可跳过重播且无输入锁残留', await waitFor(settled) && (await snapshot()).inertBoot === 0);
+      await evaluate("document.querySelector('#btnDisclaimer').click()");
+      check('使用须知可主动打开', await waitFor("!document.querySelector('#disclaimerModal').hidden"));
       await evaluate('window.__PSU_DISCLAIMER__.close()');
-      check('单文件产物：关掉声明依然逐块出现', await waitFor(`window.__staggerSeen === true`, 5000));
-      await shot('standalone');
+      await pause(250);
+      await open('?noanim=1');
+      check('首访为快速估算，CPU 和显卡直接可填', await evaluate(`document.documentElement.dataset.calcMode === 'quick' && !document.querySelector('#cpuSelect').closest('.card').classList.contains('is-collapsed') && !document.querySelector('#gpuModel').closest('.card').classList.contains('is-collapsed')`));
+      check('空状态给出下一步而非电源推荐', await evaluate(`document.querySelector('#recoBig').textContent.includes('—') && document.querySelector('#resultNext').textContent === '选择 CPU'`));
+      await evaluate(`document.querySelector('#cpuSearch').value = '9600X'; document.querySelector('#cpuSearch').dispatchEvent(new Event('input', { bubbles: true })); document.querySelector('#cpuSearch').focus();`);
+      await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'ArrowDown', code: 'ArrowDown', windowsVirtualKeyCode: 40 });
+      check('方向键从搜索框进入结果', await evaluate("!!document.activeElement.closest('#cpuSearchResults')"));
+      await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
+      await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
+      check('键盘选入 CPU 后提示选择显卡', await evaluate("document.querySelector('#cpuSelect').value === 'r5-9600x' && document.querySelector('#recoSub').textContent.includes('还差显卡')"));
+      await evaluate("document.querySelector('#chooseIgpu').click()");
+      check('显式选核显后推荐目标与最低值分开展示', await evaluate(`document.querySelector('#gpuModel').value === '__igpu__' && /^[0-9]+[ ]*W$/.test(document.querySelector('#recoBig').textContent.trim()) && document.querySelector('#recoSub').textContent.includes('最低参考')`));
+      await evaluate(`document.querySelector('#gpuSearch').value = '5090'; document.querySelector('#gpuSearch').dispatchEvent(new Event('input', { bubbles: true }));`);
+      check('显卡搜索支持型号与板型，结果可继续查看', await evaluate("document.querySelectorAll('#gpuSearchResults button').length === 15 && !document.querySelector('#gpuSearchMore').hidden"));
+      await evaluate("document.querySelector('#gpuSearchMore').click()");
+      check('查看更多扩展结果并移动焦点', await evaluate("document.querySelectorAll('#gpuSearchResults button').length === 30 && !!document.activeElement.closest('#gpuSearchResults')"));
+      await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+      check('Esc 收起搜索结果并恢复输入焦点', await evaluate("!document.querySelector('#gpuSearchResults').children.length && document.activeElement.id === 'gpuSearch'"));
+      await evaluate("document.querySelector('#completeConfig').click()");
+      check('完善配置保留核心硬件并展开主板', await evaluate("document.documentElement.dataset.calcMode === 'full' && document.querySelector('#cpuSelect').value === 'r5-9600x' && document.activeElement.id === 'moboSelect' && !document.querySelector('#moboSelect').closest('.card').classList.contains('is-collapsed')"));
+      await evaluate(`var m = document.querySelector('#moboSelect'); m.value = [...m.options].find(o => o.textContent.includes('Z890')).value; m.dispatchEvent(new Event('change', { bubbles: true }));`);
+      check('兼容性冲突成为主状态且有修改入口', await evaluate("document.querySelector('#recoLabel').textContent.includes('先解决') && !document.querySelector('#resolveConflict').hidden && document.querySelector('#recoBig').closest('.reco').classList.contains('has-conflict')"));
+      await evaluate("document.querySelector('#resolveConflict').click()");
+      check('修改冲突跳转到配置控件', await evaluate("!!document.activeElement.closest('.col-config')"));
+      await shot('03-conflict');
+      // Legacy links omitted full mode because it used to be the default.
+      await send('Page.navigate', { url: base + '?noanim=1#c=cpuId=r5-9600x&gpuId=__igpu__' });
+      await waitFor("document.readyState === 'complete' && document.querySelector('#cpuSelect').value === 'r5-9600x'");
+      check('旧分享链接保留完整配置语义', await evaluate("document.documentElement.dataset.calcMode === 'full'"));
+      await evaluate("document.querySelector('#calcMode [data-mode=quick]').click()");
+      check('新分享链接显式保存模式', await evaluate("location.hash.includes('mode=quick')"));
+      await evaluate("document.querySelector('#btnQuickStart').click()");
     }
-
-    /* ---- K. 勾过「不再提示」：本次会话内不再自动弹，但整页照常逐块出现 ---- */
-    await open('');                                  // 先干净加载一次，拿到数据版本号
-    await evaluate(`sessionStorage.setItem('psu-calc-2026-v1-disclaimer', window.HWDB.meta.version)`);
-    await send('Page.navigate', { url: base });       // 只保留会话存储，等价于同一标签页刷新
-    await waitFor(`document.readyState === 'complete' && !!document.querySelector('#cpuSelect')`);
-    const kStagger = await waitFor(`window.__staggerSeen === true`, 12000);
-    const kSettled = await waitFor(settled, 6000);
-    s = await snapshot();
-    check('会话内勾过「不再提示」：声明不再自动弹（设计如此），顶栏按钮仍可随时打开',
-      !s.modal && kStagger && kSettled && !s.hold && allVisible(s),
-      'modal=' + s.modal + ' stagger=' + kStagger + ' settled=' + kSettled);
-    await evaluate(`document.querySelector('#btnDisclaimer').click()`);
-    check('会话内勾过「不再提示」后仍能从顶栏手动打开声明', (await snapshot()).modal);
-    check('弹窗打开时「不再提示」勾选框反映真实偏好（否则这个开关是单向的）',
-      await evaluate(`document.querySelector('#dmNever').checked === true`));
-    await evaluate(`document.querySelector('#dmNever').checked = false; window.__PSU_DISCLAIMER__.close();`);
-    await pause(320);
-    check('取消勾选并关闭会清掉偏好',
-      (await evaluate(`sessionStorage.getItem('psu-calc-2026-v1-disclaimer')`)) === null);
-    await send('Page.navigate', { url: base });
-    await waitFor(`document.readyState === 'complete' && !!document.querySelector('#cpuSelect')`);
-    check('清掉偏好后声明恢复自动弹出',
-      await waitFor(`!document.querySelector('#disclaimerModal').hidden`, 8000));
-
-    /* ---- L. 老版本存下的 localStorage 偏好必须被忽略，不能一口吃掉整段编排 ---- */
+    for (const width of [390, 768, 1024, 1440]) {
+      await send('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: 1, mobile: false });
+      await pause(200);
+      check(width + 'px 页面无横向溢出', await evaluate('document.documentElement.scrollWidth <= innerWidth'));
+      check(width + 'px 结果条可达性', await evaluate(`(getComputedStyle(document.querySelector('#mobileBar')).display !== 'none') === (innerWidth <= 1180)`));
+      await shot('responsive-' + width);
+    }
+    await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: false });
+    await evaluate("document.querySelector('#mobileBarAction').click()");
+    check('手机结果按钮跳到完整结果', await evaluate("document.activeElement.id === 'resultPanel'"));
+    await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
     await open('');
-    await waitFor(settled, 15000);
-    await evaluate(`localStorage.setItem('psu-calc-2026-v1-disclaimer', window.HWDB.meta.version)`);
-    await evaluate(`try { sessionStorage.clear(); } catch (e) {}`);
-    await send('Page.navigate', { url: base });
-    await waitFor(`document.readyState === 'complete' && !!document.querySelector('#cpuSelect')`);
-    const lModal = await waitFor(`!document.querySelector('#disclaimerModal').hidden`, 12000);
-    const lHeld = await waitFor(`window.__holdSeen === true`, 3000);
-    s = await snapshot();
-    check('旧 localStorage 偏好不再吞掉自动声明（动画 → 声明 → 关掉 → 依次显现）',
-      lModal && lHeld && s.marked === s.itemCount, 'modal=' + lModal + ' held=' + lHeld);
-    await evaluate('window.__PSU_DISCLAIMER__.close()');
-    check('这段流程关掉声明后整页依然逐块出现', await waitFor(`window.__staggerSeen === true`, 6000));
-
-    /* ---- M. 可中断交互：真实时间采样，不用即时点击代替过程验证 ---- */
-    await open('?noanim=1&nodisclaimer=1');
-    await pause(400);
-    check('交互动效不新增或调整页面分区', await evaluate(`(() => {
-      window.__motionLayout = [document.querySelector('.decision-toolbar'), document.querySelector('.layout')]
-        .map(e => ({ top: e.offsetTop, width: e.offsetWidth, height: e.offsetHeight }));
-      return document.documentElement.classList.contains('psu-motion-ready') &&
-        document.querySelectorAll('.col-config > .card').length === 11;
-    })()`));
-    await evaluate(`document.getElementById('btnTheme').dispatchEvent(new PointerEvent('pointerdown', {bubbles:true,isPrimary:true,button:0}))`);
-    await pause(120);
-    check('按住按钮保持压下状态而非提前弹回', await evaluate(`(() => {
-      const b = document.getElementById('btnTheme'), matrix = new DOMMatrix(getComputedStyle(b).transform);
-      return Math.abs(matrix.a - .975) < .004 && b.getAnimations().length === 1;
-    })()`));
-    await evaluate(`document.dispatchEvent(new PointerEvent('pointerup', {bubbles:true,isPrimary:true,button:0}))`);
-    await pause(50);
-    check('松手回弹在进行且没有同时叠加多个动画', await evaluate(`document.getElementById('btnTheme').getAnimations().length === 1`));
-    await evaluate(`document.getElementById('btnTheme').dispatchEvent(new PointerEvent('pointerdown', {bubbles:true,isPrimary:true,button:0}))`);
-    await pause(35);
-    await evaluate(`document.dispatchEvent(new PointerEvent('pointercancel', {bubbles:true,isPrimary:true,button:0}))`);
-    await pause(400);
-    check('快速重按与指针取消后恢复且布局不变', await evaluate(`(() => {
-      const b = document.getElementById('btnTheme');
-      const layout = [document.querySelector('.decision-toolbar'), document.querySelector('.layout')]
-        .map(e => ({ top: e.offsetTop, width: e.offsetWidth, height: e.offsetHeight }));
-      return b.getAnimations().length === 0 && getComputedStyle(b).transform === 'none' &&
-        JSON.stringify(layout) === JSON.stringify(window.__motionLayout);
-    })()`));
-    await evaluate(`document.getElementById('btnTheme').dispatchEvent(new KeyboardEvent('keydown', {key:'Enter',bubbles:true}))`);
-    await pause(100);
-    check('键盘按压也有相同反馈', await evaluate(`new DOMMatrix(getComputedStyle(document.getElementById('btnTheme')).transform).a < .98`));
-    await evaluate(`document.dispatchEvent(new KeyboardEvent('keyup', {key:'Enter',bubbles:true}))`);
-    await pause(380);
-    await evaluate(`(() => {
-      const p = document.getElementById('planManager');
-      window.__closedHeight = p.getBoundingClientRect().height; p.querySelector('summary').click();
-    })()`);
-    await pause(85);
-    check('面板展开包含真实高度过渡', await evaluate(`document.getElementById('planManager').getAnimations().some(a => a.effect.getKeyframes().some(k => k.height))`));
-    await evaluate(`document.querySelector('#planManager > summary').click()`);
-    await pause(55);
-    await evaluate(`document.querySelector('#planManager > summary').click()`);
-    await pause(380);
-    check('展开中反向再展开后正确落位且无内联尺寸残留', await evaluate(`(() => {
-      const p = document.getElementById('planManager');
-      return p.open && p.getAnimations().length === 0 && !p.style.height && !p.style.overflow &&
-        !p.querySelector('summary').hasAttribute('aria-expanded');
-    })()`));
-    await evaluate(`document.querySelector('#planManager > summary').click()`);
-    await pause(260);
-    check('收起后恢复原始布局尺寸', await evaluate(`(() => {
-      const p = document.getElementById('planManager');
-      return !p.open && Math.abs(p.getBoundingClientRect().height - window.__closedHeight) < .5;
-    })()`));
-    await evaluate(`window.__PSU_DEBUG.applyPreset('office')`);
-    await pause(400);
-    await evaluate(`window.__PSU_DEBUG.render()`);
-    await pause(25);
-    check('相同计算结果重复渲染不会闪烁', await evaluate(`['recoBig','heroPower','heroExpected','heroTransient'].every(id=>document.getElementById(id).getAnimations().length===0)`));
-    await evaluate(`window.__PSU_DEBUG.applyPreset('flagship')`);
-    await pause(45);
-    check('真实数值变更即时显示答案并播放局部过渡', await evaluate(`document.getElementById('heroPower').getAnimations().length===1 && parseFloat(document.getElementById('heroPower').textContent)===window.__PSU_DEBUG.result().subtotal`));
-    await evaluate(`window.__PSU_DISCLAIMER__.open()`);
-    await pause(65);
-    await evaluate(`window.__PSU_DISCLAIMER__.close()`);
-    await pause(55);
-    await evaluate(`window.__PSU_DISCLAIMER__.open()`);
-    await pause(380);
-    check('弹窗关闭中重新打开不会被旧回调隐藏', await evaluate(`!document.getElementById('disclaimerModal').hidden && document.querySelector('header.top').inert && document.querySelector('.modal-card').getAnimations().length===0`));
-    await evaluate(`window.__PSU_DISCLAIMER__.close()`);
-    await pause(220);
-    check('弹窗动画完成后解除背景隔离并归还焦点', await evaluate(`document.getElementById('disclaimerModal').hidden && !document.querySelector('header.top').inert && !document.querySelector('.wrap').inert`));
-    await evaluate(`document.querySelector('#planManager > summary').click()`);
-    await pause(55);
-    await send('Emulation.setEmulatedMedia', { features: [{name:'prefers-reduced-motion',value:'reduce'}] });
-    await pause(40);
-    check('切换减少动态效果立即完成过渡并清理动画', await evaluate(`document.getElementById('planManager').open && document.getAnimations().every(a=>a.playState!=='running')`));
-    await evaluate(`document.querySelector('#planManager > summary').click()`);
-    check('减少动态效果下折叠采用原生即时行为', await evaluate(`!document.getElementById('planManager').open`));
-    await send('Emulation.setEmulatedMedia', { features: [] });
-    await evaluate(`document.querySelector('#planManager > summary').click()`);
-    await pause(50);
-    await evaluate(`window.dispatchEvent(new Event('beforeprint'))`);
-    check('打印中途终止过渡但保留用户的展开意图', await evaluate(`document.getElementById('planManager').open && !document.getElementById('planManager').style.overflow && document.getElementById('planManager').getAnimations().length===0`));
-    await evaluate(`window.dispatchEvent(new Event('afterprint'))`);
-
-    }
-    /* Responsive canvas: inspect actual rendered pixels, including phone rotation. */
-    for (const viewport of [
-      { name: 'desktop', width: 1440, height: 900, dpr: 1 },
-      { name: 'ultrawide', width: 2560, height: 1080, dpr: 1 },
-      { name: 'tablet', width: 768, height: 1024, dpr: 2 },
-      { name: 'phone', width: 390, height: 844, dpr: 3 },
-      { name: 'small-phone', width: 320, height: 568, dpr: 2 },
-      { name: 'phone-landscape', width: 844, height: 390, dpr: 3 }
-    ]) {
-      await send('Emulation.setDeviceMetricsOverride', { width: viewport.width, height: viewport.height,
-        deviceScaleFactor: viewport.dpr, mobile: viewport.name.includes('phone') });
-      await open('?noanim=1&nodisclaimer=1');
-      await send('Page.bringToFront');
-      await evaluate(`(() => {
-        const canvas = document.querySelector('.psu-boot-canvas');
-        document.documentElement.classList.add('psu-boot-active');
-        canvas.parentElement.style.display = 'flex';
-        delete canvas.dataset.frame;
-        window.__stopResponsiveBoot = startLightningBoot(canvas, () => {});
-      })()`);
-      const rendered = await waitFor(`+document.querySelector('.psu-boot-canvas').dataset.frame >= 62`, 7000);
-      await evaluate(`document.querySelector('.psu-boot-canvas').bootVideo?.pause()`);
-      const geometry = await evaluate(`(() => {
-        const c = document.querySelector('.psu-boot-canvas'), bounds = c.getBoundingClientRect();
-        const pixels = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
-        let left = c.width, right = -1, top = c.height, bottom = -1;
-        for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) {
-          const i = (y * c.width + x) * 4;
-          if (pixels[i] > 80 && pixels[i] > pixels[i + 1] * 2) {
-            left = Math.min(left, x); right = Math.max(right, x);
-            top = Math.min(top, y); bottom = Math.max(bottom, y);
-          }
-        }
-        const density = c.width / bounds.width;
-        return { width: bounds.width, height: bounds.height, pixels: [c.width, c.height],
-          contentWidth: (right - left + 1) / density, contentHeight: (bottom - top + 1) / density,
-          centerX: (left + right) / 2 / density, centerY: (top + bottom) / 2 / density,
-          frame: +c.dataset.frame, ratio: (right - left + 1) / (bottom - top + 1) };
-      })()`);
-      check(viewport.name + '：画布填满视口且按像素密度清晰绘制', rendered &&
-        Math.abs(geometry.width - viewport.width) < 1 && Math.abs(geometry.height - viewport.height) < 1 &&
-        geometry.pixels[0] === viewport.width * Math.min(2, viewport.dpr) &&
-        geometry.pixels[1] === viewport.height * Math.min(2, viewport.dpr),
-        geometry.width + '×' + geometry.height + ' CSS px / ' + geometry.pixels.join('×') + ' pixels');
-      check(viewport.name + '：主体完整居中、尺寸可读且未拉伸',
-        geometry.contentWidth >= viewport.width * .06 &&
-        geometry.contentWidth < viewport.width * .85 && geometry.contentHeight < viewport.height * .8 &&
-        Math.abs(geometry.centerX - viewport.width / 2) < viewport.width * .03 &&
-        Math.abs(geometry.centerY - viewport.height / 2) < viewport.height * .08 &&
-        geometry.ratio > .9 && geometry.ratio < 1.3,
-        Math.round(geometry.contentWidth) + '×' + Math.round(geometry.contentHeight) + ' CSS px');
-      await shot('responsive-' + viewport.name);
-      if (viewport.name === 'phone') {
-        await send('Emulation.setDeviceMetricsOverride', { width: 844, height: 390, deviceScaleFactor: 3, mobile: true });
-        await pause(150);
-        const rotated = await evaluate(`(() => {
-          const c = document.querySelector('.psu-boot-canvas');
-          return { width: c.width, height: c.height, frame: +c.dataset.frame };
-        })()`);
-        check('手机播放中旋转：画布即时调整且视频比例保持', rotated.width === 1688 && rotated.height === 780 && rotated.frame >= geometry.frame);
-        await shot('responsive-phone-rotated');
-      }
-      await evaluate('window.__stopResponsiveBoot()');
-    }
-
-    await open('?noanim=1&nodisclaimer=1');
-    check('LIGHTNING 视频 素材加载失败会结束，不留下黑幕', await evaluate(`new Promise(resolve => {
-      const canvas = document.querySelector('.psu-boot-canvas');
-      const src = canvas.dataset.video; canvas.dataset.video = 'missing-lightning-test.png';
-      let count = 0;
+    check('减少动态效果时直接显示可操作表单', !(await snapshot()).active && !(await snapshot()).modal && (await snapshot()).inertBoot === 0);
+    await send('Emulation.setEmulatedMedia', { media: 'print' });
+    check('打印隐藏搜索与底部操作条', await evaluate("getComputedStyle(document.querySelector('#mobileBar')).display === 'none' && document.querySelector('#cpuSearch').getBoundingClientRect().height === 0"));
+    await send('Emulation.setEmulatedMedia', { media: 'screen', features: [] });
+    await open('?noanim=1');
+    check('视频素材加载失败会结束，不留下黑幕', await evaluate(`new Promise(resolve => {
+      const canvas = document.querySelector('.psu-boot-canvas'), src = canvas.dataset.video;
+      canvas.dataset.video = 'missing-ux-video.mp4'; let count = 0;
       const stop = startLightningBoot(canvas, () => { count++; });
       setTimeout(() => { stop(); canvas.dataset.video = src; resolve(count === 1); }, 500);
-    })`));
-    check('加载期间跳过不会触发迟到的结束回调', await evaluate(`new Promise(resolve => {
-      const canvas = document.querySelector('.psu-boot-canvas');
-      const src = canvas.dataset.video; canvas.dataset.video = 'missing-lightning-cancel-test.png';
-      let count = 0;
-      const stop = startLightningBoot(canvas, () => { count++; });
-      stop(); canvas.dataset.video = src;
-      setTimeout(() => resolve(count === 0), 500);
     })`));
     check('浏览器无未捕获异常', errors.length === 0, errors.slice(0, 2).join(' / '));
     fs.writeFileSync(path.join(artifacts, 'results.json'), JSON.stringify({ results, errors }, null, 2));
@@ -614,7 +277,7 @@ export async function checkBootBrowser(root, executable, options = {}) {
     await new Promise(resolve => server.close(resolve));
     try { fs.rmSync(profile, { recursive: true, force: true }); } catch {}
   }
-  console.log('\n启动与逐块出现检查（真实时间轴）');
+  console.log('\n开场与快速选型检查（真实浏览器）');
   for (const r of results) console.log('  ' + (r.ok ? '✓ ' : '✗ ') + r.name);
   console.log('  截图与打印证据: ' + artifacts);
   return results.filter(r => !r.ok).length;

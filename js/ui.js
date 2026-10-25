@@ -8,12 +8,12 @@
  *    · 全部效果都能在 @media print 里被压平（见 style.css 打印段）
  *
  *  它只做五件事：
- *    1. 给左列 10 张卡注入折叠开关 + 已选摘要；默认全部收起，由用户自己展开
+ *    1. 给配置卡注入折叠开关与已选摘要；默认展开核心填写，记住用户偏好
  *    2. 用 IntersectionObserver 高亮当前正在看的卡片
  *    3. 把配置列里冗长的 .note 说明收成两行 + ⓘ 展开（结果列的说明不动，
  *       因为那是"答案的一部分"，折叠它反而有害）
- *    4. 移动端底部常驻条，同步显示推荐瓦数
- *    5. 精简使用须知弹窗（启动后展示，也可主动打开）
+ *    4. 响应式与结果状态由 app.js 同步
+ *    5. 使用须知由用户主动打开
  *
  *  在 head 加载以决定首帧；DOMContentLoaded 初始化时 app.js 已渲染 DOM。
  * ==========================================================================*/
@@ -25,11 +25,8 @@
   /* ------------------------------------------------------------ 配置 --- */
   var LS_KEY = 'psu-calc-2026-v1-ui';
 
-  /* 默认展开的卡片序号。空数组 = 打开页面时所有选项都收起来，
-     由用户自己点开需要填的那几步。
-     注意这里给的是「默认值」：用户手动展开过的那张卡会记在 localStorage 里，
-     下次打开保持用户自己的状态，不会又被强行收起。 */
-  var ALWAYS_OPEN = [];
+  // 默认展开用途、CPU 和显卡；其余保留用户的折叠偏好。
+  var ALWAYS_OPEN = [1, 2, 3];
 
   // 折叠态摘要：按卡片序号读对应控件的当前值
   var SUMMARY_RULES = {
@@ -140,7 +137,7 @@
     var no = 0;
     Array.prototype.forEach.call(col.querySelectorAll('section.card'), function (sec) {
       if (sec.id === 'guideCard') return;
-      no++;
+      no = +(sec.querySelector('.idx') || {}).textContent || no + 1;
       var h2 = sec.querySelector('h2');
       var path = SEC_ICON[no];
       if (!h2 || !path || h2.querySelector('.sec-ico')) return;
@@ -163,7 +160,7 @@
 
     Array.prototype.forEach.call(sections, function (sec) {
       if (sec.id === 'guideCard') return;   // 引导卡有自己的关闭按钮
-      no++;
+      no = +(sec.querySelector('.idx') || {}).textContent || no + 1;
 
       var h2 = sec.querySelector('h2');
       if (!h2) return;
@@ -214,7 +211,7 @@
       var rec = { el: sec, no: no, summaryEl: sum, toggleEl: btn };
       cards.push(rec);
 
-      // 初始状态：优先用记忆值，否则按 ALWAYS_OPEN 决定（现在是全部收起）
+      // 初始状态：优先用记忆值，否则展开核心填写
       var remembered = state['c' + no];
       var open = (remembered === undefined) ? (ALWAYS_OPEN.indexOf(no) !== -1) : !!remembered;
       setCollapsed(sec, btn, !open);
@@ -305,37 +302,6 @@
     });
   }
 
-  function setupMobileBar() {
-    var bar = $('mobileBar');
-    var out = $('mobileBarValue');
-    var chip = $('answerChip');
-    var src = $('answerChipValue') || $('recoBig');
-    if (!bar || !out || !src) return;
-
-    function sync() {
-      if (chip && chip.hidden) { bar.hidden = true; return; }
-      var t = (src.textContent || '').replace(/\s+/g, ' ').trim();
-      // 保留数字、区间连接符（- – ~ ～）、小数点与 W
-      var clean = t.replace(/[^\d\-–~～.W\s]/g, '').trim();
-      if (!/\d/.test(clean)) { bar.hidden = true; return; }
-      var html = escHtml(clean) + (/W/.test(clean) ? '' : '<span> W</span>');
-      if (out.innerHTML !== html) out.innerHTML = html;
-      if (bar.hidden) bar.hidden = false;
-    }
-
-    if ('MutationObserver' in window) {
-      new MutationObserver(sync).observe(src, {
-        childList: true, characterData: true, subtree: true
-      });
-      if (chip) {
-        new MutationObserver(sync).observe(chip, {
-          attributes: true, attributeFilter: ['hidden'], childList: true, subtree: true
-        });
-      }
-    }
-    sync();
-  }
-
   /* -------------------------------------------------------- 数据声明 ----
      打开页面时自动出现的声明弹窗。原来的「数据来源」卡片与显卡卡里的两段
      声明都搬进了这里，所以 id="sources" / id="aibCatalogNote" 都还在原位
@@ -353,43 +319,8 @@
     var xBtn = $('dmClose');
     var lastFocus = null;
     var closeTimer = null;
-    /* 是不是「启动结束后自动弹出」的那一次。
-       只有这一次的关闭才需要在背后把卡片逐个放出来；用户从顶栏重开再关不该重播。 */
-    var openedAuto = false;
-    var never = $('dmNever');
-    var preferenceKey = 'psu-calc-2026-v1-disclaimer';
-    /* 「不再提示」只在本次会话（这一个标签页）内有效。
-       原来存 localStorage：一次误勾就永久生效，而启动动画是每个标签页只播一次 ——
-       两者对不上，结果是动画照旧在播、说明却再也不出现，用户看到的就是
-       「启动完直接进界面」。存 sessionStorage 后，每个标签页至少完整走一遍
-       「动画 → 说明 → 关掉 → 依次显现」。 */
-    try { if (localStorage.getItem(preferenceKey) !== null) localStorage.removeItem(preferenceKey); } catch (e) {}
-    function version() { return window.HWDB && window.HWDB.meta.version || '1'; }
-    /* hash 里现在还会放配置短码（#c=…），所以按 token 判断，
-       不能再拿 location.hash 跟 '#nodisclaimer' 整体比较。 */
-    function hashHas(token) {
-      return (location.hash || '').replace(/^#/, '').split('&').indexOf(token) !== -1;
-    }
-    function suppressed() {
-      if (new URLSearchParams(location.search).get('nodisclaimer') === '1' || hashHas('nodisclaimer')) return true;
-      try { return sessionStorage.getItem(preferenceKey) === version(); } catch (e) { return false; }
-    }
-
     function isOpen() { return !m.hidden; }
-
-    /* 两个事件把「弹窗开合」广播给启动流程（ui.js 第二个 IIFE）：
-       psu:disclaimer-open / psu:disclaimer-closed，detail.auto 标明是不是自动弹出的那次。 */
-    function announce(type) {
-      document.dispatchEvent(new CustomEvent(type, { detail: { auto: openedAuto } }));
-    }
-
-    /* 「不再提示」是会话内的偏好，勾选框必须反映它的真实状态。
-       不回填的话这个开关就是单向的：一旦记住，用户再打开弹窗看到的仍是
-       「不勾选」的样子，点确定也只会……什么都不会发生，于是再也关不掉。 */
-    function syncNever() {
-      if (!never) return;
-      try { never.checked = sessionStorage.getItem(preferenceKey) === version(); } catch (e) {}
-    }
+    function announce(type) { document.dispatchEvent(new Event(type)); }
 
     /* 弹窗打开时把背景整片标 inert。
        已有的手写 Tab 陷阱只拦得住 Tab 键，拦不住读屏的虚拟光标 ——
@@ -409,15 +340,13 @@
       inertNodes = [];
     }
 
-    function open(fromAuto) {
+    function open() {
       if (closeTimer) {
         clearTimeout(closeTimer); closeTimer = null; m.classList.remove('is-closing');
         if (window.__PSU_MOTION__) window.__PSU_MOTION__.surface(m.querySelector('.modal-card'), true);
         return;
       }
       if (isOpen()) return;
-      openedAuto = !!fromAuto;
-      syncNever();
       lastFocus = document.activeElement;
       m.hidden = false;
       document.body.classList.add('modal-open');
@@ -430,12 +359,6 @@
 
     function close() {
       if (!isOpen() || closeTimer) return;
-      if (never) {
-        try {
-          if (never.checked) sessionStorage.setItem(preferenceKey, version());
-          else sessionStorage.removeItem(preferenceKey);   // 取消勾选要能真的取消
-        } catch (e) {}
-      }
       function finishClose() {
         if (m.hidden) return;
         clearTimeout(closeTimer);
@@ -485,10 +408,7 @@
       else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     });
 
-    function autoOpen() { if (!suppressed()) open(true); }
-    if (document.documentElement.classList.contains('psu-boot-active')) {
-      document.addEventListener('psu:boot-end', autoOpen, { once: true });
-    } else autoOpen();
+    // 使用须知由页内入口主动打开，首次填写不再被弹窗阻塞。
 
     // 供自动化测试 / 其他脚本调用
     window.__PSU_DISCLAIMER__ = { open: open, close: close, isOpen: isOpen };
@@ -501,8 +421,7 @@
       setupCards();
       setupActiveHighlight();
       collapseNotes();
-      setupMobileBar();
-      setupDisclaimer();
+        setupDisclaimer();
 
       // 控件值变化 → 刷新摘要
       // 用捕获阶段监听，不影响 app.js 自己的监听器
@@ -532,10 +451,7 @@
   }
 })();
 
-/* 一次性启动，分两段：
-   ① 原生 Canvas V2 动画 → 遮罩退场、框架淡入 → 声明弹窗接管；
-   ② 用户关掉声明之后，左右两栏的卡片按 DOM 顺序依次弹出。
-   跳过、失败、打印与减少动态效果都必须能立刻恢复到常态页面。 */
+/* 首访开场可随时跳过，结束后立即恢复表单；须知由用户主动打开。 */
 (function () {
   'use strict';
   var root = document.documentElement;
@@ -547,17 +463,12 @@
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', settleInitialLayout, { once: true });
   else settleInitialLayout();
-  /* 启动动画按「标签页」记一次：新开标签页会完整播一遍，同一标签页里
-     刷新（F5）不重播。
-     中途曾改成 localStorage + 24 小时「同一台机器只放一次」，结果是用户
-     打开网页看不到启动动画了 —— 对一个靠开场动画立住调性的站点来说，
-     「打开就有」比「少看几遍」重要得多，所以退回按标签页。
-     同时清掉那个 24 小时的旧标记，免得它继续压着动画不放。 */
+  // 首次访问播放一次，后续可从顶栏重播。
   var key = 'psu-boot-seen-lightning-video-v7';
   var motion = window.matchMedia('(prefers-reduced-motion: reduce)');
   var seen = false;
   try {
-    seen = sessionStorage.getItem(key) === '1';
+    seen = localStorage.getItem(key) === '1';
     localStorage.removeItem('psu-boot-seen-native-v4');
   } catch (e) {}
 
@@ -565,10 +476,7 @@
   if (window.__PSU_NOANIM || new URLSearchParams(location.search).get('noanim') === '1' ||
       motion.matches || window.matchMedia('print').matches) return;
 
-  /* 声明关掉之后才依次出现的整页块：顶栏 → 页首引导语 → 左栏配置卡 →
-     右栏结果块（推荐电源、三个数字、各卡）→ 反馈入口。
-     取的是 DOM 顺序，也就是从上到下、先左后右。
-     间隔与 @keyframes psu-content-in 的 .36s 对齐，改一处要改两处。 */
+  // 暴露页面区域供浏览器检查验证可见性。
   var ITEM_SELECTOR = [
     'header.top',
     '.page-intro',
@@ -577,8 +485,6 @@
     '.col-result .sticky-col > *:not(.print-only)',
     'details.section-collapse'
   ].join(', ');
-  var STAGGER_MS = 45;
-  var ITEM_MS = 360;
 
   /* 测试侧从这里读选择器，省得两边各抄一份然后慢慢走散。 */
   window.__PSU_BOOT__ = {
@@ -586,11 +492,9 @@
     items: function () { return Array.prototype.slice.call(document.querySelectorAll(ITEM_SELECTOR)); },
     replay: replayIntro
   };
-  /* 同一会话里已经看过动画：这次不放黑幕，「关掉声明再逐个弹出」照常。
-     刷新一下就整段失效，是这套东西最容易踩空的地方。 */
   var introRan = !seen;
   if (introRan) root.classList.add('psu-boot-active', 'psu-boot-pending');
-  var done = false, staged = false, timers = [], inertNodes = [], items = [], stopAnimation = null;
+  var done = false, staged = false, timers = [], inertNodes = [], stopAnimation = null;
   var inputEvents = ['pointerdown', 'click', 'keydown', 'touchstart'];
 
   function later(fn, ms) { timers.push(setTimeout(fn, ms)); }
@@ -612,82 +516,41 @@
   function detachInput() {
     inputEvents.forEach(function (type) { document.removeEventListener(type, onSkip, true); });
   }
-  function clearItems() {
-    items.forEach(function (el) {
-      el.classList.remove('psu-boot-item');
-      el.style.removeProperty('--psu-boot-delay');
-    });
-    items = [];
-  }
-
-  /* 收尾：清掉全部启动期类名，页面回到常态。
-     只有延迟交给声明弹窗的那条路径需要额外派发 psu:boot-end 把弹窗叫起来。 */
+  // 结束或跳过开场时恢复页面与输入。
   function release(dispatchEnd) {
     if (done) return;
     done = true;
     if (stopAnimation) { stopAnimation(); stopAnimation = null; }
     clearTimers();
-    clearItems();
     root.classList.remove('psu-boot-active', 'psu-boot-pending', 'psu-boot-running',
       'psu-boot-hold', 'psu-boot-fill');
     releaseInput();
     detachInput();
-    document.removeEventListener('psu:disclaimer-closed', onDisclaimerClosed);
     motion.removeEventListener('change', onMotion);
     window.removeEventListener('beforeprint', onAbort);
     window.removeEventListener('pagehide', onAbort);
     document.removeEventListener('visibilitychange', onVisibility);
-    try { sessionStorage.setItem(key, '1'); } catch (e) {}
+    try { localStorage.setItem(key, '1'); } catch (e) {}
     if (dispatchEnd) document.dispatchEvent(new Event('psu:boot-end'));
   }
 
-  /* 第一段收束：遮罩退场、框架淡入，把页面交给声明弹窗。
-     卡片在这里就位（先压成不可见 + 排好各自的延时），但先不播放。 */
-  function enterDialogStage(event, replayMode) {
+  function finishIntro(event) {
     if (done || staged) return;
     staged = true;
-    // 跳过手势不穿透到页面按钮或随后出现的声明弹窗。
+    // 跳过手势不穿透到页面按钮。
     if (event && inputEvents.indexOf(event.type) !== -1) {
       if (event.cancelable) event.preventDefault();
       event.stopImmediatePropagation();
     }
     if (stopAnimation) { stopAnimation(); stopAnimation = null; }
-    // 10 秒兜底就此作废：声明看多久由用户决定，不能把动画一并收走。
+    // 正常结束后取消加载超时兜底。
     clearTimers();
     detachInput();
     root.classList.remove('psu-boot-active', 'psu-boot-pending', 'psu-boot-running');
-    // 这里不再单独放「框架淡入」：顶栏与两栏的每一块都进了就位名单，
-    // 关掉声明后由 psu-content-in 逐块带出来，再加一层淡入只会互相打架。
-    releaseInput();
-    root.classList.add('psu-boot-hold');
-    items = Array.prototype.slice.call(document.querySelectorAll(ITEM_SELECTOR));
-    items.forEach(function (el, i) {
-      el.classList.add('psu-boot-item');
-      el.style.setProperty('--psu-boot-delay', (i * STAGGER_MS) + 'ms');
-    });
-    /* 手动重播不派发 psu:boot-end：那是「把声明弹窗叫起来」的信号，
-       重播只要视觉上的两段，别再把声明吵出来。 */
-    if (replayMode) { playFill(); return; }
-    document.dispatchEvent(new Event('psu:boot-end'));
-    var d = window.__PSU_DISCLAIMER__;
-    if (d && d.isOpen()) document.addEventListener('psu:disclaimer-closed', onDisclaimerClosed);
-    else playFill();  // 声明被抑制（?nodisclaimer=1 / 不再提示）时不留白，直接逐个弹出
+    release(true);
   }
 
-  /* 第二段：卡片依次弹出，最后一张落位后收尾。 */
-  function playFill() {
-    if (done) return;
-    document.removeEventListener('psu:disclaimer-closed', onDisclaimerClosed);
-    if (!items.length || motion.matches) { release(false); return; }
-    root.classList.add('psu-boot-fill');
-    later(function () { release(false); }, (items.length - 1) * STAGGER_MS + ITEM_MS + 80);
-  }
-
-  function onDisclaimerClosed(event) {
-    if (!event.detail || !event.detail.auto) return;
-    playFill();
-  }
-  function onSkip(event) { enterDialogStage(event); }
+  function onSkip(event) { finishIntro(event); }
   function onMotion(event) { if (event.matches) release(true); }
   function onAbort() { release(true); }
   function onVisibility() { if (document.hidden) release(true); }
@@ -706,17 +569,14 @@
     if (done) return;
     if (window.__PSU_NOANIM || motion.matches) { release(true); return; }
     var canvas = document.querySelector('.psu-boot-canvas');
-    // 没有动画可放（本会话已看过 / 取不到 canvas / 脚本缺失）也照样走第二段：
-    // 声明弹窗一出就把卡片就位，用户关掉它时依然逐个弹出。
-    if (!introRan || !canvas || !window.startLightningBoot) { enterDialogStage(null); return; }
+    // 回访或缺少动画脚本时直接显示页面。
+    if (!introRan || !canvas || !window.startLightningBoot) { finishIntro(null); return; }
     holdInput();
     root.classList.add('psu-boot-running');
-    stopAnimation = window.startLightningBoot(canvas, function () { enterDialogStage(null); });
+    stopAnimation = window.startLightningBoot(canvas, function () { finishIntro(null); });
   }
 
-  /* ---- 手动重播：点顶栏 logo。
-     只重放视觉上的两段（Canvas 开场 + 逐块显现），不重开声明弹窗，
-     也不动本会话的「已看过」标记 —— 那是按标签页的自然计次，和本功能无关。 */
+  // 顶栏 logo 与菜单中的重播入口共用相同的播放和清理流程。
   function replayIntro() {
     if (window.__PSU_NOANIM || motion.matches) return;
     if (root.classList.contains('psu-boot-active') || root.classList.contains('psu-boot-hold')) return;
@@ -735,9 +595,9 @@
     if (canvas && window.startLightningBoot) {
       holdInput();
       root.classList.add('psu-boot-running');
-      stopAnimation = window.startLightningBoot(canvas, function () { enterDialogStage(null, true); });
+      stopAnimation = window.startLightningBoot(canvas, function () { finishIntro(null); });
     } else {
-      enterDialogStage(null, true);
+      finishIntro(null);
     }
   }
 

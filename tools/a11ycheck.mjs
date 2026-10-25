@@ -131,10 +131,11 @@ try {
     s.unnamed.length ? '未命名 ' + s.unnamed.length + ': ' + s.unnamed.slice(0, 6).join(', ') : '共 ' + s.total + ' 个控件');
 
   /* ---- ② 声明弹窗打开时背景 inert ---- */
-  /* 必须走「不带 nodisclaimer 的干净加载」：带抑制参数时弹窗根本不弹，测不到。
+  /* 主动打开使用须知，验证弹窗焦点隔离；首次访问不再自动弹出。
      干净 profile + 无存储 ⇒ 弹窗必然自动打开。 */
-  await send('Page.navigate', { url: base + '?t=3' });
+  await send('Page.navigate', { url: base + '?noanim=1&t=3' });
   await waitFor(`document.readyState === 'complete' && !!document.querySelector('#cpuSelect')`);
+  await ev("document.querySelector('#btnDisclaimer').click()");
   const modalShown = await waitFor(`!document.querySelector('#disclaimerModal').hidden`, 15000);
   if (modalShown) {
     const open = await ev(`({ header: document.querySelector('header.top').inert === true,

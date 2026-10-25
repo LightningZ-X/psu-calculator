@@ -60,7 +60,7 @@ setTimeout(function () {
     t('空态推荐瓦数显示 —',
       $('recoBig').textContent.indexOf('—') >= 0, $('recoBig').textContent.trim());
     t('空态明确写出「尚未选择硬件」',
-      $('recoSub').textContent.indexOf('尚未选择硬件') >= 0, $('recoSub').textContent.trim());
+      $('recoSub').textContent.indexOf('选择 CPU') >= 0, $('recoSub').textContent.trim());
     t('空态不打绿勾（兼容性走中性态）',
       $('issues').querySelectorAll('.issue.ok').length === 0 &&
       $('issues').textContent.indexOf('未检测到兼容性问题') === -1,
@@ -73,7 +73,7 @@ setTimeout(function () {
       $('upgradeBox').textContent.indexOf('RTX') === -1,
       $('upgradeBox').textContent.replace(/\s+/g, ' ').slice(0, 40));
     t('空态顶栏答案筹码隐藏', $('answerChip').hidden === true);
-    t('空态底部结果条隐藏', $('mobileBar').hidden === true);
+    t('空态底部结果条提示下一步', $('mobileBarLabel').textContent.includes('CPU'));
 
     /* --- 0c. 显式载入示例配置（之后所有断言都基于它） --- */
     $('btnQuickStart').click();
@@ -110,7 +110,7 @@ setTimeout(function () {
     /* --- 2. 示例配置计算结果 --- */
     t('规划功耗 947.6W', $('heroPower').textContent.indexOf('947.6') >= 0, $('heroPower').textContent.trim());
     t('推荐电源 1300~1500W',
-      $('recoBig').textContent.indexOf('1300') >= 0 && $('recoBig').textContent.indexOf('1500') >= 0,
+      $('recoSub').textContent.indexOf('1300') >= 0 && $('recoBig').textContent.indexOf('1500') >= 0,
       $('recoBig').textContent.trim());
     t('三档电源卡片 3 张', $('psuPicks').querySelectorAll('.psu-pick').length === 3);
     t('明细表已渲染', $('detailTable').querySelectorAll('tbody tr').length > 10,
@@ -121,9 +121,9 @@ setTimeout(function () {
 
     /* --- 3. 场景切换影响冗余系数 --- */
     document.querySelector('.scenario[data-sc="creator"]').click();
-    t('切换创作场景 -> 冗余 1.50', $('recoSub').textContent.indexOf('1.50') >= 0);
+    t('切换创作场景 -> 冗余 1.50', $('heroPowerNote').textContent.indexOf('1.50') >= 0);
     document.querySelector('.scenario[data-sc="office"]').click();
-    t('切换办公场景 -> 冗余 1.30', $('recoSub').textContent.indexOf('1.30') >= 0);
+    t('切换办公场景 -> 冗余 1.30', $('heroPowerNote').textContent.indexOf('1.30') >= 0);
     document.querySelector('.scenario[data-sc="gaming"]').click();
 
     /* --- 4. 显卡四级联动：品牌 → 世代 → 型号 → AIC --- */
@@ -366,8 +366,8 @@ setTimeout(function () {
        $('guideCard').textContent.indexOf('看瓦数') >= 0);
     t('推荐结论按配置完整度给出瓦数或补齐提示',
        window.__PSU_DEBUG.result().canRecommend
-         ? $('recoSub').textContent.indexOf('买') >= 0 && $('recoSub').textContent.indexOf('W') >= 0
-         : $('recoSub').textContent.indexOf('补齐') >= 0,
+         ? $('recoSub').textContent.indexOf('最低参考') >= 0 && $('recoSub').textContent.indexOf('W') >= 0
+         : $('recoSub').textContent.indexOf('选择 CPU') >= 0,
        $('recoSub').textContent.replace(/\\s+/g, ' ').slice(0, 56));
     t('核心数字配白话解释',
        $('heroPowerNote').textContent.indexOf('电源至少要扛得住') >= 0,
@@ -403,22 +403,23 @@ setTimeout(function () {
     var collapsed = document.querySelectorAll('.col-config .card.is-collapsed');
     /* 需求：打开页面时把选项收起来，供用户自行打开。
        所以默认应该是「全部 10 张都收起」，而不是以前的「前 3 张展开」。 */
-    t('默认全部收起（需求：打开页面时选项收起来）', collapsed.length === cfgCards.length,
+    t('默认展开核心填写，其余可按需展开', collapsed.length === cfgCards.length - 3,
       '折叠 ' + collapsed.length + ' / 共 ' + cfgCards.length);
 
     // 点开关能真正展开 / 折叠，且摘要能显示当前选择
-    var card1 = cfgCards[0];                       // 使用场景
+    var card1 = document.querySelector('#scenarios').closest('.card');                       // 使用场景
     var toggle1 = card1.querySelector('.card-toggle');
     t('收起状态下显示已选摘要',
       card1.querySelector('.card-summary').textContent.trim().length > 0,
       card1.querySelector('.card-summary').textContent.trim());
+    if (!card1.classList.contains('is-collapsed')) toggle1.click();
     toggle1.click();
     t('点开关可展开卡片', !card1.classList.contains('is-collapsed'));
     toggle1.click();
     t('再点一次可收起', card1.classList.contains('is-collapsed'));
 
     // 摘要必须跟随选择变化
-    var cpuCard = cfgCards[1];
+    var cpuCard = $('cpuSelect').closest('.card');
     var cpuToggle = cpuCard.querySelector('.card-toggle');
     cpuToggle.click();                              // 展开 CPU 卡
     var sumBefore = cpuCard.querySelector('.card-summary').textContent.trim();
@@ -811,7 +812,7 @@ dcheck('有部署说明文档', fs.existsSync(path.join(root, 'DEPLOY.md')));
    @media print 是导出 PDF 的唯一实现。改版最容易把它改坏，
    所以这里逐条断言关键规则还在（静态检查，不依赖浏览器）。 */
 const css = fs.readFileSync(path.join(root, 'assets/style.css'), 'utf8');
-const printIdx = css.lastIndexOf('@media print');
+const printIdx = css.indexOf('/* ------------------------------------------------------------- 打印 ----');
 const printBlock = printIdx >= 0 ? css.slice(printIdx) : '';
 
 dcheck('存在 @media print 块', printIdx >= 0);
@@ -1085,7 +1086,7 @@ setTimeout(async function () {
     /* role / aria-modal / aria-labelledby 挂在内层的 .modal-card 上
        （#disclaimerModal 只是遮罩层），所以要从遮罩里往下找。 */
     var card = md.querySelector('[role="dialog"]');
-    m('首次打开自动展示精简声明', md && !md.hidden);
+    m('首次打开不自动弹须知', md && md.hidden);
     document.querySelector('.usage-open').click();
     m('推荐区使用须知入口可打开弹窗', !md.hidden);
     m('弹窗详情默认折叠', Array.from(md.querySelectorAll('details')).every(d => !d.open));
@@ -1128,12 +1129,10 @@ setTimeout(async function () {
     m('点遮罩关闭弹窗', md.hidden === true);
 
     $('btnDisclaimer').click();
-    m('保留不再提示选项', !$('dmNever').closest('label').hidden);
-    $('dmNever').checked = true;
+    m('说明由用户主动打开', !$('disclaimerModal').hidden);
     $('dmOk').click();
     await new Promise(resolve => setTimeout(resolve, 220));
     m('知道了关闭弹窗', md.hidden);
-    m('记住不再提示偏好', sessionStorage.getItem('psu-calc-2026-v1-disclaimer') === window.HWDB.meta.version);
 
 
     /* 其余用例都会带 ?nodisclaimer=1&noanim=1，验证抑制开关本身有效 */

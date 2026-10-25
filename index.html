@@ -127,12 +127,14 @@
         <span class="ac-value" id="answerChipValue">—</span>
         <span class="ac-issues" id="answerChipIssues"></span>
       </span>
+      <details class="header-more"><summary>更多</summary><div class="header-more-panel">
       <button id="btnDisclaimer" class="ghost" aria-haspopup="dialog"
               aria-controls="disclaimerModal">数据声明</button>
       <button id="btnReset" class="ghost">重置</button>
       <!-- 键盘可达的重播入口：logo 本身只挂鼠标点击，而它内部是 <h1>，
            不能改成 role="button"（按钮角色不允许包含标题，会破坏标题语义）。 -->
       <button id="btnReplayIntro" class="ghost">重播开场</button>
+</div></details>
       <button id="btnTheme" class="ghost" aria-label="切换深浅主题">
         <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"
              stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -154,16 +156,16 @@
   <section class="decision-toolbar" aria-label="配置工具">
     <div class="decision-mode">
       <div class="seg" id="calcMode" role="group" aria-label="计算模式">
-        <button type="button" data-mode="full" aria-pressed="true">完整配置</button>
-        <button type="button" data-mode="quick" aria-pressed="false">快速估算</button>
+        <button type="button" data-mode="quick" aria-pressed="true">快速估算</button>
+        <button type="button" data-mode="full" aria-pressed="false">完整配置</button>
       </div>
       <p class="note" id="modeNote">填写具体硬件可检查接口、尺寸和安装兼容性。</p>
     </div>
-    <div class="hardware-search">
+    <details class="hardware-search"><summary>搜索全部硬件</summary>
       <label for="hardwareSearch">搜索硬件型号</label>
       <div class="search-controls">
         <select id="searchCategory" aria-label="搜索硬件类别">
-          <option value="cpu">CPU</option><option value="gpu">显卡</option><option value="aib">显卡板型</option>
+          <option value="all">全部硬件</option><option value="cpu">CPU</option><option value="gpu">显卡</option><option value="aib">显卡板型</option>
           <option value="mobo">主板</option><option value="psu">电源</option>
           <option value="ram">内存</option><option value="storage">存储</option><option value="cooler">散热器</option>
           <option value="fan">风扇</option><option value="case">机箱</option>
@@ -172,7 +174,9 @@
       </div>
       <p class="note" id="searchStatus" role="status"></p>
       <div id="hardwareResults" class="search-results"></div>
-    </div>
+      <button id="searchMore" type="button" class="ghost" hidden>查看更多结果</button>
+      <button id="searchClear" type="button" class="ghost" hidden>清除搜索与筛选</button>
+    </details>
     <details class="plan-manager" id="planManager">
       <summary>我的配置方案<span class="hint" id="planCount">0 / 12</span></summary>
       <div class="plan-panel">
@@ -211,7 +215,7 @@
         </h2>
         <div class="card-body">
           <div class="guide-actions">
-            <button id="btnQuickStart" class="primary">载入示例配置</button>
+            <button id="btnQuickStart" class="ghost">载入示例配置</button>
           </div>
 
           <details class="guide-help"><summary>使用帮助</summary>
@@ -254,19 +258,13 @@
         </div>
       </section>
 
-      <!-- 1. 使用场景 -->
-      <section class="card">
-        <h2><span class="idx">1</span>使用场景<span class="hint">按用途选择</span></h2>
-        <div class="card-body">
-          <div class="scenarios" id="scenarios" role="group" aria-label="使用场景"></div>
-          <div class="note" id="scenarioNote" style="margin-top:11px"></div>
-        </div>
-      </section>
-
       <!-- 2. CPU -->
       <section class="card">
         <h2><span class="idx">2</span>处理器 CPU<span class="hint">品牌 → 系列 → 型号</span></h2>
         <div class="card-body">
+          <div class="core-search"><label for="cpuSearch">搜索CPU型号</label><input type="search" id="cpuSearch" maxlength="80" placeholder="如 9600X、14700K" autocomplete="off" aria-controls="cpuSearchResults"><p id="cpuSearchStatus" class="note" role="status"></p><div id="cpuSearchResults" class="search-results"></div><button type="button" id="cpuSearchMore" class="ghost" hidden>查看更多结果</button></div>
+
+          <details class="hardware-filters"><summary>按品牌与世代筛选</summary>
           <div class="field">
             <label>① 品牌</label>
             <div class="seg" id="cpuBrand" role="group" aria-label="CPU 品牌"></div>
@@ -279,6 +277,7 @@
             <label for="cpuSelect">③ 型号 <span class="unit">（收录 Intel 10 代起 / AMD Zen 起）</span></label>
             <select id="cpuSelect"></select>
           </div>
+          </details>
           <details class="advanced-options"><summary>高级设置 · 超频与功耗</summary><div>
           <div class="grid2">
             <div class="field">
@@ -303,6 +302,10 @@
       <section class="card">
         <h2><span class="idx">3</span>显卡 GPU<span class="hint">型号与板型</span></h2>
         <div class="card-body">
+          <div class="core-search"><label for="gpuSearch">搜索显卡型号</label><input type="search" id="gpuSearch" maxlength="80" placeholder="如 5090、9070 XT、夜神" autocomplete="off" aria-controls="gpuSearchResults"><p id="gpuSearchStatus" class="note" role="status"></p><div id="gpuSearchResults" class="search-results"></div><button type="button" id="gpuSearchMore" class="ghost" hidden>查看更多结果</button></div>
+<button type="button" id="chooseIgpu" class="ghost">使用集成显卡（核显）</button>
+
+          <details class="hardware-filters"><summary>按品牌与世代筛选</summary>
           <div class="field">
             <label>① 品牌</label>
             <div class="seg" id="gpuBrand" role="group" aria-label="显卡品牌"></div>
@@ -319,6 +322,7 @@
             <label for="gpuAib">④ AIC 厂商 / 板型 <span class="unit">（影响功耗墙与供电接口）</span></label>
             <select id="gpuAib"></select>
           </div>
+          </details>
           <details class="advanced-options"><summary>高级设置 · 超频与自定义显卡</summary><div>
           <div class="grid2">
             <div class="field" style="margin-bottom:0">
@@ -343,6 +347,16 @@
         </div>
       </section>
 
+      <!-- 1. 使用场景 -->
+      <section class="card">
+        <h2><span class="idx">1</span>使用场景<span class="hint">按用途选择</span></h2>
+        <div class="card-body">
+          <div class="scenarios" id="scenarios" role="group" aria-label="使用场景"></div>
+          <div class="note" id="scenarioNote" style="margin-top:11px"></div>
+        </div>
+      </section>
+
+      <section class="quick-budget" id="quickBudget" aria-label="辅助硬件预算"><p id="quickBudgetNote">选择 CPU 和显卡后显示辅助硬件预算。</p><button type="button" id="completeConfig">展开并完善配置</button></section>
       <!-- 4. 主板 -->
       <section class="card">
         <h2><span class="idx">4</span>主板<span class="hint">自动校验插槽</span></h2>
@@ -470,7 +484,7 @@
 
     <!-- ================================================== 右：结果列 === -->
     <div class="col-result">
-      <div class="sticky-col">
+      <div class="sticky-col" id="resultPanel" tabindex="-1">
 
         <div class="print-only" style="margin-bottom:14px">
           <h1 style="font-size:16pt;margin:0 0 4px">整机功耗与电源选型报告</h1>
@@ -479,9 +493,12 @@
 
         <!-- 推荐电源：全页最重要的结论，置于结果列最顶部 -->
         <div class="reco">
-          <div class="reco-label">推荐电源</div>
+          <div class="reco-label" id="recoLabel">选择硬件后查看建议</div>
           <div class="big" id="recoBig">— W</div>
           <div class="sub" id="recoSub"></div>
+          <button type="button" id="resolveConflict" class="ghost" hidden>前往修改冲突项</button>
+          <button type="button" id="resultNext" class="primary">选择 CPU</button>
+          <div id="existingSummary" class="existing-summary" hidden></div>
           <p class="usage-notice">估算结果，仅供选型参考 · <button type="button" class="usage-open">使用须知</button></p>
         </div>
 
@@ -654,10 +671,11 @@
 
 </div>
 
-<!-- 移动端常驻结果条：抬头就能看到"该买多大"，由 js/ui.js 同步数值 -->
+<!-- 移动端常驻结果条：抬头就能看到"该买多大"，由 app.js 与结果一起渲染 -->
 <div class="mobile-bar" id="mobileBar" hidden>
-  <div class="mb-label">推荐电源<br>瓦数</div>
+  <div class="mb-label" id="mobileBarLabel">还需选择 CPU</div>
   <div class="mb-value" id="mobileBarValue">—<span> W</span></div>
+  <button type="button" id="mobileBarAction">继续填写</button>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -705,10 +723,6 @@
     </div>
 
     <div class="modal-foot">
-      <label class="chk" for="dmNever">
-        <input type="checkbox" id="dmNever">
-        <span>不再提示</span>
-      </label>
       <button type="button" class="primary" id="dmOk">知道了</button>
     </div>
   </div>

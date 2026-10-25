@@ -162,7 +162,7 @@ checks.push(['favicon 已内联为 data URI', built.indexOf('data:image/png;base
 checks.push(['无残留 favicon.svg 引用', built.indexOf('href="favicon.svg"') === -1]);
 checks.push(['apple-touch-icon 已内联为 data URI',
   built.includes('rel="apple-touch-icon"') && built.indexOf('apple-touch-icon.png') === -1]);
-checks.push(['MSI LIGHTNING 图形已内联为 data URI', built.indexOf('data:image/svg+xml;base64,') > 0]);
+checks.push(['MSI LIGHTNING 图形已内联为 data URI', built.indexOf('data:image/png;base64,') > 0]);
 checks.push(['无残留 lightning-mark.png 相对引用', built.indexOf('url(lightning-mark.png)') === -1]);
 checks.push(['无残留 lightning-wordmark.png 相对引用', built.indexOf('url(lightning-wordmark.png)') === -1]);
 checks.push(['logo 仍用 mask 引用 logo 图（未变成死引用）',

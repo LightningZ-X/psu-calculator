@@ -36,7 +36,7 @@
   function defaultState() {
     return {
       scenario: 'gaming',
-      mode: 'full',
+      mode: 'quick',
       cpuBrand: 'Intel', cpuGen: '', cpuId: '', cpuOc: false, cpuCustomW: '',
       gpuBrand: 'NVIDIA', gpuGen: '', gpuId: '', gpuAibId: '', gpuOc: false,
       gpuCustomName: '', gpuCustomW: '',
@@ -1096,7 +1096,7 @@
     $('heroTransient').innerHTML = r.hasSelection
       ? r.transient + '<small> W</small>' : EMPTY + '<small> W</small>';
     // 面向非专业用户：先说"这个数是干什么用的"，再给计算依据
-    $('heroPowerNote').textContent = '所有硬件同时吃满电的总和 —— 电源至少要扛得住这个数';
+    $('heroPowerNote').textContent = '所有硬件同时满载时，电源至少要扛得住的功耗合计为 ' + r.subtotal + 'W；最低参考按 ×1.30、推荐目标按 ×' + r.redundancy.toFixed(2) + '，再向上选标准瓦数档位，并结合接口与选型规则调整。';
     $('heroExpectedNote').textContent = '部件侧功耗区间（' + r.scenarioInfo.label + '）：CPU、显卡与其他部件分别折算；工程假设，不是实测。插座侧还包含电源转换损耗。';
     $('heroTransientNote').textContent = r.gpuWatts > 0
       ? '显卡在极短一瞬间能拉到的最高值；杂牌电源扛不住这种冲击，会死机重启'
@@ -1151,9 +1151,7 @@
         chip.hidden = true;
       } else {
         chip.hidden = false;
-        $('answerChipValue').textContent = (r.recFloor === r.recIdeal)
-          ? r.recIdeal + ' W'
-          : r.recFloor + '–' + r.recIdeal + ' W';
+        $('answerChipValue').textContent = r.recIdeal + ' W';
         var nErr = r.issues.filter(function (i) { return i.level === 'error'; }).length;
         var nWarn = r.issues.filter(function (i) { return i.level === 'warn'; }).length;
         var ib = $('answerChipIssues');
@@ -1380,7 +1378,7 @@
   /* ===================================================== 方案与对比 === */
   var plans = [], deletedPlan = null, planSerial = 0;
   var PLAN_KEY = 'psu-calc-plans-v1';
-  var searchMatches = [], simulatedState = null;
+  var simulatedState = null;
 
   function cleanSnapshot(raw) {
     var out = defaultState(); applyClean(out, raw); return out;
@@ -1430,28 +1428,80 @@
     return String(text || '').toLowerCase().replace(/[\s\-_./（）()]+/g, '');
   }
 
-  function searchHardware() {
-    var terms = $('hardwareSearch').value.trim().split(/\s+/).map(normalizeSearch).filter(Boolean), cat = $('searchCategory').value;
-    var lists = { cpu: DB.cpus, gpu: DB.gpus, aib: DB.aibs, mobo: DB.motherboards, psu: DB.psus,
-      ram: DB.ram, storage: DB.storage, cooler: DB.coolers, fan: DB.fans, case: DB.cases };
-    searchMatches = [];
-    if (!terms.length) { $('hardwareResults').innerHTML = ''; $('searchStatus').textContent = ''; return; }
-    var matches = lists[cat].filter(function (it) {
-      var g = cat === 'aib' ? DB.gpus.filter(function (x) { return x.id === it.gpuId; })[0] : null;
-      var hay = normalizeSearch([it.id, it.name, it.brand, it.model, it.alias, it.vendor, it.series, it.cn, it.cnLabel, it.sku,
-        g ? g.name : ''].join(' '));
-      return terms.every(function (q) { return hay.indexOf(q) !== -1; });
-    }).sort(function (a, b) {
-      function rank(x) { return x.confidence === 'official' || x.confidence === 'review' ? 0 : 1; }
-      return rank(a) - rank(b);
+  var searchCategories = { cpu: 'CPU', gpu: '显卡', aib: '显卡板型', mobo: '主板', psu: '电源', ram: '内存', storage: '存储', cooler: '散热器', fan: '风扇', case: '机箱' };
+  function findHardware(query, category) {
+    var terms = query.trim().split(/\s+/).map(normalizeSearch).filter(Boolean);
+    if (!terms.length) return [];
+    var lists = { cpu: DB.cpus, gpu: DB.gpus, aib: DB.aibs, mobo: DB.motherboards, psu: DB.psus, ram: DB.ram, storage: DB.storage, cooler: DB.coolers, fan: DB.fans, case: DB.cases };
+    var categories = category === 'all' ? Object.keys(lists) : category === 'graphics' ? ['gpu', 'aib'] : [category];
+    var gpuById = {}; DB.gpus.forEach(function (g) { gpuById[g.id] = g; });
+    var results = [];
+    categories.forEach(function (cat) {
+      (lists[cat] || []).forEach(function (it) {
+        var g = cat === 'aib' ? gpuById[it.gpuId] : null;
+        var name = g ? g.name + ' · ' + it.vendor + ' ' + it.series + cnLabel(it) : (it.name || it.brand + ' ' + it.model);
+        var hay = normalizeSearch([it.id, name, it.brand, it.model, it.alias, it.vendor, it.series, it.cn, it.cnLabel, it.sku].join(' '));
+        if (terms.every(function (q) { return hay.indexOf(q) !== -1; })) {
+          var exact = normalizeSearch(it.name || it.model || '').endsWith(normalizeSearch(query)) || normalizeSearch(query) === normalizeSearch(it.id);
+          results.push({ item: it, category: cat, name: name, rank: (exact ? 0 : 4) + (it.confidence === 'official' || it.confidence === 'review' ? 0 : 1) });
+        }
+      });
     });
-    searchMatches = matches.slice(0, 15);
-    $('searchStatus').textContent = matches.length ? '找到 ' + matches.length + ' 项，显示前 ' + searchMatches.length + ' 项；点击选入当前配置。' : '没有匹配型号，试试型号数字、英文系列名或厂商名。';
-    $('hardwareResults').innerHTML = searchMatches.map(function (it, i) {
-      var g = cat === 'aib' ? DB.gpus.filter(function (x) { return x.id === it.gpuId; })[0] : null;
-      var name = g ? g.name + ' · ' + it.vendor + ' ' + it.series + cnLabel(it) : (it.name || it.brand + ' ' + it.model);
-      return '<button type="button" data-search-index="' + i + '">' + esc(name) + ' ' + confBadge(it.confidence) + '</button>';
-    }).join('');
+    return results.sort(function (a, b) { return a.rank - b.rank; });
+  }
+
+  function selectHardware(match) {
+    var it = match.item, cat = match.category, next = cleanSnapshot(S);
+    if (cat === 'cpu') { selectCpu(next, it.id); next.cpuGen = ''; }
+    if (cat === 'gpu' || cat === 'aib') { next.gpuId = cat === 'aib' ? it.gpuId : it.id; next.gpuAibId = cat === 'aib' ? it.id : ''; next.gpuGen = ''; next.gpuCustomName = ''; next.gpuCustomW = ''; next.gpuOc = false; }
+    if (cat === 'mobo') next.moboId = it.id;
+    if (cat === 'psu') next.psuId = it.id;
+    if (cat === 'ram') next.ramId = it.id;
+    if (cat === 'cooler') next.coolerId = it.id;
+    if (cat === 'fan') next.fanId = it.id;
+    if (cat === 'case') next.caseId = it.id;
+    if (cat === 'storage') {
+      var row = next.storage.filter(function (d) { return d.id === it.id; })[0];
+      if (row && row.qty >= 8) { toast('该硬盘已有 8 块，请调整存储配置', true); return false; }
+      if (row) row.qty++;
+      else if (next.storage.length < MAX_ROWS) next.storage.push({ id: it.id, qty: 1 });
+      else { toast('存储已达 ' + MAX_ROWS + ' 行上限', true); return false; }
+    }
+    installState(next); toast('已选入当前配置：' + match.name); return true;
+  }
+
+  function bindHardwareSearch(inputId, resultsId, statusId, moreId, category) {
+    var input = $(inputId), results = $(resultsId), status = $(statusId), more = $(moreId), limit = 15, matches = [];
+    function update(reset) {
+      if (reset !== false) limit = 15;
+      matches = findHardware(input.value, category());
+      var visible = matches.slice(0, limit);
+      status.textContent = !input.value.trim() ? '' : matches.length ? '找到 ' + matches.length + ' 项，显示前 ' + visible.length + ' 项。方向键选择，回车选入。' : '没有匹配型号。可清除筛选、缩短关键词，或展开高级设置录入自定义功耗。';
+      results.innerHTML = visible.map(function (m, i) { return '<button type="button" data-search-index="' + i + '"><span class="search-category">' + esc(searchCategories[m.category]) + '</span> ' + esc(m.name) + ' ' + confBadge(m.item.confidence) + '</button>'; }).join('');
+      more.hidden = matches.length <= limit;
+      if (inputId === 'hardwareSearch') $('searchClear').hidden = !input.value && $('searchCategory').value === 'all';
+    }
+    input.addEventListener('input', function (e) { if (!e.isComposing) update(); });
+    input.addEventListener('compositionend', function () { update(); });
+    function choose(button) {
+      var match = matches[+button.dataset.searchIndex];
+      if (match && selectHardware(match)) { input.value = ''; update(); status.textContent = '已选择 ' + match.name; input.focus(); }
+    }
+    results.addEventListener('click', function (e) { var b = e.target.closest('[data-search-index]'); if (b) choose(b); });
+    function keydown(e) {
+      if (e.isComposing) return;
+      var buttons = Array.prototype.slice.call(results.querySelectorAll('button')), index = buttons.indexOf(document.activeElement);
+      if (e.key === 'Escape') { results.innerHTML = ''; more.hidden = true; input.focus(); }
+      if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && buttons.length) {
+        e.preventDefault(); buttons[e.key === 'ArrowDown' ? (index + 1) % buttons.length : (index <= 0 ? buttons.length - 1 : index - 1)].focus();
+      }
+      if (e.key === 'Enter' && buttons.length) {
+        e.preventDefault(); choose(index >= 0 ? buttons[index] : buttons[0]);
+      }
+    }
+    input.addEventListener('keydown', keydown); results.addEventListener('keydown', keydown);
+    more.addEventListener('click', function () { var previous = limit; limit += 15; update(false); var first = results.querySelectorAll('button')[previous]; if (first) first.focus(); });
+    return update;
   }
 
   function refreshUpgradeAibs() {
@@ -1514,9 +1564,48 @@
     $('compareOutput').innerHTML = html;
   }
 
+  function focusConfig(id) {
+    var control = $(id); if (!control) return;
+    for (var parent = control.parentElement; parent; parent = parent.parentElement) {
+      if (parent.tagName === 'DETAILS') parent.open = true;
+    }
+    var card = control.closest('.card'), toggle = card && card.querySelector('.card-toggle');
+    if (card && card.classList.contains('is-collapsed') && toggle) toggle.click();
+    control.focus({ preventScroll: true }); (card || control).scrollIntoView({ behavior: 'auto', block: 'start' });
+  }
+  function nextStep() {
+    if (!S.cpuId) { focusConfig('cpuSearch'); return; }
+    if (!S.gpuId && !S.gpuCustomName) { focusConfig('gpuSearch'); return; }
+    $('resultPanel').focus({ preventScroll: true }); $('resultPanel').scrollIntoView({ behavior: 'auto', block: 'start' });
+  }
+
   function renderDecision() {
     if (!$('calcMode') || !lastResult) return;
     var r = lastResult, quick = S.mode === 'quick';
+    var errors = r.issues.filter(function (i) { return i.level === 'error'; }).length;
+    var warnings = r.issues.filter(function (i) { return i.level === 'warn'; }).length;
+    var missingCpu = !S.cpuId, missingGpu = !S.gpuId && !S.gpuCustomName;
+    var nextLabel = missingCpu ? '选择 CPU' : missingGpu ? '选择显卡或核显' : '查看检查结果';
+    $('resolveConflict').hidden = !errors;
+    $('resultNext').textContent = nextLabel; $('resultNext').hidden = !missingCpu && !missingGpu;
+    $('recoLabel').textContent = errors ? '先解决配置冲突' : r.canRecommend && !r.beyond ? '建议选择' : '选择硬件后查看建议';
+    $('recoBig').closest('.reco').classList.toggle('has-conflict', !!errors);
+    if (r.canRecommend && !r.beyond) {
+      $('recoBig').innerHTML = r.recIdeal + '<span> W</span>';
+      $('recoSub').innerHTML = (errors ? '存在 ' + errors + ' 项冲突，以下瓦数仅供功耗推演。<br>' : '') + (quick ? '快速估算' : r.missingPowerParts.length ? '部分配置' : '按已填配置计算') + ' · 最低参考 <b>' + r.recFloor + 'W</b>。';
+    } else if (!r.beyond) $('recoSub').textContent = missingCpu ? '尚未选择 CPU：选择 CPU 和显卡后，即可查看电源建议。' : missingGpu ? '已选择 CPU，还差显卡或核显选项。' : '补齐核心配置后查看建议。';
+    $('quickBudget').hidden = !quick;
+    $('quickBudgetNote').textContent = r.assumptions.length ? '辅助硬件预算：' + r.assumptions.join('、') + '。已填写的具体部件继续参与计算。' : r.hasSelection ? '辅助硬件按已填配置计算；可继续完善型号和安装规格。' : '选择 CPU 和显卡后显示辅助硬件预算。';
+    $('mobileBar').hidden = false;
+    $('mobileBarLabel').textContent = missingCpu ? '还需选择 CPU' : missingGpu ? '还需选择显卡或核显' : errors ? errors + ' 项冲突待处理' : warnings ? warnings + ' 项提醒待核对' : '推荐电源';
+    $('mobileBarValue').textContent = r.canRecommend && !r.beyond ? r.recIdeal + ' W' : '—';
+    $('mobileBarAction').textContent = missingCpu || missingGpu ? '继续填写' : '查看结果';
+    var existing = r.existingPsu;
+    $('existingSummary').hidden = !existing;
+    if (existing) {
+      $('existingSummary').textContent = '已有电源：' + existing.psu.brand + ' ' + existing.psu.model + '。' + existing.verdict + (errors ? '；配置仍有冲突，请先处理。' : '');
+      $('existingSummary').dataset.level = existing.level;
+    }
     document.documentElement.dataset.calcMode = S.mode;
     $('calcMode').querySelectorAll('button').forEach(function (b) { var on = b.dataset.mode === S.mode; b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
     $('modeNote').textContent = quick ? '只需选 CPU、显卡和用途。缺少的辅助部件使用明示默认值；此前填写的具体部件仍参与计算。' : '填写具体硬件可检查接口、尺寸和安装兼容性。';
@@ -1543,32 +1632,27 @@
     document.querySelectorAll('.col-config > .card').forEach(function (card) { var idx = card.querySelector('.idx'); if (idx && +idx.textContent >= 4 && +idx.textContent <= 9) card.dataset.detailPart = 'true'; });
     $('calcMode').addEventListener('click', function (e) {
       var b = e.target.closest('button[data-mode]'); if (!b) return; S.mode = b.dataset.mode; render();
-      if (S.mode === 'quick') ['cpuSelect', 'gpuModel'].forEach(function (id) { var card = $(id).closest('.card'); var toggle = card.querySelector('.card-toggle'); if (card.classList.contains('is-collapsed') && toggle) toggle.click(); });
+      (S.mode === 'quick' ? ['cpuSelect', 'gpuModel'] : ['cpuSelect', 'gpuModel', 'moboSelect', 'ramSelect', 'coolerSelect', 'caseSelect', 'psuSelect']).forEach(function (id) { var card = $(id).closest('.card'); var toggle = card.querySelector('.card-toggle'); if (card.classList.contains('is-collapsed') && toggle) toggle.click(); });
     });
-    $('hardwareSearch').addEventListener('input', function (e) { if (!e.isComposing) searchHardware(); });
-    $('hardwareSearch').addEventListener('compositionend', searchHardware);
-    $('searchCategory').addEventListener('change', searchHardware);
-    $('hardwareResults').addEventListener('click', function (e) {
-      var b = e.target.closest('[data-search-index]'); if (!b) return;
-      var it = searchMatches[+b.dataset.searchIndex], next = cleanSnapshot(S), cat = $('searchCategory').value;
-      if (!it) return;
-      if (cat === 'cpu') { selectCpu(next, it.id); next.cpuGen = ''; }
-      if (cat === 'gpu' || cat === 'aib') { next.gpuId = cat === 'aib' ? it.gpuId : it.id; next.gpuAibId = cat === 'aib' ? it.id : ''; next.gpuGen = ''; next.gpuCustomName = ''; next.gpuCustomW = ''; }
-      if (cat === 'mobo') next.moboId = it.id;
-      if (cat === 'psu') next.psuId = it.id;
-      if (cat === 'ram') next.ramId = it.id;
-      if (cat === 'cooler') next.coolerId = it.id;
-      if (cat === 'fan') next.fanId = it.id;
-      if (cat === 'case') next.caseId = it.id;
-      if (cat === 'storage') {
-        var row = next.storage.filter(function (d) { return d.id === it.id; })[0];
-        if (row && row.qty >= 8) { toast('该硬盘已有 8 块，请调整存储配置', true); return; }
-        if (row) row.qty++;
-        else if (next.storage.length < MAX_ROWS) next.storage.push({ id: it.id, qty: 1 });
-        else { toast('存储已达 ' + MAX_ROWS + ' 行上限', true); return; }
-      }
-      installState(next); $('hardwareSearch').value = ''; searchHardware(); toast('已选入当前配置');
+    var searchHardware = bindHardwareSearch('hardwareSearch', 'hardwareResults', 'searchStatus', 'searchMore', function () { return $('searchCategory').value; });
+    bindHardwareSearch('cpuSearch', 'cpuSearchResults', 'cpuSearchStatus', 'cpuSearchMore', function () { return 'cpu'; });
+    bindHardwareSearch('gpuSearch', 'gpuSearchResults', 'gpuSearchStatus', 'gpuSearchMore', function () { return 'graphics'; });
+    $('searchCategory').addEventListener('change', function () {
+      var hints = { all: '如 9600X、5090 夜神、海韵', cpu: '如 9600X、14700K', gpu: '如 RTX 5090、RX 9070 XT', aib: '如 5090 夜神、SUPRIM', psu: '如 海韵、FOCUS、850' };
+      $('hardwareSearch').placeholder = hints[this.value] || '输入' + searchCategories[this.value] + '型号或品牌'; searchHardware();
     });
+    $('searchClear').addEventListener('click', function () { $('hardwareSearch').value = ''; $('searchCategory').value = 'all'; $('searchCategory').dispatchEvent(new Event('change')); $('hardwareSearch').focus(); });
+    $('chooseIgpu').addEventListener('click', function () { var next = cleanSnapshot(S); next.gpuId = '__igpu__'; next.gpuAibId = ''; next.gpuCustomName = ''; next.gpuCustomW = ''; next.gpuOc = false; installState(next); toast('已选择集成显卡，请核对 CPU 是否带核显'); });
+    $('completeConfig').addEventListener('click', function () { document.querySelector('#calcMode [data-mode="full"]').click(); focusConfig('moboSelect'); });
+    $('resultNext').addEventListener('click', nextStep);
+    $('resolveConflict').addEventListener('click', function () {
+      document.querySelector('#calcMode [data-mode="full"]').click();
+      var issue = lastResult.issues.filter(function (i) { return i.level === 'error'; })[0];
+      var code = issue ? issue.code : '';
+      var id = /^PSU_|EPS_/.test(code) ? 'psuSelect' : /RAM|MEM/.test(code) ? 'ramSelect' : /GPU|VGA/.test(code) ? 'gpuModel' : /COOL/.test(code) ? 'coolerSelect' : /CASE/.test(code) ? 'caseSelect' : 'moboSelect';
+      focusConfig(id);
+    });
+    $('mobileBarAction').addEventListener('click', nextStep);
     $('psuEfficiency').addEventListener('input', renderDecision);
     $('allPsuCandidates').addEventListener('click', function (e) { var b = e.target.closest('[data-pick-psu]'); if (b) { S.psuId = b.dataset.pickPsu; refreshPsu(); syncInputsFromState(); render(); } });
     $('upgradeCpu').innerHTML += optionsHtml(DB.cpus, '', function (c) { return c.name + ' · ' + c.socket; }, function (c) { return c.brand; });
@@ -1853,6 +1937,7 @@
     var parts = [];
     Object.keys(S).forEach(function (k) {
       var v = S[k];
+      if (k === 'mode') { parts.push('mode=' + encodeURIComponent(v)); return; }
       if (CFG_COMPLEX.indexOf(k) !== -1) return;
       if (cfgEmpty(v) || v === def[k]) return;   // 与默认值相同的不写进链接
       parts.push(k + '=' + encodeURIComponent(v));
@@ -1906,6 +1991,8 @@
         out[k] = raw;
       }
     });
+    // 旧链接省略的模式代表当时的完整配置，不能用新的快速预算重算。
+    if (str && !hasOwn(out, 'mode')) out.mode = 'full';
     return out;
   }
 

@@ -483,7 +483,7 @@ button .ico { display: inline-block; vertical-align: -2px; }
   color: var(--text);
   padding: 6px 12px;
 }
-#btnTheme .ico { color: var(--rog); flex: 0 0 auto; }
+#btnTheme .ico { color: var(--rog); flex: 0 0 20px; width: 20px; height: 20px; }
 #btnTheme .theme-label { font-weight: 700; letter-spacing: .02em; }
 #btnTheme:hover { border-color: var(--rog); }
 #btnTheme:active { background: var(--bg-soft); }
@@ -514,7 +514,7 @@ button .ico { display: inline-block; vertical-align: -2px; }
 .field:has(> .chk-grid) > label,
 .field:has(> div) > label { margin-bottom: 8px; }
 
-select, input[type="text"], input[type="number"] {
+select, input[type="text"], input[type="number"], input[type="search"] {
   width: 100%; padding: 7px 10px;
   background: var(--bg-soft); color: var(--text);
   border: 1px solid var(--line); border-radius: var(--radius);
@@ -1018,7 +1018,7 @@ body.modal-open { overflow: hidden; }
   .col-config .card > .card-toggle { grid-column: 2; grid-row: 1; }
 
   /* 触控目标 ≥44px */
-  button, .btn, select, input[type="text"], input[type="number"] { min-height: 44px; }
+  button, .btn, select, input[type="text"], input[type="number"], input[type="search"] { min-height: 44px; }
   .card-toggle { width: 32px; height: 32px; }
   .storage-row { grid-template-columns: 1fr 68px 44px; }
   .storage-row .del { min-height: 44px; }
@@ -1263,6 +1263,141 @@ html.psu-motion-ready .modal-backdrop > .modal-card { animation: none; }
   }
 }
 
+
+.print-only { display: none; }
+
+/* Canvas fills the visible stage; drawing applies one uniform responsive scale. */
+.psu-boot { overflow: hidden; height: 100vh; height: 100dvh; }
+.psu-boot-canvas {
+  display: block; flex: none; max-width: none;
+  width: 100%; height: 100%; background: #000;
+}
+
+/* 配置管理与对比沿用平面分区、细分隔线和现有文字尺度。 */
+.decision-toolbar { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; padding: 18px 0; border-block: 1px solid var(--line); }
+.decision-toolbar > *, .search-controls > *, .comparison-table td { min-width: 0; }
+.decision-toolbar label { display: block; font-size: var(--fs-sm); color: var(--text-2); margin-bottom: 6px; }
+.decision-toolbar p { margin: 8px 0 0; }
+.search-controls { display: grid; grid-template-columns: 100px 1fr; gap: 8px; }
+.search-results { max-height: 320px; overflow-y: auto; }
+.search-results button { display: block; width: 100%; text-align: left; padding: 10px; border: 0; border-bottom: 1px solid var(--line); background: var(--bg-soft); white-space: normal; overflow-wrap: anywhere; }
+.search-results button:hover { background: var(--surface-2); }
+.plan-manager { grid-column: 1 / -1; }
+.plan-manager > summary { cursor: pointer; font-weight: 600; padding: 8px 0; }
+.plan-manager .hint { margin-left: 12px; }
+.plan-panel { padding-top: 14px; }
+.plan-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.coverage-list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 12px 0; font-size: var(--fs-sm); color: var(--text-2); }
+.decision-quality .note + .note { margin-top: 10px; }
+.decision-quality input { max-width: 140px; }
+.candidate-list { max-height: 300px; overflow-y: auto; }
+.candidate-row { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.candidate-row p { margin: 4px 0; color: var(--text-2); font-size: var(--fs-sm); }
+.candidate-row button { margin-top: 6px; }
+.hero .v.blue { font-size: clamp(20px, 3vw, 32px); overflow-wrap: anywhere; }
+.comparison-table { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); margin: 16px 0; }
+.comparison-table th, .comparison-table td { padding: 9px 6px; border-bottom: 1px solid var(--line); text-align: left; overflow-wrap: anywhere; }
+.comparison-table th { color: var(--text-2); font-weight: 600; }
+#compareOutput .note { margin-top: 10px; }
+#comparisonCard .grid2 { grid-template-columns: 1fr 1fr; }
+#comparisonCard .field { display: block; min-width: 0; }
+#comparisonCard .field > label { display: block; margin-bottom: 8px; }
+#comparisonCard .field > select { width: 100%; max-width: 100%; }
+html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: none; }
+.no-js .decision-toolbar { display: none; }
+@media (max-width: 640px) {
+  .decision-toolbar { grid-template-columns: 1fr; gap: 14px; }
+  #comparisonCard .grid2, .coverage-list { grid-template-columns: 1fr; }
+  .plan-actions button { flex: 1 1 140px; }
+  .comparison-table th, .comparison-table td { padding: 8px 4px; }
+}
+
+/* LIGHTNING slogan follows the original opening lockup. */
+.brand-lockup { display: inline-flex; flex: none; flex-direction: column; align-items: center; gap: 2px; color: var(--rog); }
+.brand-lockup .wordmark { display: block; flex: none; }
+.brand-tagline { display: block; font: 700 10px/1.2 Arial, sans-serif; letter-spacing: .35px; white-space: nowrap; }
+.modal-head .brand-lockup .wordmark { width: 110px; }
+.modal-head .brand-tagline { letter-spacing: .1px; }
+
+/* 快速选型：核心填写优先，结果与字段共用一致的交互反馈。 */
+.page-intro { padding-top: 24px; padding-bottom: 20px; }
+.page-intro .eyebrow { display: none; }
+.page-intro h2 { font-size: clamp(24px, 2.5vw, 32px); }
+.decision-toolbar { margin-bottom: 14px; padding-block: 12px; gap: 12px 24px; }
+.top-actions { flex-wrap: wrap; }
+#dbCounts { display: none; }
+.core-search { margin-bottom: 16px; }
+.core-search > label { display: block; margin-bottom: 8px; color: var(--text-2); }
+.core-search input { width: 100%; min-width: 0; }
+.search-controls input { width: 100%; min-width: 0; }
+.search-category { color: var(--text-3); font-size: var(--fs-xs); }
+.search-results button:focus-visible { outline: 2px solid var(--err); outline-offset: -2px; }
+.quick-budget { padding: 16px 0; border-bottom: 1px solid var(--line); color: var(--text-2); font-size: var(--fs-sm); }
+.quick-budget[hidden] { display: none; }
+.quick-budget p { margin: 0 0 10px; line-height: 1.7; }
+#resultNext { margin-top: 16px; }
+.reco.has-conflict { border-color: var(--err); }
+.reco.has-conflict .big { font-size: var(--fs-sec); color: var(--text-3); }
+.reco.has-conflict .reco-label { color: var(--err); font-size: 18px; }
+.existing-summary { padding-top: 14px; margin-top: 14px; border-top: 1px solid var(--line); font-size: var(--fs-sm); line-height: 1.7; }
+.col-config .card, #resultPanel { scroll-margin-top: 140px; }
+#resultPanel:focus-visible { outline: 2px solid var(--err); outline-offset: 6px; }
+.card-toggle { min-width: 44px; min-height: 44px; }
+input[type="search"]:focus-visible { outline: 2px solid var(--err); outline-offset: 2px; }
+@media (max-width: 1180px) {
+  .wrap { padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px)); }
+  .mobile-bar { display: flex; position: fixed; inset: auto 0 0; z-index: 60; align-items: center; gap: 12px; padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)); background: var(--bg-nav); border-top: 2px solid var(--err); }
+  .mobile-bar .mb-label { color: var(--text-2); font-size: var(--fs-sm); }
+  .mobile-bar .mb-value { font-family: var(--mono); font-size: 22px; font-variant-numeric: tabular-nums; margin-left: auto; white-space: nowrap; }
+  .mobile-bar button { min-height: 44px; flex-shrink: 0; }
+}
+@media (max-width: 640px) {
+  .top-inner { gap: 6px; padding-block: 8px; }
+  .top-actions { gap: 6px; }
+  .logo small { display: none; }
+  .page-intro { padding-top: 18px; padding-bottom: 16px; }
+  input[type="search"] { min-height: 44px; }
+  .mobile-bar { gap: 8px; }
+  .mobile-bar .mb-label { max-width: 42%; }
+  .col-config .card { grid-template-columns: minmax(0, 1fr) 44px; }
+}
+
+
+.hardware-search > summary { cursor: pointer; color: var(--text-2); padding: 6px 0; }
+.hardware-search[open] > summary { margin-bottom: 10px; }
+.decision-toolbar { align-items: start; }
+#guideCard { border-bottom: 0; }
+#guideCard > h2 { display: none; }
+#guideCard .card-body { padding-block: 4px; }
+.core-search .note:empty { display: none; }
+.core-search .search-results:empty { display: none; }
+.col-config .card { column-gap: 16px; }
+.col-config .card > .card-toggle { justify-self: end; }
+.existing-summary[data-level="error"] { color: var(--err); }
+#resolveConflict { margin-top: 12px; }
+@media (max-width: 640px) {
+  .decision-toolbar { gap: 6px; }
+  .top .logo-text h1 { font-size: var(--fs-base); }
+}
+
+
+.hardware-filters > summary { cursor: pointer; padding-block: 10px; font-size: var(--fs-sm); color: var(--text-2); }
+.hardware-filters[open] > summary { margin-bottom: 10px; }
+.header-more { position: relative; }
+.header-more > summary { cursor: pointer; padding: 10px 14px; min-height: 44px; box-sizing: border-box; color: var(--text-2); border: 1px solid var(--line); }
+.header-more-panel { position: absolute; top: calc(100% + 6px); right: 0; padding: 10px; min-width: 160px; display: grid; gap: 8px; background: var(--bg-nav); border: 1px solid var(--line); z-index: 80; }
+.header-more-panel button { width: 100%; min-height: 44px; text-align: left; }
+@media (max-width: 640px) {
+  .top-inner { flex-wrap: nowrap; }
+  .top-actions { width: auto; margin-left: auto; flex-wrap: nowrap; }
+  .answer-chip { display: none !important; }
+  .header-more-panel #btnReplayIntro { display: block; }
+  .top .logo .mark { width: 16px; height: 30px; }
+  #btnTheme { padding-inline: 9px; }
+  .theme-label { display: none; }
+  .hardware-filters > summary, .advanced-options > summary, .hardware-search > summary { min-height: 44px; display: flex; align-items: center; box-sizing: border-box; }
+}
+
 /* ------------------------------------------------------------- 打印 ----
    ⚠️ 这是导出 PDF 的唯一实现。改版后必须回归验证：
       配置列隐藏、按钮隐藏、折叠内容全部展开、红色指示条压平成黑色。
@@ -1337,61 +1472,8 @@ html.psu-motion-ready .modal-backdrop > .modal-card { animation: none; }
   .print-only { display: block !important; }
   a { color: #000; border-bottom: none; }
   a[href^="http"]::after { content: " (" attr(href) ")"; font-size: 8pt; color: #555; }
+  .core-search, .quick-budget, #chooseIgpu, #resultNext, #resolveConflict { display: none !important; }
 }
-.print-only { display: none; }
-
-/* Canvas fills the visible stage; drawing applies one uniform responsive scale. */
-.psu-boot { overflow: hidden; height: 100vh; height: 100dvh; }
-.psu-boot-canvas {
-  display: block; flex: none; max-width: none;
-  width: 100%; height: 100%; background: #000;
-}
-
-/* 配置管理与对比沿用平面分区、细分隔线和现有文字尺度。 */
-.decision-toolbar { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; padding: 18px 0; border-block: 1px solid var(--line); }
-.decision-toolbar > *, .search-controls > *, .comparison-table td { min-width: 0; }
-.decision-toolbar label { display: block; font-size: var(--fs-sm); color: var(--text-2); margin-bottom: 6px; }
-.decision-toolbar p { margin: 8px 0 0; }
-.search-controls { display: grid; grid-template-columns: 100px 1fr; gap: 8px; }
-.search-results { max-height: 320px; overflow-y: auto; }
-.search-results button { display: block; width: 100%; text-align: left; padding: 10px; border: 0; border-bottom: 1px solid var(--line); background: var(--bg-soft); white-space: normal; overflow-wrap: anywhere; }
-.search-results button:hover { background: var(--surface-2); }
-.plan-manager { grid-column: 1 / -1; }
-.plan-manager > summary { cursor: pointer; font-weight: 600; padding: 8px 0; }
-.plan-manager .hint { margin-left: 12px; }
-.plan-panel { padding-top: 14px; }
-.plan-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.coverage-list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 12px 0; font-size: var(--fs-sm); color: var(--text-2); }
-.decision-quality .note + .note { margin-top: 10px; }
-.decision-quality input { max-width: 140px; }
-.candidate-list { max-height: 300px; overflow-y: auto; }
-.candidate-row { padding: 10px 0; border-bottom: 1px solid var(--line); }
-.candidate-row p { margin: 4px 0; color: var(--text-2); font-size: var(--fs-sm); }
-.candidate-row button { margin-top: 6px; }
-.hero .v.blue { font-size: clamp(20px, 3vw, 32px); overflow-wrap: anywhere; }
-.comparison-table { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); margin: 16px 0; }
-.comparison-table th, .comparison-table td { padding: 9px 6px; border-bottom: 1px solid var(--line); text-align: left; overflow-wrap: anywhere; }
-.comparison-table th { color: var(--text-2); font-weight: 600; }
-#compareOutput .note { margin-top: 10px; }
-#comparisonCard .grid2 { grid-template-columns: 1fr 1fr; }
-#comparisonCard .field { display: block; min-width: 0; }
-#comparisonCard .field > label { display: block; margin-bottom: 8px; }
-#comparisonCard .field > select { width: 100%; max-width: 100%; }
-html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: none; }
-.no-js .decision-toolbar { display: none; }
-@media (max-width: 640px) {
-  .decision-toolbar { grid-template-columns: 1fr; gap: 14px; }
-  #comparisonCard .grid2, .coverage-list { grid-template-columns: 1fr; }
-  .plan-actions button { flex: 1 1 140px; }
-  .comparison-table th, .comparison-table td { padding: 8px 4px; }
-}
-
-/* LIGHTNING slogan follows the original opening lockup. */
-.brand-lockup { display: inline-flex; flex: none; flex-direction: column; align-items: center; gap: 2px; color: var(--rog); }
-.brand-lockup .wordmark { display: block; flex: none; }
-.brand-tagline { display: block; font: 700 10px/1.2 Arial, sans-serif; letter-spacing: .35px; white-space: nowrap; }
-.modal-head .brand-lockup .wordmark { width: 110px; }
-.modal-head .brand-tagline { letter-spacing: .1px; }
 
 </style>
 <!-- 首帧前决定是否播放；ui.js 的 DOM 初始化仍在 DOMContentLoaded、app.js 之后。 -->
@@ -1462,12 +1544,12 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
  *    · 全部效果都能在 @media print 里被压平（见 style.css 打印段）
  *
  *  它只做五件事：
- *    1. 给左列 10 张卡注入折叠开关 + 已选摘要；默认全部收起，由用户自己展开
+ *    1. 给配置卡注入折叠开关与已选摘要；默认展开核心填写，记住用户偏好
  *    2. 用 IntersectionObserver 高亮当前正在看的卡片
  *    3. 把配置列里冗长的 .note 说明收成两行 + ⓘ 展开（结果列的说明不动，
  *       因为那是"答案的一部分"，折叠它反而有害）
- *    4. 移动端底部常驻条，同步显示推荐瓦数
- *    5. 精简使用须知弹窗（启动后展示，也可主动打开）
+ *    4. 响应式与结果状态由 app.js 同步
+ *    5. 使用须知由用户主动打开
  *
  *  在 head 加载以决定首帧；DOMContentLoaded 初始化时 app.js 已渲染 DOM。
  * ==========================================================================*/
@@ -1479,11 +1561,8 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
   /* ------------------------------------------------------------ 配置 --- */
   var LS_KEY = 'psu-calc-2026-v1-ui';
 
-  /* 默认展开的卡片序号。空数组 = 打开页面时所有选项都收起来，
-     由用户自己点开需要填的那几步。
-     注意这里给的是「默认值」：用户手动展开过的那张卡会记在 localStorage 里，
-     下次打开保持用户自己的状态，不会又被强行收起。 */
-  var ALWAYS_OPEN = [];
+  // 默认展开用途、CPU 和显卡；其余保留用户的折叠偏好。
+  var ALWAYS_OPEN = [1, 2, 3];
 
   // 折叠态摘要：按卡片序号读对应控件的当前值
   var SUMMARY_RULES = {
@@ -1594,7 +1673,7 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
     var no = 0;
     Array.prototype.forEach.call(col.querySelectorAll('section.card'), function (sec) {
       if (sec.id === 'guideCard') return;
-      no++;
+      no = +(sec.querySelector('.idx') || {}).textContent || no + 1;
       var h2 = sec.querySelector('h2');
       var path = SEC_ICON[no];
       if (!h2 || !path || h2.querySelector('.sec-ico')) return;
@@ -1617,7 +1696,7 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
 
     Array.prototype.forEach.call(sections, function (sec) {
       if (sec.id === 'guideCard') return;   // 引导卡有自己的关闭按钮
-      no++;
+      no = +(sec.querySelector('.idx') || {}).textContent || no + 1;
 
       var h2 = sec.querySelector('h2');
       if (!h2) return;
@@ -1668,7 +1747,7 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
       var rec = { el: sec, no: no, summaryEl: sum, toggleEl: btn };
       cards.push(rec);
 
-      // 初始状态：优先用记忆值，否则按 ALWAYS_OPEN 决定（现在是全部收起）
+      // 初始状态：优先用记忆值，否则展开核心填写
       var remembered = state['c' + no];
       var open = (remembered === undefined) ? (ALWAYS_OPEN.indexOf(no) !== -1) : !!remembered;
       setCollapsed(sec, btn, !open);
@@ -1759,37 +1838,6 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
     });
   }
 
-  function setupMobileBar() {
-    var bar = $('mobileBar');
-    var out = $('mobileBarValue');
-    var chip = $('answerChip');
-    var src = $('answerChipValue') || $('recoBig');
-    if (!bar || !out || !src) return;
-
-    function sync() {
-      if (chip && chip.hidden) { bar.hidden = true; return; }
-      var t = (src.textContent || '').replace(/\s+/g, ' ').trim();
-      // 保留数字、区间连接符（- – ~ ～）、小数点与 W
-      var clean = t.replace(/[^\d\-–~～.W\s]/g, '').trim();
-      if (!/\d/.test(clean)) { bar.hidden = true; return; }
-      var html = escHtml(clean) + (/W/.test(clean) ? '' : '<span> W</span>');
-      if (out.innerHTML !== html) out.innerHTML = html;
-      if (bar.hidden) bar.hidden = false;
-    }
-
-    if ('MutationObserver' in window) {
-      new MutationObserver(sync).observe(src, {
-        childList: true, characterData: true, subtree: true
-      });
-      if (chip) {
-        new MutationObserver(sync).observe(chip, {
-          attributes: true, attributeFilter: ['hidden'], childList: true, subtree: true
-        });
-      }
-    }
-    sync();
-  }
-
   /* -------------------------------------------------------- 数据声明 ----
      打开页面时自动出现的声明弹窗。原来的「数据来源」卡片与显卡卡里的两段
      声明都搬进了这里，所以 id="sources" / id="aibCatalogNote" 都还在原位
@@ -1807,43 +1855,8 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
     var xBtn = $('dmClose');
     var lastFocus = null;
     var closeTimer = null;
-    /* 是不是「启动结束后自动弹出」的那一次。
-       只有这一次的关闭才需要在背后把卡片逐个放出来；用户从顶栏重开再关不该重播。 */
-    var openedAuto = false;
-    var never = $('dmNever');
-    var preferenceKey = 'psu-calc-2026-v1-disclaimer';
-    /* 「不再提示」只在本次会话（这一个标签页）内有效。
-       原来存 localStorage：一次误勾就永久生效，而启动动画是每个标签页只播一次 ——
-       两者对不上，结果是动画照旧在播、说明却再也不出现，用户看到的就是
-       「启动完直接进界面」。存 sessionStorage 后，每个标签页至少完整走一遍
-       「动画 → 说明 → 关掉 → 依次显现」。 */
-    try { if (localStorage.getItem(preferenceKey) !== null) localStorage.removeItem(preferenceKey); } catch (e) {}
-    function version() { return window.HWDB && window.HWDB.meta.version || '1'; }
-    /* hash 里现在还会放配置短码（#c=…），所以按 token 判断，
-       不能再拿 location.hash 跟 '#nodisclaimer' 整体比较。 */
-    function hashHas(token) {
-      return (location.hash || '').replace(/^#/, '').split('&').indexOf(token) !== -1;
-    }
-    function suppressed() {
-      if (new URLSearchParams(location.search).get('nodisclaimer') === '1' || hashHas('nodisclaimer')) return true;
-      try { return sessionStorage.getItem(preferenceKey) === version(); } catch (e) { return false; }
-    }
-
     function isOpen() { return !m.hidden; }
-
-    /* 两个事件把「弹窗开合」广播给启动流程（ui.js 第二个 IIFE）：
-       psu:disclaimer-open / psu:disclaimer-closed，detail.auto 标明是不是自动弹出的那次。 */
-    function announce(type) {
-      document.dispatchEvent(new CustomEvent(type, { detail: { auto: openedAuto } }));
-    }
-
-    /* 「不再提示」是会话内的偏好，勾选框必须反映它的真实状态。
-       不回填的话这个开关就是单向的：一旦记住，用户再打开弹窗看到的仍是
-       「不勾选」的样子，点确定也只会……什么都不会发生，于是再也关不掉。 */
-    function syncNever() {
-      if (!never) return;
-      try { never.checked = sessionStorage.getItem(preferenceKey) === version(); } catch (e) {}
-    }
+    function announce(type) { document.dispatchEvent(new Event(type)); }
 
     /* 弹窗打开时把背景整片标 inert。
        已有的手写 Tab 陷阱只拦得住 Tab 键，拦不住读屏的虚拟光标 ——
@@ -1863,15 +1876,13 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
       inertNodes = [];
     }
 
-    function open(fromAuto) {
+    function open() {
       if (closeTimer) {
         clearTimeout(closeTimer); closeTimer = null; m.classList.remove('is-closing');
         if (window.__PSU_MOTION__) window.__PSU_MOTION__.surface(m.querySelector('.modal-card'), true);
         return;
       }
       if (isOpen()) return;
-      openedAuto = !!fromAuto;
-      syncNever();
       lastFocus = document.activeElement;
       m.hidden = false;
       document.body.classList.add('modal-open');
@@ -1884,12 +1895,6 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
 
     function close() {
       if (!isOpen() || closeTimer) return;
-      if (never) {
-        try {
-          if (never.checked) sessionStorage.setItem(preferenceKey, version());
-          else sessionStorage.removeItem(preferenceKey);   // 取消勾选要能真的取消
-        } catch (e) {}
-      }
       function finishClose() {
         if (m.hidden) return;
         clearTimeout(closeTimer);
@@ -1939,10 +1944,7 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
       else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     });
 
-    function autoOpen() { if (!suppressed()) open(true); }
-    if (document.documentElement.classList.contains('psu-boot-active')) {
-      document.addEventListener('psu:boot-end', autoOpen, { once: true });
-    } else autoOpen();
+    // 使用须知由页内入口主动打开，首次填写不再被弹窗阻塞。
 
     // 供自动化测试 / 其他脚本调用
     window.__PSU_DISCLAIMER__ = { open: open, close: close, isOpen: isOpen };
@@ -1955,8 +1957,7 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
       setupCards();
       setupActiveHighlight();
       collapseNotes();
-      setupMobileBar();
-      setupDisclaimer();
+        setupDisclaimer();
 
       // 控件值变化 → 刷新摘要
       // 用捕获阶段监听，不影响 app.js 自己的监听器
@@ -1986,10 +1987,7 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
   }
 })();
 
-/* 一次性启动，分两段：
-   ① 原生 Canvas V2 动画 → 遮罩退场、框架淡入 → 声明弹窗接管；
-   ② 用户关掉声明之后，左右两栏的卡片按 DOM 顺序依次弹出。
-   跳过、失败、打印与减少动态效果都必须能立刻恢复到常态页面。 */
+/* 首访开场可随时跳过，结束后立即恢复表单；须知由用户主动打开。 */
 (function () {
   'use strict';
   var root = document.documentElement;
@@ -2001,17 +1999,12 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', settleInitialLayout, { once: true });
   else settleInitialLayout();
-  /* 启动动画按「标签页」记一次：新开标签页会完整播一遍，同一标签页里
-     刷新（F5）不重播。
-     中途曾改成 localStorage + 24 小时「同一台机器只放一次」，结果是用户
-     打开网页看不到启动动画了 —— 对一个靠开场动画立住调性的站点来说，
-     「打开就有」比「少看几遍」重要得多，所以退回按标签页。
-     同时清掉那个 24 小时的旧标记，免得它继续压着动画不放。 */
+  // 首次访问播放一次，后续可从顶栏重播。
   var key = 'psu-boot-seen-lightning-video-v7';
   var motion = window.matchMedia('(prefers-reduced-motion: reduce)');
   var seen = false;
   try {
-    seen = sessionStorage.getItem(key) === '1';
+    seen = localStorage.getItem(key) === '1';
     localStorage.removeItem('psu-boot-seen-native-v4');
   } catch (e) {}
 
@@ -2019,10 +2012,7 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
   if (window.__PSU_NOANIM || new URLSearchParams(location.search).get('noanim') === '1' ||
       motion.matches || window.matchMedia('print').matches) return;
 
-  /* 声明关掉之后才依次出现的整页块：顶栏 → 页首引导语 → 左栏配置卡 →
-     右栏结果块（推荐电源、三个数字、各卡）→ 反馈入口。
-     取的是 DOM 顺序，也就是从上到下、先左后右。
-     间隔与 @keyframes psu-content-in 的 .36s 对齐，改一处要改两处。 */
+  // 暴露页面区域供浏览器检查验证可见性。
   var ITEM_SELECTOR = [
     'header.top',
     '.page-intro',
@@ -2031,8 +2021,6 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
     '.col-result .sticky-col > *:not(.print-only)',
     'details.section-collapse'
   ].join(', ');
-  var STAGGER_MS = 45;
-  var ITEM_MS = 360;
 
   /* 测试侧从这里读选择器，省得两边各抄一份然后慢慢走散。 */
   window.__PSU_BOOT__ = {
@@ -2040,11 +2028,9 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
     items: function () { return Array.prototype.slice.call(document.querySelectorAll(ITEM_SELECTOR)); },
     replay: replayIntro
   };
-  /* 同一会话里已经看过动画：这次不放黑幕，「关掉声明再逐个弹出」照常。
-     刷新一下就整段失效，是这套东西最容易踩空的地方。 */
   var introRan = !seen;
   if (introRan) root.classList.add('psu-boot-active', 'psu-boot-pending');
-  var done = false, staged = false, timers = [], inertNodes = [], items = [], stopAnimation = null;
+  var done = false, staged = false, timers = [], inertNodes = [], stopAnimation = null;
   var inputEvents = ['pointerdown', 'click', 'keydown', 'touchstart'];
 
   function later(fn, ms) { timers.push(setTimeout(fn, ms)); }
@@ -2066,82 +2052,41 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
   function detachInput() {
     inputEvents.forEach(function (type) { document.removeEventListener(type, onSkip, true); });
   }
-  function clearItems() {
-    items.forEach(function (el) {
-      el.classList.remove('psu-boot-item');
-      el.style.removeProperty('--psu-boot-delay');
-    });
-    items = [];
-  }
-
-  /* 收尾：清掉全部启动期类名，页面回到常态。
-     只有延迟交给声明弹窗的那条路径需要额外派发 psu:boot-end 把弹窗叫起来。 */
+  // 结束或跳过开场时恢复页面与输入。
   function release(dispatchEnd) {
     if (done) return;
     done = true;
     if (stopAnimation) { stopAnimation(); stopAnimation = null; }
     clearTimers();
-    clearItems();
     root.classList.remove('psu-boot-active', 'psu-boot-pending', 'psu-boot-running',
       'psu-boot-hold', 'psu-boot-fill');
     releaseInput();
     detachInput();
-    document.removeEventListener('psu:disclaimer-closed', onDisclaimerClosed);
     motion.removeEventListener('change', onMotion);
     window.removeEventListener('beforeprint', onAbort);
     window.removeEventListener('pagehide', onAbort);
     document.removeEventListener('visibilitychange', onVisibility);
-    try { sessionStorage.setItem(key, '1'); } catch (e) {}
+    try { localStorage.setItem(key, '1'); } catch (e) {}
     if (dispatchEnd) document.dispatchEvent(new Event('psu:boot-end'));
   }
 
-  /* 第一段收束：遮罩退场、框架淡入，把页面交给声明弹窗。
-     卡片在这里就位（先压成不可见 + 排好各自的延时），但先不播放。 */
-  function enterDialogStage(event, replayMode) {
+  function finishIntro(event) {
     if (done || staged) return;
     staged = true;
-    // 跳过手势不穿透到页面按钮或随后出现的声明弹窗。
+    // 跳过手势不穿透到页面按钮。
     if (event && inputEvents.indexOf(event.type) !== -1) {
       if (event.cancelable) event.preventDefault();
       event.stopImmediatePropagation();
     }
     if (stopAnimation) { stopAnimation(); stopAnimation = null; }
-    // 10 秒兜底就此作废：声明看多久由用户决定，不能把动画一并收走。
+    // 正常结束后取消加载超时兜底。
     clearTimers();
     detachInput();
     root.classList.remove('psu-boot-active', 'psu-boot-pending', 'psu-boot-running');
-    // 这里不再单独放「框架淡入」：顶栏与两栏的每一块都进了就位名单，
-    // 关掉声明后由 psu-content-in 逐块带出来，再加一层淡入只会互相打架。
-    releaseInput();
-    root.classList.add('psu-boot-hold');
-    items = Array.prototype.slice.call(document.querySelectorAll(ITEM_SELECTOR));
-    items.forEach(function (el, i) {
-      el.classList.add('psu-boot-item');
-      el.style.setProperty('--psu-boot-delay', (i * STAGGER_MS) + 'ms');
-    });
-    /* 手动重播不派发 psu:boot-end：那是「把声明弹窗叫起来」的信号，
-       重播只要视觉上的两段，别再把声明吵出来。 */
-    if (replayMode) { playFill(); return; }
-    document.dispatchEvent(new Event('psu:boot-end'));
-    var d = window.__PSU_DISCLAIMER__;
-    if (d && d.isOpen()) document.addEventListener('psu:disclaimer-closed', onDisclaimerClosed);
-    else playFill();  // 声明被抑制（?nodisclaimer=1 / 不再提示）时不留白，直接逐个弹出
+    release(true);
   }
 
-  /* 第二段：卡片依次弹出，最后一张落位后收尾。 */
-  function playFill() {
-    if (done) return;
-    document.removeEventListener('psu:disclaimer-closed', onDisclaimerClosed);
-    if (!items.length || motion.matches) { release(false); return; }
-    root.classList.add('psu-boot-fill');
-    later(function () { release(false); }, (items.length - 1) * STAGGER_MS + ITEM_MS + 80);
-  }
-
-  function onDisclaimerClosed(event) {
-    if (!event.detail || !event.detail.auto) return;
-    playFill();
-  }
-  function onSkip(event) { enterDialogStage(event); }
+  function onSkip(event) { finishIntro(event); }
   function onMotion(event) { if (event.matches) release(true); }
   function onAbort() { release(true); }
   function onVisibility() { if (document.hidden) release(true); }
@@ -2160,17 +2105,14 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
     if (done) return;
     if (window.__PSU_NOANIM || motion.matches) { release(true); return; }
     var canvas = document.querySelector('.psu-boot-canvas');
-    // 没有动画可放（本会话已看过 / 取不到 canvas / 脚本缺失）也照样走第二段：
-    // 声明弹窗一出就把卡片就位，用户关掉它时依然逐个弹出。
-    if (!introRan || !canvas || !window.startLightningBoot) { enterDialogStage(null); return; }
+    // 回访或缺少动画脚本时直接显示页面。
+    if (!introRan || !canvas || !window.startLightningBoot) { finishIntro(null); return; }
     holdInput();
     root.classList.add('psu-boot-running');
-    stopAnimation = window.startLightningBoot(canvas, function () { enterDialogStage(null); });
+    stopAnimation = window.startLightningBoot(canvas, function () { finishIntro(null); });
   }
 
-  /* ---- 手动重播：点顶栏 logo。
-     只重放视觉上的两段（Canvas 开场 + 逐块显现），不重开声明弹窗，
-     也不动本会话的「已看过」标记 —— 那是按标签页的自然计次，和本功能无关。 */
+  // 顶栏 logo 与菜单中的重播入口共用相同的播放和清理流程。
   function replayIntro() {
     if (window.__PSU_NOANIM || motion.matches) return;
     if (root.classList.contains('psu-boot-active') || root.classList.contains('psu-boot-hold')) return;
@@ -2189,9 +2131,9 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
     if (canvas && window.startLightningBoot) {
       holdInput();
       root.classList.add('psu-boot-running');
-      stopAnimation = window.startLightningBoot(canvas, function () { enterDialogStage(null, true); });
+      stopAnimation = window.startLightningBoot(canvas, function () { finishIntro(null); });
     } else {
-      enterDialogStage(null, true);
+      finishIntro(null);
     }
   }
 
@@ -2456,12 +2398,14 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
         <span class="ac-value" id="answerChipValue">—</span>
         <span class="ac-issues" id="answerChipIssues"></span>
       </span>
+      <details class="header-more"><summary>更多</summary><div class="header-more-panel">
       <button id="btnDisclaimer" class="ghost" aria-haspopup="dialog"
               aria-controls="disclaimerModal">数据声明</button>
       <button id="btnReset" class="ghost">重置</button>
       <!-- 键盘可达的重播入口：logo 本身只挂鼠标点击，而它内部是 <h1>，
            不能改成 role="button"（按钮角色不允许包含标题，会破坏标题语义）。 -->
       <button id="btnReplayIntro" class="ghost">重播开场</button>
+</div></details>
       <button id="btnTheme" class="ghost" aria-label="切换深浅主题">
         <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"
              stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -2483,16 +2427,16 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
   <section class="decision-toolbar" aria-label="配置工具">
     <div class="decision-mode">
       <div class="seg" id="calcMode" role="group" aria-label="计算模式">
-        <button type="button" data-mode="full" aria-pressed="true">完整配置</button>
-        <button type="button" data-mode="quick" aria-pressed="false">快速估算</button>
+        <button type="button" data-mode="quick" aria-pressed="true">快速估算</button>
+        <button type="button" data-mode="full" aria-pressed="false">完整配置</button>
       </div>
       <p class="note" id="modeNote">填写具体硬件可检查接口、尺寸和安装兼容性。</p>
     </div>
-    <div class="hardware-search">
+    <details class="hardware-search"><summary>搜索全部硬件</summary>
       <label for="hardwareSearch">搜索硬件型号</label>
       <div class="search-controls">
         <select id="searchCategory" aria-label="搜索硬件类别">
-          <option value="cpu">CPU</option><option value="gpu">显卡</option><option value="aib">显卡板型</option>
+          <option value="all">全部硬件</option><option value="cpu">CPU</option><option value="gpu">显卡</option><option value="aib">显卡板型</option>
           <option value="mobo">主板</option><option value="psu">电源</option>
           <option value="ram">内存</option><option value="storage">存储</option><option value="cooler">散热器</option>
           <option value="fan">风扇</option><option value="case">机箱</option>
@@ -2501,7 +2445,9 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
       </div>
       <p class="note" id="searchStatus" role="status"></p>
       <div id="hardwareResults" class="search-results"></div>
-    </div>
+      <button id="searchMore" type="button" class="ghost" hidden>查看更多结果</button>
+      <button id="searchClear" type="button" class="ghost" hidden>清除搜索与筛选</button>
+    </details>
     <details class="plan-manager" id="planManager">
       <summary>我的配置方案<span class="hint" id="planCount">0 / 12</span></summary>
       <div class="plan-panel">
@@ -2540,7 +2486,7 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
         </h2>
         <div class="card-body">
           <div class="guide-actions">
-            <button id="btnQuickStart" class="primary">载入示例配置</button>
+            <button id="btnQuickStart" class="ghost">载入示例配置</button>
           </div>
 
           <details class="guide-help"><summary>使用帮助</summary>
@@ -2583,19 +2529,13 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
         </div>
       </section>
 
-      <!-- 1. 使用场景 -->
-      <section class="card">
-        <h2><span class="idx">1</span>使用场景<span class="hint">按用途选择</span></h2>
-        <div class="card-body">
-          <div class="scenarios" id="scenarios" role="group" aria-label="使用场景"></div>
-          <div class="note" id="scenarioNote" style="margin-top:11px"></div>
-        </div>
-      </section>
-
       <!-- 2. CPU -->
       <section class="card">
         <h2><span class="idx">2</span>处理器 CPU<span class="hint">品牌 → 系列 → 型号</span></h2>
         <div class="card-body">
+          <div class="core-search"><label for="cpuSearch">搜索CPU型号</label><input type="search" id="cpuSearch" maxlength="80" placeholder="如 9600X、14700K" autocomplete="off" aria-controls="cpuSearchResults"><p id="cpuSearchStatus" class="note" role="status"></p><div id="cpuSearchResults" class="search-results"></div><button type="button" id="cpuSearchMore" class="ghost" hidden>查看更多结果</button></div>
+
+          <details class="hardware-filters"><summary>按品牌与世代筛选</summary>
           <div class="field">
             <label>① 品牌</label>
             <div class="seg" id="cpuBrand" role="group" aria-label="CPU 品牌"></div>
@@ -2608,6 +2548,7 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
             <label for="cpuSelect">③ 型号 <span class="unit">（收录 Intel 10 代起 / AMD Zen 起）</span></label>
             <select id="cpuSelect"></select>
           </div>
+          </details>
           <details class="advanced-options"><summary>高级设置 · 超频与功耗</summary><div>
           <div class="grid2">
             <div class="field">
@@ -2632,6 +2573,10 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
       <section class="card">
         <h2><span class="idx">3</span>显卡 GPU<span class="hint">型号与板型</span></h2>
         <div class="card-body">
+          <div class="core-search"><label for="gpuSearch">搜索显卡型号</label><input type="search" id="gpuSearch" maxlength="80" placeholder="如 5090、9070 XT、夜神" autocomplete="off" aria-controls="gpuSearchResults"><p id="gpuSearchStatus" class="note" role="status"></p><div id="gpuSearchResults" class="search-results"></div><button type="button" id="gpuSearchMore" class="ghost" hidden>查看更多结果</button></div>
+<button type="button" id="chooseIgpu" class="ghost">使用集成显卡（核显）</button>
+
+          <details class="hardware-filters"><summary>按品牌与世代筛选</summary>
           <div class="field">
             <label>① 品牌</label>
             <div class="seg" id="gpuBrand" role="group" aria-label="显卡品牌"></div>
@@ -2648,6 +2593,7 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
             <label for="gpuAib">④ AIC 厂商 / 板型 <span class="unit">（影响功耗墙与供电接口）</span></label>
             <select id="gpuAib"></select>
           </div>
+          </details>
           <details class="advanced-options"><summary>高级设置 · 超频与自定义显卡</summary><div>
           <div class="grid2">
             <div class="field" style="margin-bottom:0">
@@ -2672,6 +2618,16 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
         </div>
       </section>
 
+      <!-- 1. 使用场景 -->
+      <section class="card">
+        <h2><span class="idx">1</span>使用场景<span class="hint">按用途选择</span></h2>
+        <div class="card-body">
+          <div class="scenarios" id="scenarios" role="group" aria-label="使用场景"></div>
+          <div class="note" id="scenarioNote" style="margin-top:11px"></div>
+        </div>
+      </section>
+
+      <section class="quick-budget" id="quickBudget" aria-label="辅助硬件预算"><p id="quickBudgetNote">选择 CPU 和显卡后显示辅助硬件预算。</p><button type="button" id="completeConfig">展开并完善配置</button></section>
       <!-- 4. 主板 -->
       <section class="card">
         <h2><span class="idx">4</span>主板<span class="hint">自动校验插槽</span></h2>
@@ -2799,7 +2755,7 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
 
     <!-- ================================================== 右：结果列 === -->
     <div class="col-result">
-      <div class="sticky-col">
+      <div class="sticky-col" id="resultPanel" tabindex="-1">
 
         <div class="print-only" style="margin-bottom:14px">
           <h1 style="font-size:16pt;margin:0 0 4px">整机功耗与电源选型报告</h1>
@@ -2808,9 +2764,12 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
 
         <!-- 推荐电源：全页最重要的结论，置于结果列最顶部 -->
         <div class="reco">
-          <div class="reco-label">推荐电源</div>
+          <div class="reco-label" id="recoLabel">选择硬件后查看建议</div>
           <div class="big" id="recoBig">— W</div>
           <div class="sub" id="recoSub"></div>
+          <button type="button" id="resolveConflict" class="ghost" hidden>前往修改冲突项</button>
+          <button type="button" id="resultNext" class="primary">选择 CPU</button>
+          <div id="existingSummary" class="existing-summary" hidden></div>
           <p class="usage-notice">估算结果，仅供选型参考 · <button type="button" class="usage-open">使用须知</button></p>
         </div>
 
@@ -2983,10 +2942,11 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
 
 </div>
 
-<!-- 移动端常驻结果条：抬头就能看到"该买多大"，由 js/ui.js 同步数值 -->
+<!-- 移动端常驻结果条：抬头就能看到"该买多大"，由 app.js 与结果一起渲染 -->
 <div class="mobile-bar" id="mobileBar" hidden>
-  <div class="mb-label">推荐电源<br>瓦数</div>
+  <div class="mb-label" id="mobileBarLabel">还需选择 CPU</div>
   <div class="mb-value" id="mobileBarValue">—<span> W</span></div>
+  <button type="button" id="mobileBarAction">继续填写</button>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -3034,10 +2994,6 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
     </div>
 
     <div class="modal-foot">
-      <label class="chk" for="dmNever">
-        <input type="checkbox" id="dmNever">
-        <span>不再提示</span>
-      </label>
       <button type="button" class="primary" id="dmOk">知道了</button>
     </div>
   </div>
@@ -5978,7 +5934,7 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
 
   root.HWDB = {
     meta: {
-      toolVersion: '3.0.2',
+      toolVersion: '3.1.0',
       version: '2026.10.1',
       updated: '2026-10-04',
       psuCheckedAt: root.HWDB_PSU_AUDIT.checkedAt,
@@ -7246,7 +7202,7 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
   function defaultState() {
     return {
       scenario: 'gaming',
-      mode: 'full',
+      mode: 'quick',
       cpuBrand: 'Intel', cpuGen: '', cpuId: '', cpuOc: false, cpuCustomW: '',
       gpuBrand: 'NVIDIA', gpuGen: '', gpuId: '', gpuAibId: '', gpuOc: false,
       gpuCustomName: '', gpuCustomW: '',
@@ -8306,7 +8262,7 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
     $('heroTransient').innerHTML = r.hasSelection
       ? r.transient + '<small> W</small>' : EMPTY + '<small> W</small>';
     // 面向非专业用户：先说"这个数是干什么用的"，再给计算依据
-    $('heroPowerNote').textContent = '所有硬件同时吃满电的总和 —— 电源至少要扛得住这个数';
+    $('heroPowerNote').textContent = '所有硬件同时满载时，电源至少要扛得住的功耗合计为 ' + r.subtotal + 'W；最低参考按 ×1.30、推荐目标按 ×' + r.redundancy.toFixed(2) + '，再向上选标准瓦数档位，并结合接口与选型规则调整。';
     $('heroExpectedNote').textContent = '部件侧功耗区间（' + r.scenarioInfo.label + '）：CPU、显卡与其他部件分别折算；工程假设，不是实测。插座侧还包含电源转换损耗。';
     $('heroTransientNote').textContent = r.gpuWatts > 0
       ? '显卡在极短一瞬间能拉到的最高值；杂牌电源扛不住这种冲击，会死机重启'
@@ -8361,9 +8317,7 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
         chip.hidden = true;
       } else {
         chip.hidden = false;
-        $('answerChipValue').textContent = (r.recFloor === r.recIdeal)
-          ? r.recIdeal + ' W'
-          : r.recFloor + '–' + r.recIdeal + ' W';
+        $('answerChipValue').textContent = r.recIdeal + ' W';
         var nErr = r.issues.filter(function (i) { return i.level === 'error'; }).length;
         var nWarn = r.issues.filter(function (i) { return i.level === 'warn'; }).length;
         var ib = $('answerChipIssues');
@@ -8590,7 +8544,7 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
   /* ===================================================== 方案与对比 === */
   var plans = [], deletedPlan = null, planSerial = 0;
   var PLAN_KEY = 'psu-calc-plans-v1';
-  var searchMatches = [], simulatedState = null;
+  var simulatedState = null;
 
   function cleanSnapshot(raw) {
     var out = defaultState(); applyClean(out, raw); return out;
@@ -8640,28 +8594,80 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
     return String(text || '').toLowerCase().replace(/[\s\-_./（）()]+/g, '');
   }
 
-  function searchHardware() {
-    var terms = $('hardwareSearch').value.trim().split(/\s+/).map(normalizeSearch).filter(Boolean), cat = $('searchCategory').value;
-    var lists = { cpu: DB.cpus, gpu: DB.gpus, aib: DB.aibs, mobo: DB.motherboards, psu: DB.psus,
-      ram: DB.ram, storage: DB.storage, cooler: DB.coolers, fan: DB.fans, case: DB.cases };
-    searchMatches = [];
-    if (!terms.length) { $('hardwareResults').innerHTML = ''; $('searchStatus').textContent = ''; return; }
-    var matches = lists[cat].filter(function (it) {
-      var g = cat === 'aib' ? DB.gpus.filter(function (x) { return x.id === it.gpuId; })[0] : null;
-      var hay = normalizeSearch([it.id, it.name, it.brand, it.model, it.alias, it.vendor, it.series, it.cn, it.cnLabel, it.sku,
-        g ? g.name : ''].join(' '));
-      return terms.every(function (q) { return hay.indexOf(q) !== -1; });
-    }).sort(function (a, b) {
-      function rank(x) { return x.confidence === 'official' || x.confidence === 'review' ? 0 : 1; }
-      return rank(a) - rank(b);
+  var searchCategories = { cpu: 'CPU', gpu: '显卡', aib: '显卡板型', mobo: '主板', psu: '电源', ram: '内存', storage: '存储', cooler: '散热器', fan: '风扇', case: '机箱' };
+  function findHardware(query, category) {
+    var terms = query.trim().split(/\s+/).map(normalizeSearch).filter(Boolean);
+    if (!terms.length) return [];
+    var lists = { cpu: DB.cpus, gpu: DB.gpus, aib: DB.aibs, mobo: DB.motherboards, psu: DB.psus, ram: DB.ram, storage: DB.storage, cooler: DB.coolers, fan: DB.fans, case: DB.cases };
+    var categories = category === 'all' ? Object.keys(lists) : category === 'graphics' ? ['gpu', 'aib'] : [category];
+    var gpuById = {}; DB.gpus.forEach(function (g) { gpuById[g.id] = g; });
+    var results = [];
+    categories.forEach(function (cat) {
+      (lists[cat] || []).forEach(function (it) {
+        var g = cat === 'aib' ? gpuById[it.gpuId] : null;
+        var name = g ? g.name + ' · ' + it.vendor + ' ' + it.series + cnLabel(it) : (it.name || it.brand + ' ' + it.model);
+        var hay = normalizeSearch([it.id, name, it.brand, it.model, it.alias, it.vendor, it.series, it.cn, it.cnLabel, it.sku].join(' '));
+        if (terms.every(function (q) { return hay.indexOf(q) !== -1; })) {
+          var exact = normalizeSearch(it.name || it.model || '').endsWith(normalizeSearch(query)) || normalizeSearch(query) === normalizeSearch(it.id);
+          results.push({ item: it, category: cat, name: name, rank: (exact ? 0 : 4) + (it.confidence === 'official' || it.confidence === 'review' ? 0 : 1) });
+        }
+      });
     });
-    searchMatches = matches.slice(0, 15);
-    $('searchStatus').textContent = matches.length ? '找到 ' + matches.length + ' 项，显示前 ' + searchMatches.length + ' 项；点击选入当前配置。' : '没有匹配型号，试试型号数字、英文系列名或厂商名。';
-    $('hardwareResults').innerHTML = searchMatches.map(function (it, i) {
-      var g = cat === 'aib' ? DB.gpus.filter(function (x) { return x.id === it.gpuId; })[0] : null;
-      var name = g ? g.name + ' · ' + it.vendor + ' ' + it.series + cnLabel(it) : (it.name || it.brand + ' ' + it.model);
-      return '<button type="button" data-search-index="' + i + '">' + esc(name) + ' ' + confBadge(it.confidence) + '</button>';
-    }).join('');
+    return results.sort(function (a, b) { return a.rank - b.rank; });
+  }
+
+  function selectHardware(match) {
+    var it = match.item, cat = match.category, next = cleanSnapshot(S);
+    if (cat === 'cpu') { selectCpu(next, it.id); next.cpuGen = ''; }
+    if (cat === 'gpu' || cat === 'aib') { next.gpuId = cat === 'aib' ? it.gpuId : it.id; next.gpuAibId = cat === 'aib' ? it.id : ''; next.gpuGen = ''; next.gpuCustomName = ''; next.gpuCustomW = ''; next.gpuOc = false; }
+    if (cat === 'mobo') next.moboId = it.id;
+    if (cat === 'psu') next.psuId = it.id;
+    if (cat === 'ram') next.ramId = it.id;
+    if (cat === 'cooler') next.coolerId = it.id;
+    if (cat === 'fan') next.fanId = it.id;
+    if (cat === 'case') next.caseId = it.id;
+    if (cat === 'storage') {
+      var row = next.storage.filter(function (d) { return d.id === it.id; })[0];
+      if (row && row.qty >= 8) { toast('该硬盘已有 8 块，请调整存储配置', true); return false; }
+      if (row) row.qty++;
+      else if (next.storage.length < MAX_ROWS) next.storage.push({ id: it.id, qty: 1 });
+      else { toast('存储已达 ' + MAX_ROWS + ' 行上限', true); return false; }
+    }
+    installState(next); toast('已选入当前配置：' + match.name); return true;
+  }
+
+  function bindHardwareSearch(inputId, resultsId, statusId, moreId, category) {
+    var input = $(inputId), results = $(resultsId), status = $(statusId), more = $(moreId), limit = 15, matches = [];
+    function update(reset) {
+      if (reset !== false) limit = 15;
+      matches = findHardware(input.value, category());
+      var visible = matches.slice(0, limit);
+      status.textContent = !input.value.trim() ? '' : matches.length ? '找到 ' + matches.length + ' 项，显示前 ' + visible.length + ' 项。方向键选择，回车选入。' : '没有匹配型号。可清除筛选、缩短关键词，或展开高级设置录入自定义功耗。';
+      results.innerHTML = visible.map(function (m, i) { return '<button type="button" data-search-index="' + i + '"><span class="search-category">' + esc(searchCategories[m.category]) + '</span> ' + esc(m.name) + ' ' + confBadge(m.item.confidence) + '</button>'; }).join('');
+      more.hidden = matches.length <= limit;
+      if (inputId === 'hardwareSearch') $('searchClear').hidden = !input.value && $('searchCategory').value === 'all';
+    }
+    input.addEventListener('input', function (e) { if (!e.isComposing) update(); });
+    input.addEventListener('compositionend', function () { update(); });
+    function choose(button) {
+      var match = matches[+button.dataset.searchIndex];
+      if (match && selectHardware(match)) { input.value = ''; update(); status.textContent = '已选择 ' + match.name; input.focus(); }
+    }
+    results.addEventListener('click', function (e) { var b = e.target.closest('[data-search-index]'); if (b) choose(b); });
+    function keydown(e) {
+      if (e.isComposing) return;
+      var buttons = Array.prototype.slice.call(results.querySelectorAll('button')), index = buttons.indexOf(document.activeElement);
+      if (e.key === 'Escape') { results.innerHTML = ''; more.hidden = true; input.focus(); }
+      if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && buttons.length) {
+        e.preventDefault(); buttons[e.key === 'ArrowDown' ? (index + 1) % buttons.length : (index <= 0 ? buttons.length - 1 : index - 1)].focus();
+      }
+      if (e.key === 'Enter' && buttons.length) {
+        e.preventDefault(); choose(index >= 0 ? buttons[index] : buttons[0]);
+      }
+    }
+    input.addEventListener('keydown', keydown); results.addEventListener('keydown', keydown);
+    more.addEventListener('click', function () { var previous = limit; limit += 15; update(false); var first = results.querySelectorAll('button')[previous]; if (first) first.focus(); });
+    return update;
   }
 
   function refreshUpgradeAibs() {
@@ -8724,9 +8730,48 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
     $('compareOutput').innerHTML = html;
   }
 
+  function focusConfig(id) {
+    var control = $(id); if (!control) return;
+    for (var parent = control.parentElement; parent; parent = parent.parentElement) {
+      if (parent.tagName === 'DETAILS') parent.open = true;
+    }
+    var card = control.closest('.card'), toggle = card && card.querySelector('.card-toggle');
+    if (card && card.classList.contains('is-collapsed') && toggle) toggle.click();
+    control.focus({ preventScroll: true }); (card || control).scrollIntoView({ behavior: 'auto', block: 'start' });
+  }
+  function nextStep() {
+    if (!S.cpuId) { focusConfig('cpuSearch'); return; }
+    if (!S.gpuId && !S.gpuCustomName) { focusConfig('gpuSearch'); return; }
+    $('resultPanel').focus({ preventScroll: true }); $('resultPanel').scrollIntoView({ behavior: 'auto', block: 'start' });
+  }
+
   function renderDecision() {
     if (!$('calcMode') || !lastResult) return;
     var r = lastResult, quick = S.mode === 'quick';
+    var errors = r.issues.filter(function (i) { return i.level === 'error'; }).length;
+    var warnings = r.issues.filter(function (i) { return i.level === 'warn'; }).length;
+    var missingCpu = !S.cpuId, missingGpu = !S.gpuId && !S.gpuCustomName;
+    var nextLabel = missingCpu ? '选择 CPU' : missingGpu ? '选择显卡或核显' : '查看检查结果';
+    $('resolveConflict').hidden = !errors;
+    $('resultNext').textContent = nextLabel; $('resultNext').hidden = !missingCpu && !missingGpu;
+    $('recoLabel').textContent = errors ? '先解决配置冲突' : r.canRecommend && !r.beyond ? '建议选择' : '选择硬件后查看建议';
+    $('recoBig').closest('.reco').classList.toggle('has-conflict', !!errors);
+    if (r.canRecommend && !r.beyond) {
+      $('recoBig').innerHTML = r.recIdeal + '<span> W</span>';
+      $('recoSub').innerHTML = (errors ? '存在 ' + errors + ' 项冲突，以下瓦数仅供功耗推演。<br>' : '') + (quick ? '快速估算' : r.missingPowerParts.length ? '部分配置' : '按已填配置计算') + ' · 最低参考 <b>' + r.recFloor + 'W</b>。';
+    } else if (!r.beyond) $('recoSub').textContent = missingCpu ? '尚未选择 CPU：选择 CPU 和显卡后，即可查看电源建议。' : missingGpu ? '已选择 CPU，还差显卡或核显选项。' : '补齐核心配置后查看建议。';
+    $('quickBudget').hidden = !quick;
+    $('quickBudgetNote').textContent = r.assumptions.length ? '辅助硬件预算：' + r.assumptions.join('、') + '。已填写的具体部件继续参与计算。' : r.hasSelection ? '辅助硬件按已填配置计算；可继续完善型号和安装规格。' : '选择 CPU 和显卡后显示辅助硬件预算。';
+    $('mobileBar').hidden = false;
+    $('mobileBarLabel').textContent = missingCpu ? '还需选择 CPU' : missingGpu ? '还需选择显卡或核显' : errors ? errors + ' 项冲突待处理' : warnings ? warnings + ' 项提醒待核对' : '推荐电源';
+    $('mobileBarValue').textContent = r.canRecommend && !r.beyond ? r.recIdeal + ' W' : '—';
+    $('mobileBarAction').textContent = missingCpu || missingGpu ? '继续填写' : '查看结果';
+    var existing = r.existingPsu;
+    $('existingSummary').hidden = !existing;
+    if (existing) {
+      $('existingSummary').textContent = '已有电源：' + existing.psu.brand + ' ' + existing.psu.model + '。' + existing.verdict + (errors ? '；配置仍有冲突，请先处理。' : '');
+      $('existingSummary').dataset.level = existing.level;
+    }
     document.documentElement.dataset.calcMode = S.mode;
     $('calcMode').querySelectorAll('button').forEach(function (b) { var on = b.dataset.mode === S.mode; b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
     $('modeNote').textContent = quick ? '只需选 CPU、显卡和用途。缺少的辅助部件使用明示默认值；此前填写的具体部件仍参与计算。' : '填写具体硬件可检查接口、尺寸和安装兼容性。';
@@ -8753,32 +8798,27 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
     document.querySelectorAll('.col-config > .card').forEach(function (card) { var idx = card.querySelector('.idx'); if (idx && +idx.textContent >= 4 && +idx.textContent <= 9) card.dataset.detailPart = 'true'; });
     $('calcMode').addEventListener('click', function (e) {
       var b = e.target.closest('button[data-mode]'); if (!b) return; S.mode = b.dataset.mode; render();
-      if (S.mode === 'quick') ['cpuSelect', 'gpuModel'].forEach(function (id) { var card = $(id).closest('.card'); var toggle = card.querySelector('.card-toggle'); if (card.classList.contains('is-collapsed') && toggle) toggle.click(); });
+      (S.mode === 'quick' ? ['cpuSelect', 'gpuModel'] : ['cpuSelect', 'gpuModel', 'moboSelect', 'ramSelect', 'coolerSelect', 'caseSelect', 'psuSelect']).forEach(function (id) { var card = $(id).closest('.card'); var toggle = card.querySelector('.card-toggle'); if (card.classList.contains('is-collapsed') && toggle) toggle.click(); });
     });
-    $('hardwareSearch').addEventListener('input', function (e) { if (!e.isComposing) searchHardware(); });
-    $('hardwareSearch').addEventListener('compositionend', searchHardware);
-    $('searchCategory').addEventListener('change', searchHardware);
-    $('hardwareResults').addEventListener('click', function (e) {
-      var b = e.target.closest('[data-search-index]'); if (!b) return;
-      var it = searchMatches[+b.dataset.searchIndex], next = cleanSnapshot(S), cat = $('searchCategory').value;
-      if (!it) return;
-      if (cat === 'cpu') { selectCpu(next, it.id); next.cpuGen = ''; }
-      if (cat === 'gpu' || cat === 'aib') { next.gpuId = cat === 'aib' ? it.gpuId : it.id; next.gpuAibId = cat === 'aib' ? it.id : ''; next.gpuGen = ''; next.gpuCustomName = ''; next.gpuCustomW = ''; }
-      if (cat === 'mobo') next.moboId = it.id;
-      if (cat === 'psu') next.psuId = it.id;
-      if (cat === 'ram') next.ramId = it.id;
-      if (cat === 'cooler') next.coolerId = it.id;
-      if (cat === 'fan') next.fanId = it.id;
-      if (cat === 'case') next.caseId = it.id;
-      if (cat === 'storage') {
-        var row = next.storage.filter(function (d) { return d.id === it.id; })[0];
-        if (row && row.qty >= 8) { toast('该硬盘已有 8 块，请调整存储配置', true); return; }
-        if (row) row.qty++;
-        else if (next.storage.length < MAX_ROWS) next.storage.push({ id: it.id, qty: 1 });
-        else { toast('存储已达 ' + MAX_ROWS + ' 行上限', true); return; }
-      }
-      installState(next); $('hardwareSearch').value = ''; searchHardware(); toast('已选入当前配置');
+    var searchHardware = bindHardwareSearch('hardwareSearch', 'hardwareResults', 'searchStatus', 'searchMore', function () { return $('searchCategory').value; });
+    bindHardwareSearch('cpuSearch', 'cpuSearchResults', 'cpuSearchStatus', 'cpuSearchMore', function () { return 'cpu'; });
+    bindHardwareSearch('gpuSearch', 'gpuSearchResults', 'gpuSearchStatus', 'gpuSearchMore', function () { return 'graphics'; });
+    $('searchCategory').addEventListener('change', function () {
+      var hints = { all: '如 9600X、5090 夜神、海韵', cpu: '如 9600X、14700K', gpu: '如 RTX 5090、RX 9070 XT', aib: '如 5090 夜神、SUPRIM', psu: '如 海韵、FOCUS、850' };
+      $('hardwareSearch').placeholder = hints[this.value] || '输入' + searchCategories[this.value] + '型号或品牌'; searchHardware();
     });
+    $('searchClear').addEventListener('click', function () { $('hardwareSearch').value = ''; $('searchCategory').value = 'all'; $('searchCategory').dispatchEvent(new Event('change')); $('hardwareSearch').focus(); });
+    $('chooseIgpu').addEventListener('click', function () { var next = cleanSnapshot(S); next.gpuId = '__igpu__'; next.gpuAibId = ''; next.gpuCustomName = ''; next.gpuCustomW = ''; next.gpuOc = false; installState(next); toast('已选择集成显卡，请核对 CPU 是否带核显'); });
+    $('completeConfig').addEventListener('click', function () { document.querySelector('#calcMode [data-mode="full"]').click(); focusConfig('moboSelect'); });
+    $('resultNext').addEventListener('click', nextStep);
+    $('resolveConflict').addEventListener('click', function () {
+      document.querySelector('#calcMode [data-mode="full"]').click();
+      var issue = lastResult.issues.filter(function (i) { return i.level === 'error'; })[0];
+      var code = issue ? issue.code : '';
+      var id = /^PSU_|EPS_/.test(code) ? 'psuSelect' : /RAM|MEM/.test(code) ? 'ramSelect' : /GPU|VGA/.test(code) ? 'gpuModel' : /COOL/.test(code) ? 'coolerSelect' : /CASE/.test(code) ? 'caseSelect' : 'moboSelect';
+      focusConfig(id);
+    });
+    $('mobileBarAction').addEventListener('click', nextStep);
     $('psuEfficiency').addEventListener('input', renderDecision);
     $('allPsuCandidates').addEventListener('click', function (e) { var b = e.target.closest('[data-pick-psu]'); if (b) { S.psuId = b.dataset.pickPsu; refreshPsu(); syncInputsFromState(); render(); } });
     $('upgradeCpu').innerHTML += optionsHtml(DB.cpus, '', function (c) { return c.name + ' · ' + c.socket; }, function (c) { return c.brand; });
@@ -9063,6 +9103,7 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
     var parts = [];
     Object.keys(S).forEach(function (k) {
       var v = S[k];
+      if (k === 'mode') { parts.push('mode=' + encodeURIComponent(v)); return; }
       if (CFG_COMPLEX.indexOf(k) !== -1) return;
       if (cfgEmpty(v) || v === def[k]) return;   // 与默认值相同的不写进链接
       parts.push(k + '=' + encodeURIComponent(v));
@@ -9116,6 +9157,8 @@ html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: no
         out[k] = raw;
       }
     });
+    // 旧链接省略的模式代表当时的完整配置，不能用新的快速预算重算。
+    if (str && !hasOwn(out, 'mode')) out.mode = 'full';
     return out;
   }
 
