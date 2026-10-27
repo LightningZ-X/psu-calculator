@@ -355,7 +355,7 @@
       "gpuWatts": 0,
       "cpuWatts": 88,
       "upgradeHeadroom": 326.1,
-      "upgradeMaxGpu": "Arc B580（190W）",
+      "upgradeMaxGpu": "Radeon RX 7600 XT（190W）",
       "itemCount": 7,
       "items": [
         "CPU=88",

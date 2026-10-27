@@ -1,6 +1,6 @@
 /* ============================================================================
  *  硬件功耗数据库  HWDB  ——  主装配文件
- *  数据版本: 2026.10.1   电源专项核对: 2026-10-04（其他硬件见审计说明）
+ *  数据版本: 2026.10.2   本轮扩充: 2026-10-27；电源专项核对: 2026-10-04
  *  （下面 meta 里那两项才是界面与导出真正读的值，改数据时两处一起改。
  *    这里以前写的是 2026.09.7 / 2026-09-14，已经跟 meta 对不上了。）
  * ----------------------------------------------------------------------------
@@ -33,6 +33,33 @@
 
   /* ------------------------------------------------------------------ 来源 */
   var SOURCES = {
+    amd7900xt: { label: 'AMD RX 7900 XT 官方规格：315W / 双 8pin', url: 'https://www.amd.com/en/support/downloads/drivers.html/graphics/radeon-rx/radeon-rx-7000-series/amd-radeon-rx-7900-xt.html' },
+    amd7900gre: { label: 'AMD RX 7900 GRE 官方规格：260W / 双 8pin', url: 'https://www.amd.com/en/products/graphics/desktops/radeon/7000-series/amd-radeon-rx-7900-gre.html' },
+    amd7700xt: { label: 'AMD RX 7700 XT 官方规格：245W / 双 8pin', url: 'https://www.amd.com/en/products/graphics/desktops/radeon/7000-series/amd-radeon-rx-7700-xt.html' },
+    amd7600xt: { label: 'AMD RX 7600 XT 官方规格：190W / 双 8pin', url: 'https://www.amd.com/en/products/graphics/desktops/radeon/7000-series/amd-radeon-rx-7600-xt.html' },
+    kingstonKC3000: { label: 'Kingston KC3000 官方数据表（分容量最大读写功耗）', url: 'https://www.kingston.com/datasheets/KC3000_en.pdf' },
+    kingstonRenegade: { label: 'Kingston FURY Renegade PCIe 4.0 官方数据表（最大读写功耗）', url: 'https://www.kingston.com/datasheets/sfyr_en.pdf' },
+    kingstonNV3: { label: 'Kingston NV3 官方数据表（型号与容量；未公布瓦数，功耗为估算）', url: 'https://www.kingston.com/datasheets/snv3s_en.pdf' },
+    kingstonA400: { label: 'Kingston A400 官方数据表（最大写入 1.535W）', url: 'https://www.kingston.com/datasheets/SA400S37_us.pdf' },
+    noctuaU12A: { label: 'Noctua NH-U12A 官方数据表（每只风扇最大 1.68W）', url: 'https://www.noctua.at/pub/media/blfa_files/infosheet/noctua_nh_u12a_datasheet_en_v3_web.pdf' },
+    noctuaU12Sredux: { label: 'Noctua NH-U12S redux 官方规格', url: 'https://www.noctua.at/en/products/nh-u12s-redux/specifications' },
+    noctuaD12L: { label: 'Noctua NH-D12L 官方规格', url: 'https://www.noctua.at/en/products/nh-d12l/specifications' },
+    noctuaD15: { label: 'Noctua NH-D15 官方数据表（每只风扇最大 1.56W）', url: 'https://noctua.at/pub/media/blfa_files/infosheet/noctua_nh_d15_datasheet_en_web_3.pdf' },
+    noctuaD15G2: { label: 'Noctua NH-D15 G2 官方数据表（每只风扇最大 2.28W）', url: 'https://noctua.at/pub/media/blfa_files/infosheet/NH-D15_G2_.pdf' },
+    noctuaU9S: { label: 'Noctua NH-U9S 官方数据表（单风扇最大 1.2W）', url: 'https://noctua.at/pub/media/blfa_files/infosheet/noctua_nh_u9s_datasheet_en_web_3.pdf' },
+    deepcoolAK400: { label: 'DeepCool AK400 官方规格（单风扇 1.56W）', url: 'https://deepcool.com/products/Cooling/cpuaircoolers/AK400-Performance-CPU-Cooler-1851-1700-AM5/2024/15222.shtml' },
+    deepcoolAK500: { label: 'DeepCool AK500 官方规格（单风扇 1.44W）', url: 'https://www.deepcool.com/products/Cooling/cpuaircoolers/AK500-High-Performance-CPU-Cooler-1851-1700-AM5/2022/16040.shtml' },
+    deepcoolAK620: { label: 'DeepCool AK620 官方规格（每只风扇 1.44W）', url: 'https://www.deepcool.com/products/Cooling/cpuaircoolers/AK620-High-Performance-CPU-Cooler-1851-1700-AM5/2024/13067.shtml' },
+    arcticP12: { label: 'ARCTIC P12 PWM PST 官方规格（12V / 0.1A）', url: 'https://www.arctic.de/en/P12-PWM-PST/P12-PWM-PST' },
+    arcticP14: { label: 'ARCTIC P14 PWM PST 官方数据表（12V / 0.12A）', url: 'https://www.arctic.de/media/1d/98/04/1693306037/Spec_Sheet_P14_PWM_PST_EN.pdf' },
+    arcticP12Max: { label: 'ARCTIC P12 Max 官方数据表（12V / 0.29A，FDB 版）', url: 'https://www.arctic.de/media/3d/1d/c2/1705490814/Spec_Sheet_P12_Max_EN.pdf' },
+    arcticP12Slim: { label: 'ARCTIC P12 Slim PWM PST 官方数据表（12V / 0.12A）', url: 'https://www.arctic.de/media/57/d0/e2/1647521732/Spec_Sheet_P12_Slim_PWM_PST_EN_6years.pdf' },
+    noctuaA14: { label: 'Noctua NF-A14 PWM 官方规格（最大输入 1.56W）', url: 'https://www.noctua.at/en/products/nf-a14-pwm/specifications' },
+    noctuaF12: { label: 'Noctua NF-F12 PWM 官方规格（最大输入 0.6W）', url: 'https://www.noctua.at/en/products/nf-f12-pwm/specifications' },
+    noctuaP12redux: { label: 'Noctua NF-P12 redux-1700 PWM 官方规格（最大输入 1.08W）', url: 'https://www.noctua.at/en/products/nf-p12-redux-1700-pwm/specifications' },
+    noctuaA14G2: { label: 'Noctua NF-A14x25 G2 PWM 官方规格（最大输入 2.28W）', url: 'https://www.noctua.at/en/products/nf-a14x25-g2-pwm/specifications' },
+    noctuaA12Slim: { label: 'Noctua NF-A12x15 PWM 官方规格（最大输入 1.56W）', url: 'https://www.noctua.at/en/products/nf-a12x15-pwm/specifications' },
+    noctuaA12Round: { label: 'Noctua NF-A12x25r PWM 官方规格（最大输入 1.68W）', url: 'https://www.noctua.at/en/products/nf-a12x25r-pwm/specifications' },
     amd9060spec: { label: 'AMD RX 9060 XT 发布规格：8GB 150W / 16GB 160W', url: 'https://www.amd.com/zh-tw/newsroom/press-releases/2025-5-20-amd-introduces-new-radeon-graphics-cards-and-ryzen.html' },
     nvidia4060spec: { label: 'NVIDIA RTX 4060 Ti / 4060 官方规格', url: 'https://www.nvidia.com/en-us/geforce/graphics-cards/40-series/rtx-4060-4060ti/' },
     yesky200splus: {
@@ -251,6 +278,31 @@
       connector: '1× 8pin', pcie: 'PCIe 5.0 x16', slots: 2,
       transient: 1.6, released: '2025-06', price: 0,
       confidence: 'official', source: 'amd9060spec', note: '8GB基准TBP从150W起；AIC功耗墙可能更高。' },
+    /* 2026-10-27：TBP / 显存 / 接口取厂家规格；瞬态与通用槽宽仍为估算。 */
+    { id: 'rx7900xt', brand: 'AMD', family: 'Radeon RX 7000 (RDNA 3)',
+      name: 'Radeon RX 7900 XT', tbp: 315, memory: '20GB GDDR6 320-bit',
+      connector: '2× 8pin', pcie: 'PCIe 4.0 x16', slots: 2.5,
+      transient: 1.7, released: '2022-12', price: 0,
+      confidence: 'official', source: 'amd7900xt',
+      note: 'AMD 基准 TBP 315W；厂家整机电源建议 750W（指定测试配置）。参考价未采集；槽宽与瞬态倍率为估算，非公版依具体板型。' },
+    { id: 'rx7900gre', brand: 'AMD', family: 'Radeon RX 7000 (RDNA 3)',
+      name: 'Radeon RX 7900 GRE', tbp: 260, memory: '16GB GDDR6 256-bit',
+      connector: '2× 8pin', pcie: 'PCIe 4.0 x16', slots: 2.5,
+      transient: 1.7, released: '2023-07', price: 0,
+      confidence: 'official', source: 'amd7900gre',
+      note: 'AMD 基准 TBP 260W。参考价未采集；槽宽与瞬态倍率为估算，非公版依具体板型。' },
+    { id: 'rx7700xt', brand: 'AMD', family: 'Radeon RX 7000 (RDNA 3)',
+      name: 'Radeon RX 7700 XT', tbp: 245, memory: '12GB GDDR6 192-bit',
+      connector: '2× 8pin', pcie: 'PCIe 4.0 x16', slots: 2.5,
+      transient: 1.7, released: '2023-09', price: 0,
+      confidence: 'official', source: 'amd7700xt',
+      note: 'AMD 基准 TBP 245W；厂家整机电源建议 700W（指定测试配置）。参考价未采集；槽宽与瞬态倍率为估算。' },
+    { id: 'rx7600xt', brand: 'AMD', family: 'Radeon RX 7000 (RDNA 3)',
+      name: 'Radeon RX 7600 XT', tbp: 190, memory: '16GB GDDR6 128-bit',
+      connector: '2× 8pin', pcie: 'PCIe 4.0 x8', slots: 2.5,
+      transient: 1.6, released: '2024-01', price: 0,
+      confidence: 'official', source: 'amd7600xt',
+      note: 'AMD 基准 TBP 190W、双 8pin；厂家整机电源建议 600W（指定测试配置）。参考价未采集；槽宽与瞬态倍率为估算。' },
     { id: 'rx7900xtx', brand: 'AMD', family: 'Radeon RX 7000 (RDNA 3)',
       name: 'Radeon RX 7900 XTX', tbp: 355, memory: '24GB GDDR6 384-bit',
       connector: '2× 8pin', pcie: 'PCIe 4.0 x16', slots: 2.5,
@@ -941,7 +993,8 @@
     { id: 'ssd-t500-2t', kind: 'NVMe', model: '英睿达 Crucial T500 2TB (PCIe 4.0 x4)',
       watts: 6.5, spinUp: 0, capacity: '2TB', price: 1099, confidence: 'estimate', source: 'tpuGpuDb' },
     { id: 'ssd-kc3000-2t', kind: 'NVMe', model: '金士顿 Kingston KC3000 2TB (PCIe 4.0 x4)',
-      watts: 7, spinUp: 0, capacity: '2TB', price: 999, confidence: 'estimate', source: 'tpuGpuDb' },
+      watts: 9.9, spinUp: 0, capacity: '2TB', price: 999, confidence: 'official', source: 'kingstonKC3000',
+      note: '2048GB 版本；取官方最大写入 9.9W，而非平均功耗 0.36W。' },
     { id: 'ssd-firecuda540-2t', kind: 'NVMe', model: '希捷 Seagate FireCuda 540 2TB (PCIe 5.0 x4)',
       watts: 10, spinUp: 0, capacity: '2TB', price: 1699, confidence: 'estimate', source: 'tpuGpuDb' },
     { id: 'ssd-tiplus7100-2t', kind: 'NVMe', model: '致态 Zhitai TiPlus7100 2TB (PCIe 4.0 x4)',
@@ -973,6 +1026,47 @@
       watts: 7, spinUp: 20, capacity: '3TB', price: 499, confidence: 'estimate', source: 'tpuGpuDb' }
   ];
 
+  /* 2026-10-27：同系列不同容量分别建档，保留原有 ID。瓦数取最大读写值。
+     NV3 厂家未公布瓦数，单独标为 estimate，不将型号来源当作功耗证据。 */
+  STORAGE = STORAGE.concat([
+    { id: 'ssd-kc3000-512g', kind: 'NVMe', model: '金士顿 Kingston KC3000 512GB (PCIe 4.0 x4)',
+      watts: 4.1, spinUp: 0, capacity: '512GB', price: 0, confidence: 'official', source: 'kingstonKC3000',
+      note: '官方最大写入 4.1W；参考价未采集。' },
+    { id: 'ssd-kc3000-1t', kind: 'NVMe', model: '金士顿 Kingston KC3000 1TB (PCIe 4.0 x4)',
+      watts: 6.3, spinUp: 0, capacity: '1TB', price: 0, confidence: 'official', source: 'kingstonKC3000',
+      note: '1024GB 版本，官方最大写入 6.3W；参考价未采集。' },
+    { id: 'ssd-kc3000-4t', kind: 'NVMe', model: '金士顿 Kingston KC3000 4TB (PCIe 4.0 x4)',
+      watts: 10.2, spinUp: 0, capacity: '4TB', price: 0, confidence: 'official', source: 'kingstonKC3000',
+      note: '4096GB 版本，官方最大写入 10.2W；参考价未采集。' },
+    { id: 'ssd-fury-renegade-1t', kind: 'NVMe', model: '金士顿 Kingston FURY Renegade 1TB (PCIe 4.0 x4)',
+      watts: 6.3, spinUp: 0, capacity: '1TB', price: 0, confidence: 'official', source: 'kingstonRenegade',
+      note: 'Gen4 版本，非 G5；官方最大写入 6.3W；参考价未采集。' },
+    { id: 'ssd-fury-renegade-2t', kind: 'NVMe', model: '金士顿 Kingston FURY Renegade 2TB (PCIe 4.0 x4)',
+      watts: 9.9, spinUp: 0, capacity: '2TB', price: 0, confidence: 'official', source: 'kingstonRenegade',
+      note: 'Gen4 版本，非 G5；官方最大写入 9.9W；参考价未采集。' },
+    { id: 'ssd-fury-renegade-4t', kind: 'NVMe', model: '金士顿 Kingston FURY Renegade 4TB (PCIe 4.0 x4)',
+      watts: 10.2, spinUp: 0, capacity: '4TB', price: 0, confidence: 'official', source: 'kingstonRenegade',
+      note: 'Gen4 版本，非 G5；官方最大写入 10.2W；参考价未采集。' },
+    { id: 'ssd-nv3-500g', kind: 'NVMe', model: '金士顿 Kingston NV3 500GB (PCIe 4.0 x4)',
+      watts: 5, spinUp: 0, capacity: '500GB', price: 0, confidence: 'estimate', source: 'kingstonNV3',
+      note: '型号与容量有厂家依据；5W 为同类 Gen4 无缓存 SSD 规划预算，非厂家标称。参考价未采集。' },
+    { id: 'ssd-nv3-1t', kind: 'NVMe', model: '金士顿 Kingston NV3 1TB (PCIe 4.0 x4)',
+      watts: 5, spinUp: 0, capacity: '1TB', price: 0, confidence: 'estimate', source: 'kingstonNV3',
+      note: '型号与容量有厂家依据；5W 为同类 Gen4 无缓存 SSD 规划预算，非厂家标称。参考价未采集。' },
+    { id: 'ssd-nv3-2t', kind: 'NVMe', model: '金士顿 Kingston NV3 2TB (PCIe 4.0 x4)',
+      watts: 6, spinUp: 0, capacity: '2TB', price: 0, confidence: 'estimate', source: 'kingstonNV3',
+      note: '型号与容量有厂家依据；6W 为同类 Gen4 无缓存 SSD 规划预算，非厂家标称。参考价未采集。' },
+    { id: 'ssd-nv3-4t', kind: 'NVMe', model: '金士顿 Kingston NV3 4TB (PCIe 4.0 x4)',
+      watts: 7, spinUp: 0, capacity: '4TB', price: 0, confidence: 'estimate', source: 'kingstonNV3',
+      note: '型号与容量有厂家依据；7W 为同类 Gen4 无缓存 SSD 规划预算，非厂家标称。参考价未采集。' },
+    { id: 'ssd-a400-480g', kind: 'SATA', model: '金士顿 Kingston A400 480GB (SATA 2.5")',
+      watts: 1.535, spinUp: 0, capacity: '480GB', price: 0, confidence: 'official', source: 'kingstonA400',
+      note: 'SA400S37；取官方最大写入 1.535W，非平均功耗；参考价未采集。' },
+    { id: 'ssd-a400-960g', kind: 'SATA', model: '金士顿 Kingston A400 960GB (SATA 2.5")',
+      watts: 1.535, spinUp: 0, capacity: '960GB', price: 0, confidence: 'official', source: 'kingstonA400',
+      note: 'SA400S37；取官方最大写入 1.535W，非平均功耗；参考价未采集。' }
+  ]);
+
   /* ========================================================== 散热器 ==== */
   var COOLERS = [
     { id: 'aio-frozen-warframe-360', kind: 'AIO', model: '利民 Frozen Warframe 360 ARGB',
@@ -992,8 +1086,9 @@
       price: 399, confidence: 'estimate', source: 'tpuGpuDb',
       note: '240 冷排，适合 M-ATX / ITX 机箱。' },
     { id: 'air-nhd15-g2', kind: 'AIR', model: '猫头鹰 NH-D15 G2',
-      pumpWatts: 0, fanCount: 2, wattPerFan: 1.7, radiator: 0, sockets: ['LGA1851', 'LGA1700', 'LGA1200', 'AM5', 'AM4'],
-      price: 1099, confidence: 'estimate', source: 'tpuGpuDb' },
+      pumpWatts: 0, fanCount: 2, wattPerFan: 2.28, radiator: 0, sockets: ['LGA1851', 'LGA1700', 'LGA1200', 'AM5', 'AM4'],
+      price: 1099, confidence: 'official', source: 'noctuaD15G2',
+      note: '两只 NF-A14x25r G2 PWM，按每只最大输入 2.28W 计；旧包装需核对扣具。' },
     { id: 'air-pa120-se', kind: 'AIR', model: '利民 Peerless Assassin 120 SE',
       pumpWatts: 0, fanCount: 2, wattPerFan: 1.8, radiator: 0, sockets: ['LGA1851', 'LGA1700', 'LGA1200', 'AM5', 'AM4'],
       price: 199, confidence: 'estimate', source: 'tpuGpuDb' },
@@ -1005,6 +1100,35 @@
       price: 0, confidence: 'estimate', source: 'amdSpec',
       note: '65W TDP 处理器附赠，仅适合低功耗型号。' }
   ];
+
+  /* 2026-10-27：均为无灯、无数显的原版风冷，不套用 DIGITAL / G2 规格。
+     扣具覆盖当前平台；旧批次可能需要厂家升级扣具。瓦数为风扇输入，非散热能力。 */
+  COOLERS = COOLERS.concat([
+    { id: 'air-nhu12a', kind: 'AIR', model: '猫头鹰 Noctua NH-U12A',
+      pumpWatts: 0, fanCount: 2, wattPerFan: 1.68, radiator: 0, sockets: ['LGA1851', 'LGA1700', 'LGA1200', 'AM5', 'AM4'],
+      price: 0, confidence: 'official', source: 'noctuaU12A', note: '两只 NF-A12x25 PWM，各取最大输入 1.68W；旧批次核对扣具；参考价未采集。' },
+    { id: 'air-nhu12s-redux', kind: 'AIR', model: '猫头鹰 Noctua NH-U12S redux',
+      pumpWatts: 0, fanCount: 1, wattPerFan: 1.08, radiator: 0, sockets: ['LGA1851', 'LGA1700', 'LGA1200', 'AM5', 'AM4'],
+      price: 0, confidence: 'official', source: 'noctuaU12Sredux', note: '一只 NF-P12 redux-1700 PWM，最大输入 1.08W；旧批次核对扣具；参考价未采集。' },
+    { id: 'air-nhd12l', kind: 'AIR', model: '猫头鹰 Noctua NH-D12L',
+      pumpWatts: 0, fanCount: 1, wattPerFan: 1.68, radiator: 0, sockets: ['LGA1851', 'LGA1700', 'LGA1200', 'AM5', 'AM4'],
+      price: 0, confidence: 'official', source: 'noctuaD12L', note: '一只 NF-A12x25r PWM，最大输入 1.68W；旧批次核对扣具；参考价未采集。' },
+    { id: 'air-nhd15', kind: 'AIR', model: '猫头鹰 Noctua NH-D15',
+      pumpWatts: 0, fanCount: 2, wattPerFan: 1.56, radiator: 0, sockets: ['LGA1851', 'LGA1700', 'LGA1200', 'AM5', 'AM4'],
+      price: 0, confidence: 'official', source: 'noctuaD15', note: '原版双风扇，非 G2；每只最大输入 1.56W；旧批次核对扣具；参考价未采集。' },
+    { id: 'air-nhu9s', kind: 'AIR', model: '猫头鹰 Noctua NH-U9S',
+      pumpWatts: 0, fanCount: 1, wattPerFan: 1.2, radiator: 0, sockets: ['LGA1851', 'LGA1700', 'LGA1200', 'AM5', 'AM4'],
+      price: 0, confidence: 'official', source: 'noctuaU9S', note: '一只 NF-A9 PWM，最大输入 1.2W；旧批次核对扣具；参考价未采集。' },
+    { id: 'air-ak400', kind: 'AIR', model: '九州风神 DeepCool AK400',
+      pumpWatts: 0, fanCount: 1, wattPerFan: 1.56, radiator: 0, sockets: ['LGA1851', 'LGA1700', 'LGA1200', 'AM5', 'AM4'],
+      price: 0, confidence: 'official', source: 'deepcoolAK400', note: '原版单风扇 1.56W，无数显；旧批次核对扣具；参考价未采集。' },
+    { id: 'air-ak500', kind: 'AIR', model: '九州风神 DeepCool AK500',
+      pumpWatts: 0, fanCount: 1, wattPerFan: 1.44, radiator: 0, sockets: ['LGA1851', 'LGA1700', 'LGA1200', 'AM5', 'AM4'],
+      price: 0, confidence: 'official', source: 'deepcoolAK500', note: '原版单风扇 1.44W，无数显；旧批次核对扣具；参考价未采集。' },
+    { id: 'air-ak620', kind: 'AIR', model: '九州风神 DeepCool AK620',
+      pumpWatts: 0, fanCount: 2, wattPerFan: 1.44, radiator: 0, sockets: ['LGA1851', 'LGA1700', 'LGA1200', 'AM5', 'AM4'],
+      price: 0, confidence: 'official', source: 'deepcoolAK620', note: '原版双风扇，各 1.44W，无数显；旧批次核对扣具；参考价未采集。' }
+  ]);
 
   /* ========================================================== 风扇 ====== */
   var FANS = [
@@ -1022,9 +1146,29 @@
       price: 169, confidence: 'estimate', source: 'tpuGpuDb' },
     { id: 'fan-cm-mf120', model: '酷冷至尊 MF120 Halo ARGB', size: 120, watts: 3.0, argb: true,
       price: 89, confidence: 'estimate', source: 'tpuGpuDb' },
-    { id: 'fan-arctic-p14', model: 'Arctic P14 PWM PST', size: 140, watts: 2.4, argb: false,
-      price: 69, confidence: 'estimate', source: 'tpuGpuDb' }
+    { id: 'fan-arctic-p14', model: 'Arctic P14 PWM PST', size: 140, watts: 1.44, argb: false,
+      price: 69, confidence: 'official', source: 'arcticP14', note: '按厂家标称 12V × 0.12A 折算；非 Max / Pro 版。' }
   ];
+
+  /* 2026-10-27：Noctua 取最大输入；ARCTIC 按厂家电压 × 标称电流折算。 */
+  FANS = FANS.concat([
+    { id: 'fan-arctic-p12', model: 'ARCTIC P12 PWM PST', size: 120, watts: 1.2, argb: false,
+      price: 0, confidence: 'official', source: 'arcticP12', note: '12V × 0.1A；非 Pro / Max 版；参考价未采集。' },
+    { id: 'fan-arctic-p12-max', model: 'ARCTIC P12 Max (FDB)', size: 120, watts: 3.48, argb: false,
+      price: 0, confidence: 'official', source: 'arcticP12Max', note: 'FDB 版，12V × 0.29A；不混用旧双滚珠批次规格；参考价未采集。' },
+    { id: 'fan-arctic-p12-slim', model: 'ARCTIC P12 Slim PWM PST', size: 120, watts: 1.44, argb: false,
+      price: 0, confidence: 'official', source: 'arcticP12Slim', note: '15mm 薄扇，12V × 0.12A；参考价未采集。' },
+    { id: 'fan-nfa14-pwm', model: '猫头鹰 Noctua NF-A14 PWM', size: 140, watts: 1.56, argb: false,
+      price: 0, confidence: 'official', source: 'noctuaA14', note: '最大输入 1.56W，非 industrialPPC / G2；参考价未采集。' },
+    { id: 'fan-nff12-pwm', model: '猫头鹰 Noctua NF-F12 PWM', size: 120, watts: 0.6, argb: false,
+      price: 0, confidence: 'official', source: 'noctuaF12', note: '最大输入 0.6W，非 industrialPPC；参考价未采集。' },
+    { id: 'fan-nfp12-redux1700', model: '猫头鹰 Noctua NF-P12 redux-1700 PWM', size: 120, watts: 1.08, argb: false,
+      price: 0, confidence: 'official', source: 'noctuaP12redux', note: '最大输入 1.08W；参考价未采集。' },
+    { id: 'fan-nfa14x25-g2', model: '猫头鹰 Noctua NF-A14x25 G2 PWM', size: 140, watts: 2.28, argb: false,
+      price: 0, confidence: 'official', source: 'noctuaA14G2', note: '方框版，最大输入 2.28W；参考价未采集。' },
+    { id: 'fan-nfa12x15-pwm', model: '猫头鹰 Noctua NF-A12x15 PWM', size: 120, watts: 1.56, argb: false,
+      price: 0, confidence: 'official', source: 'noctuaA12Slim', note: '15mm 薄扇，最大输入 1.56W；参考价未采集。' }
+  ]);
 
   /* ========================================================== 机箱 ====== */
   var CASES = [
@@ -1460,9 +1604,9 @@
 
   root.HWDB = {
     meta: {
-      toolVersion: '3.1.0',
-      version: '2026.10.1',
-      updated: '2026-10-04',
+      toolVersion: '3.1.1',
+      version: '2026.10.2',
+      updated: '2026-10-27',
       psuCheckedAt: root.HWDB_PSU_AUDIT.checkedAt,
       title: '台式机功耗与电源选型数据库',
       counts: {
