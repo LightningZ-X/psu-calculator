@@ -1,6 +1,6 @@
 /* ============================================================================
  *  硬件功耗数据库  HWDB  ——  主装配文件
- *  数据版本: 2026.10.2   本轮扩充: 2026-10-27；电源专项核对: 2026-10-04
+ *  数据版本: 2026.11.1   本轮扩充: 2026-11-14；电源核对日期按条目记录
  *  （下面 meta 里那两项才是界面与导出真正读的值，改数据时两处一起改。
  *    这里以前写的是 2026.09.7 / 2026-09-14，已经跟 meta 对不上了。）
  * ----------------------------------------------------------------------------
@@ -33,6 +33,15 @@
 
   /* ------------------------------------------------------------------ 来源 */
   var SOURCES = {
+    kingstonKC600: { label: 'Kingston KC600 官方数据表（2.5英寸SATA版，最大写入3.2W）', url: 'https://www.kingston.com/datasheets/KC600_en.pdf' },
+    thermalrightPS120SE: { label: 'Thermalright Phantom Spirit 120 SE 官方规格（风扇0.20A；按12V折算功耗预算）', url: 'https://www.thermalright.com/product/phantom-spirit-120-se/' },
+    thermalrightAX120AM: { label: 'Thermalright Assassin X 120 Refined SE AM4/AM5 官方规格（仅AMD扣具版）', url: 'https://www.thermalright.com/product/assassin-x-120-refined-se-am4am5/' },
+    thermalrightPA120Mini: { label: 'Thermalright Peerless Assassin 120 MINI BLACK 官方规格（单风扇0.20A）', url: 'https://www.thermalright.com/product/peerless-assassin-120-mini-black/' },
+    noctuaA8: { label: 'Noctua NF-A8 PWM 官方规格（最大输入0.96W）', url: 'https://www.noctua.at/en/products/nf-a8-pwm/specifications' },
+    noctuaA9: { label: 'Noctua NF-A9 PWM 官方规格（最大输入1.2W）', url: 'https://www.noctua.at/en/products/nf-a9-pwm/specifications' },
+    fractalNorthXL: { label: 'Fractal North XL 官方产品表（原版，非Momentum/RC）', url: 'https://www.fractal-design.com/app/uploads/2024/02/North-XL_Product-Sheet_EN.pdf' },
+    fractalPopAir: { label: 'Fractal Pop Air 无灯原版官方产品表', url: 'https://assets.fractal-design.com/files/uxzbxy2o/production/aee3c31f032ec28432cd15cf6396576b01b43ec4.pdf' },
+    fractalMeshify2C: { label: 'Fractal Meshify 2 Compact 官方产品表（非Lite/RGB）', url: 'https://www.fractal-design.com/app/uploads/2021/02/Meshify-2-Compact_Product-Sheet_EN.pdf' },
     amd7900xt: { label: 'AMD RX 7900 XT 官方规格：315W / 双 8pin', url: 'https://www.amd.com/en/support/downloads/drivers.html/graphics/radeon-rx/radeon-rx-7000-series/amd-radeon-rx-7900-xt.html' },
     amd7900gre: { label: 'AMD RX 7900 GRE 官方规格：260W / 双 8pin', url: 'https://www.amd.com/en/products/graphics/desktops/radeon/7000-series/amd-radeon-rx-7900-gre.html' },
     amd7700xt: { label: 'AMD RX 7700 XT 官方规格：245W / 双 8pin', url: 'https://www.amd.com/en/products/graphics/desktops/radeon/7000-series/amd-radeon-rx-7700-xt.html' },
@@ -1067,6 +1076,22 @@
       note: 'SA400S37；取官方最大写入 1.535W，非平均功耗；参考价未采集。' }
   ]);
 
+  /* 2026-11-14：只收录2.5英寸KC600；mSATA功耗及容量表不同，不合并。 */
+  STORAGE = STORAGE.concat([
+    { id: 'ssd-kc600-256g', kind: 'SATA', model: '金士顿 Kingston KC600 256GB (SATA 2.5")',
+      watts: 3.2, spinUp: 0, capacity: '256GB', price: 0, confidence: 'official', source: 'kingstonKC600',
+      note: '2.5英寸SKC600版本；厂家最大写入3.2W，非平均0.2W；参考价未采集。' },
+    { id: 'ssd-kc600-512g', kind: 'SATA', model: '金士顿 Kingston KC600 512GB (SATA 2.5")',
+      watts: 3.2, spinUp: 0, capacity: '512GB', price: 0, confidence: 'official', source: 'kingstonKC600',
+      note: '2.5英寸SKC600版本；厂家最大写入3.2W，非平均0.2W；参考价未采集。' },
+    { id: 'ssd-kc600-1t', kind: 'SATA', model: '金士顿 Kingston KC600 1TB (SATA 2.5")',
+      watts: 3.2, spinUp: 0, capacity: '1TB', price: 0, confidence: 'official', source: 'kingstonKC600',
+      note: '1024GB的2.5英寸SKC600版本；厂家最大写入3.2W；参考价未采集。' },
+    { id: 'ssd-kc600-2t', kind: 'SATA', model: '金士顿 Kingston KC600 2TB (SATA 2.5")',
+      watts: 3.2, spinUp: 0, capacity: '2TB', price: 0, confidence: 'official', source: 'kingstonKC600',
+      note: '2048GB的2.5英寸SKC600版本；厂家最大写入3.2W；参考价未采集。' }
+  ]);
+
   /* ========================================================== 散热器 ==== */
   var COOLERS = [
     { id: 'aio-frozen-warframe-360', kind: 'AIO', model: '利民 Frozen Warframe 360 ARGB',
@@ -1130,6 +1155,23 @@
       price: 0, confidence: 'official', source: 'deepcoolAK620', note: '原版双风扇，各 1.44W，无数显；旧批次核对扣具；参考价未采集。' }
   ]);
 
+  /* 2026-11-14：厂家给出0.20A电流；按标准12V PWM风扇折算2.4W为规划预算，
+     保守标estimate。只统计原装风扇，非散热能力或整套散热器实测。 */
+  COOLERS = COOLERS.concat([
+    { id: 'air-ps120-se', kind: 'AIR', model: '利民 Thermalright Phantom Spirit 120 SE',
+      pumpWatts: 0, fanCount: 2, wattPerFan: 2.4, radiator: 0, sockets: ['LGA1851', 'LGA1700', 'LGA1200', 'AM5', 'AM4'],
+      price: 0, confidence: 'estimate', source: 'thermalrightPS120SE',
+      note: '无灯版，双TL-C12B V2；每只按12V×0.20A折算2.4W预算；旧批次核对扣具，风冷限高未自动校验；参考价未采集。' },
+    { id: 'air-ax120-se-am4am5', kind: 'AIR', model: '利民 Thermalright Assassin X 120 Refined SE（AM4/AM5专版）',
+      pumpWatts: 0, fanCount: 1, wattPerFan: 2.4, radiator: 0, sockets: ['AM5', 'AM4'],
+      price: 0, confidence: 'estimate', source: 'thermalrightAX120AM',
+      note: '仅AMD扣具版，不能按全平台版本选择Intel插槽；单TL-C12C按12V×0.20A折算2.4W预算；参考价未采集。' },
+    { id: 'air-pa120-mini-black', kind: 'AIR', model: '利民 Thermalright Peerless Assassin 120 MINI BLACK',
+      pumpWatts: 0, fanCount: 1, wattPerFan: 2.4, radiator: 0, sockets: ['LGA1851', 'LGA1700', 'LGA1200', 'AM5', 'AM4'],
+      price: 0, confidence: 'estimate', source: 'thermalrightPA120Mini',
+      note: '135mm高迷你双塔，但只带一只TL-D12B；按12V×0.20A折算2.4W预算，非普通PA120双风扇；风冷限高未自动校验；参考价未采集。' }
+  ]);
+
   /* ========================================================== 风扇 ====== */
   var FANS = [
     { id: 'fan-tlc12prov2', model: '利民 TL-C12 Pro V2', size: 120, watts: 1.8, argb: false,
@@ -1170,6 +1212,13 @@
       price: 0, confidence: 'official', source: 'noctuaA12Slim', note: '15mm 薄扇，最大输入 1.56W；参考价未采集。' }
   ]);
 
+  FANS = FANS.concat([
+    { id: 'fan-nfa8-pwm', model: '猫头鹰 Noctua NF-A8 PWM (80mm)', size: 80, watts: 0.96, argb: false,
+      price: 0, confidence: 'official', source: 'noctuaA8', note: '12V版最大输入0.96W，非5V/FLX/ULN；参考价未采集。' },
+    { id: 'fan-nfa9-pwm', model: '猫头鹰 Noctua NF-A9 PWM (92mm)', size: 92, watts: 1.2, argb: false,
+      price: 0, confidence: 'official', source: 'noctuaA9', note: '12V版最大输入1.2W，非5V/FLX版；参考价未采集。' }
+  ]);
+
   /* ========================================================== 机箱 ====== */
   var CASES = [
     { id: 'case-o11d-evo', brand: '联力 Lian Li', model: 'O11 DYNAMIC EVO',
@@ -1207,6 +1256,26 @@
       price: 599, confidence: 'estimate', source: 'tpuGpuDb',
       note: 'ITX 机箱，但通过转接支架可安装 ATX 电源（需确认显卡长度）。' }
   ];
+
+  /* 2026-11-14：限长按默认前风扇、未安装前置冷排口径。
+     所含风扇请在风扇项单独录入；风冷限高/冷排厚度/电源长度不在现有自动校验范围。 */
+  CASES = CASES.concat([
+    { id: 'case-fractal-north-xl', brand: '分形工艺 Fractal', model: 'North XL TG（原版）',
+      moboSupport: ['E-ATX', 'ATX', 'M-ATX', 'ITX'], gpuMaxLen: 413, psuFormFactor: ['ATX'],
+      verticalGpu: false, radiatorSupport: '420（前） / 360（前或顶） / 280（顶） / 140 / 120', argbWatts: 0,
+      price: 0, confidence: 'official', source: 'fractalNorthXL',
+      note: '原版TG，非Momentum/RC；E-ATX宽度≤330mm。413mm限长为前风扇口径，前置420/360冷排时厂家限长380mm，需手动核对；原装3只140mm风扇另录，参考价未采集。' },
+    { id: 'case-fractal-pop-air', brand: '分形工艺 Fractal', model: 'Pop Air（无RGB原版）',
+      moboSupport: ['ATX', 'M-ATX', 'ITX'], gpuMaxLen: 405, psuFormFactor: ['ATX'],
+      verticalGpu: false, radiatorSupport: '280（前） / 240（前或顶） / 120', argbWatts: 0,
+      price: 0, confidence: 'official', source: 'fractalPopAir',
+      note: '非Mini/XL/RGB；405mm为前风扇口径，前置冷排须扣除厚度；顶置冷排需核对内存高度，电源长度≤170mm；原装风扇另录，参考价未采集。' },
+    { id: 'case-fractal-meshify2-compact', brand: '分形工艺 Fractal', model: 'Meshify 2 Compact（无RGB原版）',
+      moboSupport: ['ATX', 'M-ATX', 'ITX'], gpuMaxLen: 341, psuFormFactor: ['ATX'],
+      verticalGpu: false, radiatorSupport: '360（前） / 280（前） / 240（顶） / 120', argbWatts: 0,
+      price: 0, confidence: 'official', source: 'fractalMeshify2C',
+      note: '非Lite/RGB；341mm为前风扇口径，移除前扇可至360mm；前置冷排须另核限长，顶置240冷排受主板/内存高度影响；原装风扇另录，参考价未采集。' }
+  ]);
 
   /* ========================================================== 电源 ======
    *  conn12v2x6 : 随附直连 12V-2x6 / 12VHPWR 显卡侧线缆数量（非电源侧插座数）
@@ -1604,9 +1673,9 @@
 
   root.HWDB = {
     meta: {
-      toolVersion: '3.1.1',
-      version: '2026.10.2',
-      updated: '2026-10-27',
+      toolVersion: '3.1.2',
+      version: '2026.11.1',
+      updated: '2026-11-14',
       psuCheckedAt: root.HWDB_PSU_AUDIT.checkedAt,
       title: '台式机功耗与电源选型数据库',
       counts: {

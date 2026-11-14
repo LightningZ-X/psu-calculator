@@ -1,4 +1,4 @@
-/* PSU specification audit, 2026-10-04.
+/* PSU specification audit: initial 2026-10-04; additions 2026-11-14.
  * Counts refer to supplied device-side connectors, not sockets on the PSU.
  * Prices are budget estimates, never live retailer quotes. Unknown cable ratings
  * remain null; an ATX version does not imply a 600 W cable or a 16-pin cable.
@@ -109,13 +109,79 @@
   add('msi-meg-ai1000p', msi, 'MEG', 'MEG Ai1000P PCIE5（ATX 3.0版）', 1000, '铂金', 'ATX 3.0', '全模组',
     1, 8, 2, 12, 600, null, 1999, 'https://us.msi.com/Power-Supply/MEG-Ai1000P-PCIE5/Specification', 'PCIE5 / ATX 3.0资料版本，非PCIE5 II', { connector16Type: '12VHPWR', additionalSources: ['https://storage-asset.msi.com/datasheet/power-supply/ca/MEG-Ai1000P-PCIE5.pdf'], note: '按ATX 3.0版PDF记录；不同地区官网有3.1文案，购买时核对包装批次。' });
 
+  // Date belongs to the individual row: expanding the catalog is not a re-audit
+  // of every existing PSU. Keep historical IDs and their evidence dates intact.
+  var latestCheckedAt = '2026-11-14';
+  function addChecked() {
+    add.apply(null, arguments);
+    var p = rows[rows.length - 1];
+    p.checkedAt = latestCheckedAt;
+    p.note = (p.note ? p.note + ' ' : '') + '本轮未采集参考价，价格未知。';
+  }
+  addChecked('msi-mpg-a750g-pcie5', msi, 'MPG G', 'MPG A750G PCIE5（ATX 3.0版）', 750, '金牌', 'ATX 3.0', '全模组',
+    1, 6, 2, 8, 450, null, 0, 'https://www.msi.com/Power-Supply/MPG-A750G-PCIE5/Specification', 'PCIE5 / ATX 3.0，非无PCIE5后缀旧款',
+    { connector16Type: '12VHPWR', additionalSources: ['https://www.msi.com/Power-Supply/MPG-A750G-PCIE5'], note: '16-pin随附线额定450W，不按电源750W推定600W；6+2接头数按厂家随附线缆总数，含替代接法，不代表可与16-pin同时全部使用。' });
+  addChecked('msi-mpg-a850g-pcie5', msi, 'MPG G', 'MPG A850G PCIE5（ATX 3.0版）', 850, '金牌', 'ATX 3.0', '全模组',
+    1, 6, 2, 8, 600, null, 0, 'https://www.msi.com/Power-Supply/MPG-A850G-PCIE5/Specification', 'PCIE5 / ATX 3.0资料版本',
+    { connector16Type: '12VHPWR', additionalSources: ['https://storage-asset.msi.com/datasheet/power-supply/in/MPG-A850G-PCIE5.pdf'], note: '按ATX 3.0资料记录，购买时核对包装；6+2接头数含替代接法，不代表可与16-pin同时全部使用。' });
+  addChecked('msi-mpg-a1000g', msi, 'MPG G', 'MPG A1000G PCIE5（ATX 3.0版）', 1000, '金牌', 'ATX 3.0', '全模组',
+    1, 6, 2, 12, 600, null, 0, 'https://www.msi.com/Power-Supply/MPG-A1000G-PCIE5/Specification', 'PCIE5 / ATX 3.0，保留原ID；非无PCIE5后缀旧款',
+    { connector16Type: '12VHPWR', additionalSources: ['https://www.msi.com/Power-Supply/MPG-A1000G-PCIE5/Overview'], note: '旧待核ID补齐官方规格；6+2接头数含替代接法，不代表可与16-pin同时全部使用。' });
+  addChecked('msi-mag-a1000gl', msi, 'MAG GL', 'MAG A1000GL PCIE5（ATX 3.1版）', 1000, '金牌', 'ATX 3.1', '全模组',
+    1, 4, 2, 12, 600, null, 0, 'https://www.msi.com/Power-Supply/MAG-A1000GL-PCIE5/Specification', '官网当前PCIE5 / ATX 3.1；保留原ID，非II版',
+    { connector16Type: '12V-2x6', additionalSources: ['https://www.msi.com/Power-Supply/MAG-A1000GL-PCIE5'], note: '旧待核ID补齐官方规格；按官网当前版本记录，购买时核对包装。' });
+  addChecked('msi-mag-a1250gl-pcie5', msi, 'MAG GL', 'MAG A1250GL PCIE5', 1250, '金牌', 'ATX 3.1', '全模组',
+    1, 4, 2, 12, 600, null, 0, 'https://www.msi.com/Power-Supply/MAG-A1250GL-PCIE5/Specification', 'MAG A1250GL PCIE5 / ATX 3.1',
+    { connector16Type: '12V-2x6', additionalSources: ['https://www.msi.com/Power-Supply/MAG-A1250GL-PCIE5'], note: '单个16-pin接头，不能作为双16-pin显卡的原生双线方案。' });
+  addChecked('deepcool-pn750m', dc, 'PN-M', 'PN750M（黑色）', 750, '金牌', 'ATX 3.1', '全模组',
+    1, 3, 2, 8, 450, 3, 0, 'https://www.deepcool.com/products/PowerSupplyUnits/powersupplyunits/PN750M-ATX3.1-Modular-Power-Supply/2023/17877.shtml', 'R-PN750M-FC0B，非WH版',
+    { connector16Type: '12V-2x6', note: '黑色版官网标称16-pin线缆450W，不混用本库白色WH版的600W资料。' });
+  addChecked('deepcool-pn1000m', dc, 'PN-M', 'PN1000M', 1000, '金牌', 'ATX 3.1', '全模组',
+    1, 3, 2, 8, 600, 3, 0, 'https://deepcool.com/products/PowerSupplyUnits/powersupplyunits/PN1000M-ATX3.1-Modular-Power-Supply/2024/18962.shtml', 'R-PNA00M-FC0B', { connector16Type: '12V-2x6' });
+  addChecked('deepcool-pn1200m', dc, 'PN-M', 'PN1200M', 1200, '金牌', 'ATX 3.1', '全模组',
+    1, 3, 2, 8, 600, 3, 0, 'https://deepcool.com/products/PowerSupplyUnits/powersupplyunits/PN1200M-ATX3.1-Modular-Power-Supply/2024/18963.shtml', 'R-PNC00M-FC0B', { connector16Type: '12V-2x6' });
+  addChecked('deepcool-pq650m', dc, 'PQ', 'PQ650M（ATX 2.4，无16-pin）', 650, '金牌', 'ATX 2.4', '全模组',
+    0, 3, 2, 8, null, 3, 0, 'https://cn.deepcool.com/products/PowerSupplyUnits/powersupplyunits/PQ650M-80-PLUS-Gold-Modular-Power-Supply/2021/14042.shtml', 'R-PQ650M-FA0B，按当前产品页随附线缆');
+  addChecked('deepcool-pq750m', dc, 'PQ', 'PQ750M（ATX 2.4，无16-pin）', 750, '金牌', 'ATX 2.4', '全模组',
+    0, 3, 2, 8, null, 3, 0, 'https://www.deepcool.com/products/PowerSupplyUnits/powersupplyunits/PQ750M-80-PLUS-Gold-Modular-Power-Supply/2021/14031.shtml', 'R-PQ750M-FA0B，按当前产品页随附线缆');
+  addChecked('deepcool-pq850m', dc, 'PQ', 'PQ850M（ATX 2.4，无16-pin）', 850, '金牌', 'ATX 2.4', '全模组',
+    0, 3, 2, 10, null, 3, 0, 'https://www.deepcool.com/products/PowerSupplyUnits/powersupplyunits/PQ850M-80-PLUS-Gold-Modular-Power-Supply/2021/14032.shtml', 'R-PQ850M-FA0B，按当前产品页随附线缆');
+  var corsair = '海盗船 Corsair';
+  var sfGuide = 'https://www.corsair.com/us/en/explorer/diy-builder/power-supply-units/sf750sf850sf1000-platinum-atx-31-everything-you-need-to-know/';
+  addChecked('corsair-sf750-2024', corsair, 'SF', 'SF750 Platinum（2024 / SFX）', 750, '铂金', 'ATX 3.1', '全模组',
+    1, 2, 2, 8, null, 2, 0, sfGuide, '2024 / CP-9020284，非2018/2019款',
+    { formFactor: 'SFX', connector16Type: 'Type-5直连16-pin', note: '仅两只随附6+2接头；16-pin线缆额定功率未在本轮来源中确认，不参与16-pin显卡自动推荐。' });
+  addChecked('corsair-sf850-2024', corsair, 'SF', 'SF850 Platinum（2024 / SFX）', 850, '铂金', 'ATX 3.1', '全模组',
+    1, 3, 2, 8, null, 3, 0, sfGuide, '2024 / SF850，非SF850L',
+    { formFactor: 'SFX', connector16Type: 'Type-5直连16-pin', note: '三只随附6+2接头；16-pin线缆额定功率未在本轮来源中确认，不参与16-pin显卡自动推荐。' });
+  var rmeGuide = 'https://www.corsair.com/us/en/explorer/diy-builder/power-supply-units/corsair-rme-series-2025/';
+  var rmeNote = '仅计普通8pin输出的随附PCIe线；另附16pin转双8pin线与直连16pin共用电源侧插座，不叠加接头数。';
+  addChecked('corsair-rm650e-2025', corsair, 'RMe 2025', 'RM650e（2025）', 650, '金牌', 'ATX 3.1', '全模组',
+    1, 1, 2, 6, null, 1, 0, rmeGuide, '2025 / CP-9020302',
+    { efficiency: 'Cybenetics 金牌', connector16Type: '12V-2x6', note: rmeNote + ' 16-pin额定功率未确认，不参与16-pin显卡自动推荐；双EPS为同一线束串接。' });
+  addChecked('corsair-rm750e-2025', corsair, 'RMe 2025', 'RM750e（2025）', 750, '金牌', 'ATX 3.1', '全模组',
+    1, 2, 2, 6, 600, 2, 0, 'https://www.corsair.com/us/en/p/psu/cp-9020295-na/rme-series-rm750e-fully-modular-low-noise-atx-power-supply-cp-9020295-na', '2025 / CP-9020295，非2022/2023款',
+    { efficiency: 'Cybenetics 金牌', connector16Type: '12V-2x6', additionalSources: [rmeGuide], note: rmeNote });
+  addChecked('corsair-rm850e-2025', corsair, 'RMe 2025', 'RM850e（2025）', 850, '金牌', 'ATX 3.1', '全模组',
+    1, 2, 2, 6, 600, 2, 0, 'https://www.corsair.com/us/en/p/psu/cp-9020296-na/rme-series-rm850e-fully-modular-low-noise-atx-power-supply-cp-9020296-na', '2025 / CP-9020296，非2022/2023款',
+    { efficiency: 'Cybenetics 金牌', connector16Type: '12V-2x6', additionalSources: [rmeGuide], note: rmeNote });
+  addChecked('corsair-rm1000e-2025', corsair, 'RMe 2025', 'RM1000e（2025）', 1000, '金牌', 'ATX 3.1', '全模组',
+    1, 2, 2, 6, 600, 2, 0, 'https://www.corsair.com/us/en/p/psu/cp-9020297-na/rme-series-rm1000e-fully-modular-low-noise-atx-power-supply-cp-9020297-na', '2025 / CP-9020297，旧未分年份ID另留待核',
+    { efficiency: 'Cybenetics 金牌', connector16Type: '12V-2x6', additionalSources: [rmeGuide], inputVoltage: '中国/韩国版200–240V；其他地区100–240V', note: rmeNote });
+  addChecked('asus-prime-750g-atx31', '华硕 ASUS', 'PRIME', 'PRIME-750G（ATX 3.1版）', 750, '金牌', 'ATX 3.1', '全模组',
+    1, 2, 2, 5, null, 1, 0, 'https://www.asus.com/ie/motherboards-components/power-supply-units/prime/prime-750g/techspec/', 'PRIME-750G / 当前ATX 3.1规格页',
+    { connector16Type: '12V-2x6', rail12vWatts: 744, additionalSources: ['https://www.asus.com/motherboards-components/power-supply-units/prime/prime-750g/'], note: 'CPU双接头为同一线束；16-pin额定功率未确认，不进入16-pin显卡自动推荐。' });
+  addChecked('asus-prime-850g-atx31', '华硕 ASUS', 'PRIME', 'PRIME-850G（ATX 3.1版）', 850, '金牌', 'ATX 3.1', '全模组',
+    1, 3, 2, 5, 600, 2, 0, 'https://www.asus.com/motherboards-components/power-supply-units/prime/prime-850g/techspec/', 'PRIME-850G / 当前ATX 3.1规格页',
+    { connector16Type: '12V-2x6', rail12vWatts: 846, additionalSources: ['https://www.asus.com/motherboards-components/power-supply-units/prime/prime-850g/'], note: 'CPU双接头为同一线束；850G产品介绍页明确随附16-pin线支持600W，不外推到750G。' });
+
   root.HWDB_PSU_AUDIT = {
-    checkedAt: checkedAt,
+    checkedAt: latestCheckedAt,
     apply: function (legacy, sources) {
       var audited = {};
       rows.forEach(function (p) {
         p.source = 'psu:' + p.id;
-        sources[p.source] = { label: p.brand + ' — ' + p.model + ' 厂家规格（' + checkedAt + '核对）', url: p.sourceUrl };
+        sources[p.source] = { label: p.brand + ' — ' + p.model + ' 厂家规格（' + p.checkedAt + '核对）', url: p.sourceUrl };
         audited[p.id] = p;
       });
       var result = legacy.map(function (p) {

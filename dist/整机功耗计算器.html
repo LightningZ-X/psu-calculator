@@ -4333,7 +4333,7 @@ input[type="search"]:focus-visible { outline: 2px solid var(--err); outline-offs
 </script>
 <!-- js/db-psus.js -->
 <script>
-/* PSU specification audit, 2026-10-04.
+/* PSU specification audit: initial 2026-10-04; additions 2026-11-14.
  * Counts refer to supplied device-side connectors, not sockets on the PSU.
  * Prices are budget estimates, never live retailer quotes. Unknown cable ratings
  * remain null; an ATX version does not imply a 600 W cable or a 16-pin cable.
@@ -4444,13 +4444,79 @@ input[type="search"]:focus-visible { outline: 2px solid var(--err); outline-offs
   add('msi-meg-ai1000p', msi, 'MEG', 'MEG Ai1000P PCIE5（ATX 3.0版）', 1000, '铂金', 'ATX 3.0', '全模组',
     1, 8, 2, 12, 600, null, 1999, 'https://us.msi.com/Power-Supply/MEG-Ai1000P-PCIE5/Specification', 'PCIE5 / ATX 3.0资料版本，非PCIE5 II', { connector16Type: '12VHPWR', additionalSources: ['https://storage-asset.msi.com/datasheet/power-supply/ca/MEG-Ai1000P-PCIE5.pdf'], note: '按ATX 3.0版PDF记录；不同地区官网有3.1文案，购买时核对包装批次。' });
 
+  // Date belongs to the individual row: expanding the catalog is not a re-audit
+  // of every existing PSU. Keep historical IDs and their evidence dates intact.
+  var latestCheckedAt = '2026-11-14';
+  function addChecked() {
+    add.apply(null, arguments);
+    var p = rows[rows.length - 1];
+    p.checkedAt = latestCheckedAt;
+    p.note = (p.note ? p.note + ' ' : '') + '本轮未采集参考价，价格未知。';
+  }
+  addChecked('msi-mpg-a750g-pcie5', msi, 'MPG G', 'MPG A750G PCIE5（ATX 3.0版）', 750, '金牌', 'ATX 3.0', '全模组',
+    1, 6, 2, 8, 450, null, 0, 'https://www.msi.com/Power-Supply/MPG-A750G-PCIE5/Specification', 'PCIE5 / ATX 3.0，非无PCIE5后缀旧款',
+    { connector16Type: '12VHPWR', additionalSources: ['https://www.msi.com/Power-Supply/MPG-A750G-PCIE5'], note: '16-pin随附线额定450W，不按电源750W推定600W；6+2接头数按厂家随附线缆总数，含替代接法，不代表可与16-pin同时全部使用。' });
+  addChecked('msi-mpg-a850g-pcie5', msi, 'MPG G', 'MPG A850G PCIE5（ATX 3.0版）', 850, '金牌', 'ATX 3.0', '全模组',
+    1, 6, 2, 8, 600, null, 0, 'https://www.msi.com/Power-Supply/MPG-A850G-PCIE5/Specification', 'PCIE5 / ATX 3.0资料版本',
+    { connector16Type: '12VHPWR', additionalSources: ['https://storage-asset.msi.com/datasheet/power-supply/in/MPG-A850G-PCIE5.pdf'], note: '按ATX 3.0资料记录，购买时核对包装；6+2接头数含替代接法，不代表可与16-pin同时全部使用。' });
+  addChecked('msi-mpg-a1000g', msi, 'MPG G', 'MPG A1000G PCIE5（ATX 3.0版）', 1000, '金牌', 'ATX 3.0', '全模组',
+    1, 6, 2, 12, 600, null, 0, 'https://www.msi.com/Power-Supply/MPG-A1000G-PCIE5/Specification', 'PCIE5 / ATX 3.0，保留原ID；非无PCIE5后缀旧款',
+    { connector16Type: '12VHPWR', additionalSources: ['https://www.msi.com/Power-Supply/MPG-A1000G-PCIE5/Overview'], note: '旧待核ID补齐官方规格；6+2接头数含替代接法，不代表可与16-pin同时全部使用。' });
+  addChecked('msi-mag-a1000gl', msi, 'MAG GL', 'MAG A1000GL PCIE5（ATX 3.1版）', 1000, '金牌', 'ATX 3.1', '全模组',
+    1, 4, 2, 12, 600, null, 0, 'https://www.msi.com/Power-Supply/MAG-A1000GL-PCIE5/Specification', '官网当前PCIE5 / ATX 3.1；保留原ID，非II版',
+    { connector16Type: '12V-2x6', additionalSources: ['https://www.msi.com/Power-Supply/MAG-A1000GL-PCIE5'], note: '旧待核ID补齐官方规格；按官网当前版本记录，购买时核对包装。' });
+  addChecked('msi-mag-a1250gl-pcie5', msi, 'MAG GL', 'MAG A1250GL PCIE5', 1250, '金牌', 'ATX 3.1', '全模组',
+    1, 4, 2, 12, 600, null, 0, 'https://www.msi.com/Power-Supply/MAG-A1250GL-PCIE5/Specification', 'MAG A1250GL PCIE5 / ATX 3.1',
+    { connector16Type: '12V-2x6', additionalSources: ['https://www.msi.com/Power-Supply/MAG-A1250GL-PCIE5'], note: '单个16-pin接头，不能作为双16-pin显卡的原生双线方案。' });
+  addChecked('deepcool-pn750m', dc, 'PN-M', 'PN750M（黑色）', 750, '金牌', 'ATX 3.1', '全模组',
+    1, 3, 2, 8, 450, 3, 0, 'https://www.deepcool.com/products/PowerSupplyUnits/powersupplyunits/PN750M-ATX3.1-Modular-Power-Supply/2023/17877.shtml', 'R-PN750M-FC0B，非WH版',
+    { connector16Type: '12V-2x6', note: '黑色版官网标称16-pin线缆450W，不混用本库白色WH版的600W资料。' });
+  addChecked('deepcool-pn1000m', dc, 'PN-M', 'PN1000M', 1000, '金牌', 'ATX 3.1', '全模组',
+    1, 3, 2, 8, 600, 3, 0, 'https://deepcool.com/products/PowerSupplyUnits/powersupplyunits/PN1000M-ATX3.1-Modular-Power-Supply/2024/18962.shtml', 'R-PNA00M-FC0B', { connector16Type: '12V-2x6' });
+  addChecked('deepcool-pn1200m', dc, 'PN-M', 'PN1200M', 1200, '金牌', 'ATX 3.1', '全模组',
+    1, 3, 2, 8, 600, 3, 0, 'https://deepcool.com/products/PowerSupplyUnits/powersupplyunits/PN1200M-ATX3.1-Modular-Power-Supply/2024/18963.shtml', 'R-PNC00M-FC0B', { connector16Type: '12V-2x6' });
+  addChecked('deepcool-pq650m', dc, 'PQ', 'PQ650M（ATX 2.4，无16-pin）', 650, '金牌', 'ATX 2.4', '全模组',
+    0, 3, 2, 8, null, 3, 0, 'https://cn.deepcool.com/products/PowerSupplyUnits/powersupplyunits/PQ650M-80-PLUS-Gold-Modular-Power-Supply/2021/14042.shtml', 'R-PQ650M-FA0B，按当前产品页随附线缆');
+  addChecked('deepcool-pq750m', dc, 'PQ', 'PQ750M（ATX 2.4，无16-pin）', 750, '金牌', 'ATX 2.4', '全模组',
+    0, 3, 2, 8, null, 3, 0, 'https://www.deepcool.com/products/PowerSupplyUnits/powersupplyunits/PQ750M-80-PLUS-Gold-Modular-Power-Supply/2021/14031.shtml', 'R-PQ750M-FA0B，按当前产品页随附线缆');
+  addChecked('deepcool-pq850m', dc, 'PQ', 'PQ850M（ATX 2.4，无16-pin）', 850, '金牌', 'ATX 2.4', '全模组',
+    0, 3, 2, 10, null, 3, 0, 'https://www.deepcool.com/products/PowerSupplyUnits/powersupplyunits/PQ850M-80-PLUS-Gold-Modular-Power-Supply/2021/14032.shtml', 'R-PQ850M-FA0B，按当前产品页随附线缆');
+  var corsair = '海盗船 Corsair';
+  var sfGuide = 'https://www.corsair.com/us/en/explorer/diy-builder/power-supply-units/sf750sf850sf1000-platinum-atx-31-everything-you-need-to-know/';
+  addChecked('corsair-sf750-2024', corsair, 'SF', 'SF750 Platinum（2024 / SFX）', 750, '铂金', 'ATX 3.1', '全模组',
+    1, 2, 2, 8, null, 2, 0, sfGuide, '2024 / CP-9020284，非2018/2019款',
+    { formFactor: 'SFX', connector16Type: 'Type-5直连16-pin', note: '仅两只随附6+2接头；16-pin线缆额定功率未在本轮来源中确认，不参与16-pin显卡自动推荐。' });
+  addChecked('corsair-sf850-2024', corsair, 'SF', 'SF850 Platinum（2024 / SFX）', 850, '铂金', 'ATX 3.1', '全模组',
+    1, 3, 2, 8, null, 3, 0, sfGuide, '2024 / SF850，非SF850L',
+    { formFactor: 'SFX', connector16Type: 'Type-5直连16-pin', note: '三只随附6+2接头；16-pin线缆额定功率未在本轮来源中确认，不参与16-pin显卡自动推荐。' });
+  var rmeGuide = 'https://www.corsair.com/us/en/explorer/diy-builder/power-supply-units/corsair-rme-series-2025/';
+  var rmeNote = '仅计普通8pin输出的随附PCIe线；另附16pin转双8pin线与直连16pin共用电源侧插座，不叠加接头数。';
+  addChecked('corsair-rm650e-2025', corsair, 'RMe 2025', 'RM650e（2025）', 650, '金牌', 'ATX 3.1', '全模组',
+    1, 1, 2, 6, null, 1, 0, rmeGuide, '2025 / CP-9020302',
+    { efficiency: 'Cybenetics 金牌', connector16Type: '12V-2x6', note: rmeNote + ' 16-pin额定功率未确认，不参与16-pin显卡自动推荐；双EPS为同一线束串接。' });
+  addChecked('corsair-rm750e-2025', corsair, 'RMe 2025', 'RM750e（2025）', 750, '金牌', 'ATX 3.1', '全模组',
+    1, 2, 2, 6, 600, 2, 0, 'https://www.corsair.com/us/en/p/psu/cp-9020295-na/rme-series-rm750e-fully-modular-low-noise-atx-power-supply-cp-9020295-na', '2025 / CP-9020295，非2022/2023款',
+    { efficiency: 'Cybenetics 金牌', connector16Type: '12V-2x6', additionalSources: [rmeGuide], note: rmeNote });
+  addChecked('corsair-rm850e-2025', corsair, 'RMe 2025', 'RM850e（2025）', 850, '金牌', 'ATX 3.1', '全模组',
+    1, 2, 2, 6, 600, 2, 0, 'https://www.corsair.com/us/en/p/psu/cp-9020296-na/rme-series-rm850e-fully-modular-low-noise-atx-power-supply-cp-9020296-na', '2025 / CP-9020296，非2022/2023款',
+    { efficiency: 'Cybenetics 金牌', connector16Type: '12V-2x6', additionalSources: [rmeGuide], note: rmeNote });
+  addChecked('corsair-rm1000e-2025', corsair, 'RMe 2025', 'RM1000e（2025）', 1000, '金牌', 'ATX 3.1', '全模组',
+    1, 2, 2, 6, 600, 2, 0, 'https://www.corsair.com/us/en/p/psu/cp-9020297-na/rme-series-rm1000e-fully-modular-low-noise-atx-power-supply-cp-9020297-na', '2025 / CP-9020297，旧未分年份ID另留待核',
+    { efficiency: 'Cybenetics 金牌', connector16Type: '12V-2x6', additionalSources: [rmeGuide], inputVoltage: '中国/韩国版200–240V；其他地区100–240V', note: rmeNote });
+  addChecked('asus-prime-750g-atx31', '华硕 ASUS', 'PRIME', 'PRIME-750G（ATX 3.1版）', 750, '金牌', 'ATX 3.1', '全模组',
+    1, 2, 2, 5, null, 1, 0, 'https://www.asus.com/ie/motherboards-components/power-supply-units/prime/prime-750g/techspec/', 'PRIME-750G / 当前ATX 3.1规格页',
+    { connector16Type: '12V-2x6', rail12vWatts: 744, additionalSources: ['https://www.asus.com/motherboards-components/power-supply-units/prime/prime-750g/'], note: 'CPU双接头为同一线束；16-pin额定功率未确认，不进入16-pin显卡自动推荐。' });
+  addChecked('asus-prime-850g-atx31', '华硕 ASUS', 'PRIME', 'PRIME-850G（ATX 3.1版）', 850, '金牌', 'ATX 3.1', '全模组',
+    1, 3, 2, 5, 600, 2, 0, 'https://www.asus.com/motherboards-components/power-supply-units/prime/prime-850g/techspec/', 'PRIME-850G / 当前ATX 3.1规格页',
+    { connector16Type: '12V-2x6', rail12vWatts: 846, additionalSources: ['https://www.asus.com/motherboards-components/power-supply-units/prime/prime-850g/'], note: 'CPU双接头为同一线束；850G产品介绍页明确随附16-pin线支持600W，不外推到750G。' });
+
   root.HWDB_PSU_AUDIT = {
-    checkedAt: checkedAt,
+    checkedAt: latestCheckedAt,
     apply: function (legacy, sources) {
       var audited = {};
       rows.forEach(function (p) {
         p.source = 'psu:' + p.id;
-        sources[p.source] = { label: p.brand + ' — ' + p.model + ' 厂家规格（' + checkedAt + '核对）', url: p.sourceUrl };
+        sources[p.source] = { label: p.brand + ' — ' + p.model + ' 厂家规格（' + p.checkedAt + '核对）', url: p.sourceUrl };
         audited[p.id] = p;
       });
       var result = legacy.map(function (p) {
@@ -4474,7 +4540,7 @@ input[type="search"]:focus-visible { outline: 2px solid var(--err); outline-offs
 <script>
 /* ============================================================================
  *  硬件功耗数据库  HWDB  ——  主装配文件
- *  数据版本: 2026.10.2   本轮扩充: 2026-10-27；电源专项核对: 2026-10-04
+ *  数据版本: 2026.11.1   本轮扩充: 2026-11-14；电源核对日期按条目记录
  *  （下面 meta 里那两项才是界面与导出真正读的值，改数据时两处一起改。
  *    这里以前写的是 2026.09.7 / 2026-09-14，已经跟 meta 对不上了。）
  * ----------------------------------------------------------------------------
@@ -4507,6 +4573,15 @@ input[type="search"]:focus-visible { outline: 2px solid var(--err); outline-offs
 
   /* ------------------------------------------------------------------ 来源 */
   var SOURCES = {
+    kingstonKC600: { label: 'Kingston KC600 官方数据表（2.5英寸SATA版，最大写入3.2W）', url: 'https://www.kingston.com/datasheets/KC600_en.pdf' },
+    thermalrightPS120SE: { label: 'Thermalright Phantom Spirit 120 SE 官方规格（风扇0.20A；按12V折算功耗预算）', url: 'https://www.thermalright.com/product/phantom-spirit-120-se/' },
+    thermalrightAX120AM: { label: 'Thermalright Assassin X 120 Refined SE AM4/AM5 官方规格（仅AMD扣具版）', url: 'https://www.thermalright.com/product/assassin-x-120-refined-se-am4am5/' },
+    thermalrightPA120Mini: { label: 'Thermalright Peerless Assassin 120 MINI BLACK 官方规格（单风扇0.20A）', url: 'https://www.thermalright.com/product/peerless-assassin-120-mini-black/' },
+    noctuaA8: { label: 'Noctua NF-A8 PWM 官方规格（最大输入0.96W）', url: 'https://www.noctua.at/en/products/nf-a8-pwm/specifications' },
+    noctuaA9: { label: 'Noctua NF-A9 PWM 官方规格（最大输入1.2W）', url: 'https://www.noctua.at/en/products/nf-a9-pwm/specifications' },
+    fractalNorthXL: { label: 'Fractal North XL 官方产品表（原版，非Momentum/RC）', url: 'https://www.fractal-design.com/app/uploads/2024/02/North-XL_Product-Sheet_EN.pdf' },
+    fractalPopAir: { label: 'Fractal Pop Air 无灯原版官方产品表', url: 'https://assets.fractal-design.com/files/uxzbxy2o/production/aee3c31f032ec28432cd15cf6396576b01b43ec4.pdf' },
+    fractalMeshify2C: { label: 'Fractal Meshify 2 Compact 官方产品表（非Lite/RGB）', url: 'https://www.fractal-design.com/app/uploads/2021/02/Meshify-2-Compact_Product-Sheet_EN.pdf' },
     amd7900xt: { label: 'AMD RX 7900 XT 官方规格：315W / 双 8pin', url: 'https://www.amd.com/en/support/downloads/drivers.html/graphics/radeon-rx/radeon-rx-7000-series/amd-radeon-rx-7900-xt.html' },
     amd7900gre: { label: 'AMD RX 7900 GRE 官方规格：260W / 双 8pin', url: 'https://www.amd.com/en/products/graphics/desktops/radeon/7000-series/amd-radeon-rx-7900-gre.html' },
     amd7700xt: { label: 'AMD RX 7700 XT 官方规格：245W / 双 8pin', url: 'https://www.amd.com/en/products/graphics/desktops/radeon/7000-series/amd-radeon-rx-7700-xt.html' },
@@ -5541,6 +5616,22 @@ input[type="search"]:focus-visible { outline: 2px solid var(--err); outline-offs
       note: 'SA400S37；取官方最大写入 1.535W，非平均功耗；参考价未采集。' }
   ]);
 
+  /* 2026-11-14：只收录2.5英寸KC600；mSATA功耗及容量表不同，不合并。 */
+  STORAGE = STORAGE.concat([
+    { id: 'ssd-kc600-256g', kind: 'SATA', model: '金士顿 Kingston KC600 256GB (SATA 2.5")',
+      watts: 3.2, spinUp: 0, capacity: '256GB', price: 0, confidence: 'official', source: 'kingstonKC600',
+      note: '2.5英寸SKC600版本；厂家最大写入3.2W，非平均0.2W；参考价未采集。' },
+    { id: 'ssd-kc600-512g', kind: 'SATA', model: '金士顿 Kingston KC600 512GB (SATA 2.5")',
+      watts: 3.2, spinUp: 0, capacity: '512GB', price: 0, confidence: 'official', source: 'kingstonKC600',
+      note: '2.5英寸SKC600版本；厂家最大写入3.2W，非平均0.2W；参考价未采集。' },
+    { id: 'ssd-kc600-1t', kind: 'SATA', model: '金士顿 Kingston KC600 1TB (SATA 2.5")',
+      watts: 3.2, spinUp: 0, capacity: '1TB', price: 0, confidence: 'official', source: 'kingstonKC600',
+      note: '1024GB的2.5英寸SKC600版本；厂家最大写入3.2W；参考价未采集。' },
+    { id: 'ssd-kc600-2t', kind: 'SATA', model: '金士顿 Kingston KC600 2TB (SATA 2.5")',
+      watts: 3.2, spinUp: 0, capacity: '2TB', price: 0, confidence: 'official', source: 'kingstonKC600',
+      note: '2048GB的2.5英寸SKC600版本；厂家最大写入3.2W；参考价未采集。' }
+  ]);
+
   /* ========================================================== 散热器 ==== */
   var COOLERS = [
     { id: 'aio-frozen-warframe-360', kind: 'AIO', model: '利民 Frozen Warframe 360 ARGB',
@@ -5604,6 +5695,23 @@ input[type="search"]:focus-visible { outline: 2px solid var(--err); outline-offs
       price: 0, confidence: 'official', source: 'deepcoolAK620', note: '原版双风扇，各 1.44W，无数显；旧批次核对扣具；参考价未采集。' }
   ]);
 
+  /* 2026-11-14：厂家给出0.20A电流；按标准12V PWM风扇折算2.4W为规划预算，
+     保守标estimate。只统计原装风扇，非散热能力或整套散热器实测。 */
+  COOLERS = COOLERS.concat([
+    { id: 'air-ps120-se', kind: 'AIR', model: '利民 Thermalright Phantom Spirit 120 SE',
+      pumpWatts: 0, fanCount: 2, wattPerFan: 2.4, radiator: 0, sockets: ['LGA1851', 'LGA1700', 'LGA1200', 'AM5', 'AM4'],
+      price: 0, confidence: 'estimate', source: 'thermalrightPS120SE',
+      note: '无灯版，双TL-C12B V2；每只按12V×0.20A折算2.4W预算；旧批次核对扣具，风冷限高未自动校验；参考价未采集。' },
+    { id: 'air-ax120-se-am4am5', kind: 'AIR', model: '利民 Thermalright Assassin X 120 Refined SE（AM4/AM5专版）',
+      pumpWatts: 0, fanCount: 1, wattPerFan: 2.4, radiator: 0, sockets: ['AM5', 'AM4'],
+      price: 0, confidence: 'estimate', source: 'thermalrightAX120AM',
+      note: '仅AMD扣具版，不能按全平台版本选择Intel插槽；单TL-C12C按12V×0.20A折算2.4W预算；参考价未采集。' },
+    { id: 'air-pa120-mini-black', kind: 'AIR', model: '利民 Thermalright Peerless Assassin 120 MINI BLACK',
+      pumpWatts: 0, fanCount: 1, wattPerFan: 2.4, radiator: 0, sockets: ['LGA1851', 'LGA1700', 'LGA1200', 'AM5', 'AM4'],
+      price: 0, confidence: 'estimate', source: 'thermalrightPA120Mini',
+      note: '135mm高迷你双塔，但只带一只TL-D12B；按12V×0.20A折算2.4W预算，非普通PA120双风扇；风冷限高未自动校验；参考价未采集。' }
+  ]);
+
   /* ========================================================== 风扇 ====== */
   var FANS = [
     { id: 'fan-tlc12prov2', model: '利民 TL-C12 Pro V2', size: 120, watts: 1.8, argb: false,
@@ -5644,6 +5752,13 @@ input[type="search"]:focus-visible { outline: 2px solid var(--err); outline-offs
       price: 0, confidence: 'official', source: 'noctuaA12Slim', note: '15mm 薄扇，最大输入 1.56W；参考价未采集。' }
   ]);
 
+  FANS = FANS.concat([
+    { id: 'fan-nfa8-pwm', model: '猫头鹰 Noctua NF-A8 PWM (80mm)', size: 80, watts: 0.96, argb: false,
+      price: 0, confidence: 'official', source: 'noctuaA8', note: '12V版最大输入0.96W，非5V/FLX/ULN；参考价未采集。' },
+    { id: 'fan-nfa9-pwm', model: '猫头鹰 Noctua NF-A9 PWM (92mm)', size: 92, watts: 1.2, argb: false,
+      price: 0, confidence: 'official', source: 'noctuaA9', note: '12V版最大输入1.2W，非5V/FLX版；参考价未采集。' }
+  ]);
+
   /* ========================================================== 机箱 ====== */
   var CASES = [
     { id: 'case-o11d-evo', brand: '联力 Lian Li', model: 'O11 DYNAMIC EVO',
@@ -5681,6 +5796,26 @@ input[type="search"]:focus-visible { outline: 2px solid var(--err); outline-offs
       price: 599, confidence: 'estimate', source: 'tpuGpuDb',
       note: 'ITX 机箱，但通过转接支架可安装 ATX 电源（需确认显卡长度）。' }
   ];
+
+  /* 2026-11-14：限长按默认前风扇、未安装前置冷排口径。
+     所含风扇请在风扇项单独录入；风冷限高/冷排厚度/电源长度不在现有自动校验范围。 */
+  CASES = CASES.concat([
+    { id: 'case-fractal-north-xl', brand: '分形工艺 Fractal', model: 'North XL TG（原版）',
+      moboSupport: ['E-ATX', 'ATX', 'M-ATX', 'ITX'], gpuMaxLen: 413, psuFormFactor: ['ATX'],
+      verticalGpu: false, radiatorSupport: '420（前） / 360（前或顶） / 280（顶） / 140 / 120', argbWatts: 0,
+      price: 0, confidence: 'official', source: 'fractalNorthXL',
+      note: '原版TG，非Momentum/RC；E-ATX宽度≤330mm。413mm限长为前风扇口径，前置420/360冷排时厂家限长380mm，需手动核对；原装3只140mm风扇另录，参考价未采集。' },
+    { id: 'case-fractal-pop-air', brand: '分形工艺 Fractal', model: 'Pop Air（无RGB原版）',
+      moboSupport: ['ATX', 'M-ATX', 'ITX'], gpuMaxLen: 405, psuFormFactor: ['ATX'],
+      verticalGpu: false, radiatorSupport: '280（前） / 240（前或顶） / 120', argbWatts: 0,
+      price: 0, confidence: 'official', source: 'fractalPopAir',
+      note: '非Mini/XL/RGB；405mm为前风扇口径，前置冷排须扣除厚度；顶置冷排需核对内存高度，电源长度≤170mm；原装风扇另录，参考价未采集。' },
+    { id: 'case-fractal-meshify2-compact', brand: '分形工艺 Fractal', model: 'Meshify 2 Compact（无RGB原版）',
+      moboSupport: ['ATX', 'M-ATX', 'ITX'], gpuMaxLen: 341, psuFormFactor: ['ATX'],
+      verticalGpu: false, radiatorSupport: '360（前） / 280（前） / 240（顶） / 120', argbWatts: 0,
+      price: 0, confidence: 'official', source: 'fractalMeshify2C',
+      note: '非Lite/RGB；341mm为前风扇口径，移除前扇可至360mm；前置冷排须另核限长，顶置240冷排受主板/内存高度影响；原装风扇另录，参考价未采集。' }
+  ]);
 
   /* ========================================================== 电源 ======
    *  conn12v2x6 : 随附直连 12V-2x6 / 12VHPWR 显卡侧线缆数量（非电源侧插座数）
@@ -6078,9 +6213,9 @@ input[type="search"]:focus-visible { outline: 2px solid var(--err); outline-offs
 
   root.HWDB = {
     meta: {
-      toolVersion: '3.1.1',
-      version: '2026.10.2',
-      updated: '2026-10-27',
+      toolVersion: '3.1.2',
+      version: '2026.11.1',
+      updated: '2026-11-14',
       psuCheckedAt: root.HWDB_PSU_AUDIT.checkedAt,
       title: '台式机功耗与电源选型数据库',
       counts: {

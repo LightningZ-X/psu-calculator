@@ -84,4 +84,33 @@ test('未知价格不会以0元占据性价比推荐', () => {
   try { p.price = 0; assert.notEqual(result({ gpuId: '__igpu__', mode: 'quick' }).picks.value?.id, p.id); }
   finally { p.price = price; }
 });
+test('新增450W线缆型号能带450W基准卡，但不能带575W显卡', () => {
+  for (const psuId of ['msi-mpg-a750g-pcie5', 'deepcool-pn750m']) {
+    assert.ok(!issues(result({ gpuId: 'rtx4090', psuId })).includes('PSU_16PIN_POWER'));
+    assert.ok(issues(result({ gpuId: 'rtx5090', psuId })).includes('PSU_16PIN_POWER'));
+  }
+});
+test('SF750双8pin与SF850三8pin在同一张显卡上产生不同接口结论', () => {
+  const extra = { gpuId: 'rx9070xt', gpuAibId: 'powercolor-reddevil-9070xt', caseId: 'case-lianli-a4h2o' };
+  assert.ok(issues(result({ ...extra, psuId: 'corsair-sf750-2024' })).includes('PSU_PCIE_COUNT'));
+  assert.ok(!issues(result({ ...extra, psuId: 'corsair-sf850-2024' })).includes('PSU_PCIE_COUNT'));
+});
+test('新增未知额定功率型号不进入16-pin推荐池，也不确认可复用', () => {
+  for (const psuId of ['corsair-sf750-2024', 'corsair-sf850-2024', 'corsair-rm650e-2025', 'asus-prime-750g-atx31']) {
+    const r = result({ gpuId: 'rtx5070', psuId });
+    assert.ok(issues(r).includes('PSU_16PIN_UNVERIFIED'));
+    assert.equal(r.existingPsu.reusable, null);
+    assert.ok(!r.picks.list.some(p => p.id === psuId));
+  }
+});
+test('RMe的替代接法不虚增普通8pin接头，未分年份的旧ID仍待核', () => {
+  const r = result({ gpuId: 'rx9070xt', gpuAibId: 'powercolor-reddevil-9070xt', psuId: 'corsair-rm850e-2025' });
+  assert.ok(issues(r).includes('PSU_PCIE_COUNT'));
+  assert.equal(db.psus.find(p => p.id === 'corsair-rm1000e').verified, false);
+});
+test('补录电源不重写旧核查日期，来源标签逐条对应日期', () => {
+  assert.equal(db.psus.find(p => p.id === 'msi-mag-a550bn').checkedAt, '2026-10-04');
+  assert.equal(db.psus.find(p => p.id === 'msi-mpg-a1000g').checkedAt, '2026-11-14');
+  for (const p of db.psus.filter(p => p.verified)) assert.ok(db.sources[p.source].label.includes(p.checkedAt));
+});
 console.log('电源专项回归 ' + checks + ' / ' + checks + ' 通过');

@@ -88,6 +88,10 @@ export async function checkBootBrowser(root, executable, options = {}) {
     await send('Page.enable'); await send('Runtime.enable');
     await send('Page.bringToFront');
     await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
+    // Playback assertions need normal motion even when the host OS disables
+    // animations. The reduced-motion path is exercised explicitly below.
+    await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] });
+    check('普通动画用例固定no-preference（隔离系统设置）', await evaluate("!matchMedia('(prefers-reduced-motion: reduce)').matches"));
     await send('Page.addScriptToEvaluateOnNewDocument', { source: `
       window.__bootAt = 0; window.__bootEnds = [];
       window.__holdSeen = false; window.__staggerSeen = false;
@@ -258,7 +262,7 @@ export async function checkBootBrowser(root, executable, options = {}) {
     check('减少动态效果时直接显示可操作表单', !(await snapshot()).active && !(await snapshot()).modal && (await snapshot()).inertBoot === 0);
     await send('Emulation.setEmulatedMedia', { media: 'print' });
     check('打印隐藏搜索与底部操作条', await evaluate("getComputedStyle(document.querySelector('#mobileBar')).display === 'none' && document.querySelector('#cpuSearch').getBoundingClientRect().height === 0"));
-    await send('Emulation.setEmulatedMedia', { media: 'screen', features: [] });
+    await send('Emulation.setEmulatedMedia', { media: 'screen', features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] });
     await open('?noanim=1');
     check('视频素材加载失败会结束，不留下黑幕', await evaluate(`new Promise(resolve => {
       const canvas = document.querySelector('.psu-boot-canvas'), src = canvas.dataset.video;
