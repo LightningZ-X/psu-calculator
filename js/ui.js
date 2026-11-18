@@ -555,7 +555,7 @@
   function onAbort() { release(true); }
   function onVisibility() { if (document.hidden) release(true); }
 
-  function watchPlayback() {
+  function watchPlayback(manual) {
     inputEvents.forEach(function (type) {
       document.addEventListener(type, onSkip, { capture: true, passive: false });
     });
@@ -563,8 +563,8 @@
     window.addEventListener('beforeprint', onAbort);
     window.addEventListener('pagehide', onAbort);
     document.addEventListener('visibilitychange', onVisibility);
-    // 数据或视频加载异常时也不留下永久黑幕。
-    later(function () { release(true); }, 10000);
+    // 手动重播给慢网留出缓冲时间，自动开场继续快速放行页面。
+    later(function () { release(true); }, manual ? 30000 : 10000);
   }
 
   function start() {
@@ -585,7 +585,7 @@
     done = false;
     staged = false;
     root.classList.add('psu-boot-active', 'psu-boot-pending', 'psu-boot-replaying');
-    watchPlayback();
+    watchPlayback(true);
     var canvas = document.querySelector('.psu-boot-canvas');
     if (canvas && window.startLightningBoot) {
       holdInput();

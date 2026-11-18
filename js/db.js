@@ -1673,7 +1673,7 @@
 
   root.HWDB = {
     meta: {
-      toolVersion: '3.1.4',
+      toolVersion: '3.1.5',
       version: '2026.11.1',
       updated: '2026-11-14',
       psuCheckedAt: root.HWDB_PSU_AUDIT.checkedAt,
