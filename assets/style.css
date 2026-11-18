@@ -1157,7 +1157,7 @@ html.psu-motion-ready .modal-backdrop > .modal-card { animation: none; }
 
 /* 尊重系统的「减少动态效果」设置 */
 @media (prefers-reduced-motion: reduce) {
-  .psu-boot { display: none !important; }
+  html:not(.psu-boot-replaying) .psu-boot { display: none !important; }
   html.psu-boot-active body > :not(.psu-boot), .psu-boot-hold .psu-boot-item {
     opacity: 1 !important; transform: none !important; animation: none !important;
   }

@@ -466,6 +466,7 @@
   // 首次访问播放一次，后续可从顶栏重播。
   var key = 'psu-boot-seen-lightning-video-v7';
   var motion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  var print = window.matchMedia('print');
   var seen = false;
   try {
     seen = localStorage.getItem(key) === '1';
@@ -473,8 +474,7 @@
   } catch (e) {}
 
   // 硬跳过：这些入口下连「就位隐藏」都不做，页面必须原样可用。
-  if (window.__PSU_NOANIM || new URLSearchParams(location.search).get('noanim') === '1' ||
-      motion.matches || window.matchMedia('print').matches) return;
+  if (window.__PSU_NOANIM || new URLSearchParams(location.search).get('noanim') === '1' || print.matches) return;
 
   // 暴露页面区域供浏览器检查验证可见性。
   var ITEM_SELECTOR = [
@@ -492,7 +492,7 @@
     items: function () { return Array.prototype.slice.call(document.querySelectorAll(ITEM_SELECTOR)); },
     replay: replayIntro
   };
-  var introRan = !seen;
+  var introRan = !seen && !motion.matches;
   if (introRan) root.classList.add('psu-boot-active', 'psu-boot-pending');
   var done = false, staged = false, timers = [], inertNodes = [], stopAnimation = null;
   var inputEvents = ['pointerdown', 'click', 'keydown', 'touchstart'];
@@ -523,7 +523,7 @@
     if (stopAnimation) { stopAnimation(); stopAnimation = null; }
     clearTimers();
     root.classList.remove('psu-boot-active', 'psu-boot-pending', 'psu-boot-running',
-      'psu-boot-hold', 'psu-boot-fill');
+      'psu-boot-hold', 'psu-boot-fill', 'psu-boot-replaying');
     releaseInput();
     detachInput();
     motion.removeEventListener('change', onMotion);
@@ -555,15 +555,17 @@
   function onAbort() { release(true); }
   function onVisibility() { if (document.hidden) release(true); }
 
-  inputEvents.forEach(function (type) {
-    document.addEventListener(type, onSkip, { capture: true, passive: false });
-  });
-  motion.addEventListener('change', onMotion);
-  window.addEventListener('beforeprint', onAbort);
-  window.addEventListener('pagehide', onAbort);
-  document.addEventListener('visibilitychange', onVisibility);
-  // 数据脚本下载异常时也不留下永久黑幕。
-  later(function () { release(true); }, 10000);
+  function watchPlayback() {
+    inputEvents.forEach(function (type) {
+      document.addEventListener(type, onSkip, { capture: true, passive: false });
+    });
+    motion.addEventListener('change', onMotion);
+    window.addEventListener('beforeprint', onAbort);
+    window.addEventListener('pagehide', onAbort);
+    document.addEventListener('visibilitychange', onVisibility);
+    // 数据或视频加载异常时也不留下永久黑幕。
+    later(function () { release(true); }, 10000);
+  }
 
   function start() {
     if (done) return;
@@ -578,19 +580,12 @@
 
   // 顶栏 logo 与菜单中的重播入口共用相同的播放和清理流程。
   function replayIntro() {
-    if (window.__PSU_NOANIM || motion.matches) return;
+    if (window.__PSU_NOANIM || print.matches) return;
     if (root.classList.contains('psu-boot-active') || root.classList.contains('psu-boot-hold')) return;
     done = false;
     staged = false;
-    root.classList.add('psu-boot-active', 'psu-boot-pending');
-    inputEvents.forEach(function (type) {
-      document.addEventListener(type, onSkip, { capture: true, passive: false });
-    });
-    motion.addEventListener('change', onMotion);
-    window.addEventListener('beforeprint', onAbort);
-    window.addEventListener('pagehide', onAbort);
-    document.addEventListener('visibilitychange', onVisibility);
-    later(function () { release(true); }, 10000);
+    root.classList.add('psu-boot-active', 'psu-boot-pending', 'psu-boot-replaying');
+    watchPlayback();
     var canvas = document.querySelector('.psu-boot-canvas');
     if (canvas && window.startLightningBoot) {
       holdInput();
@@ -610,8 +605,11 @@
     if (t.closest('.logo') || t.closest('#btnReplayIntro')) replayIntro();
   });
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
-  else start();
+  if (!motion.matches) {
+    watchPlayback();
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
+    else start();
+  }
 })();
 
 /* 参考澎湃 OS 的连续响应。独立呈现层：从当前帧接续，不改文本或计算结果。 */

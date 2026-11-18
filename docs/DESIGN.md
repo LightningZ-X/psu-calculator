@@ -80,7 +80,7 @@
 
 **跳过与抑制**
 
-- `?noanim=1`（或 `window.__PSU_NOANIM`）、`prefers-reduced-motion`、打印媒体：连「就位隐藏」都不做，页面原样可用。
+- `?noanim=1`（或 `window.__PSU_NOANIM`）和打印媒体会关闭开场。`prefers-reduced-motion` 会跳过自动播放，用户仍可通过顶栏 Logo 或「更多 → 重播开场」播放视频。
 - `?nodisclaimer=1`（或 `#nodisclaimer`）抑制声明弹窗；此时不留白，直接逐块弹出。
 - 启动中任意 pointerdown / click / keydown / touchstart 立即进入第二段；10 秒兜底进入第二段后作废（看声明多久由用户决定）；页面隐藏、卸载、beforeprint 立即收尾。
 - 所有截图与浏览器回归都要带 `?nodisclaimer=1`，否则 fixed 弹窗盖住整页会让断言失真（移动端截图曾漏传给 iframe）。

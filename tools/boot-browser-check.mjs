@@ -177,6 +177,17 @@ export async function checkBootBrowser(root, executable, options = {}) {
       const r = await send('Page.captureScreenshot', { format: 'png' });
       fs.writeFileSync(path.join(artifacts, name + '.png'), Buffer.from(r.data, 'base64'));
     };
+    const click = async selector => {
+      const point = await evaluate(`(() => {
+        const el = document.querySelector(${JSON.stringify(selector)});
+        const rect = el.getBoundingClientRect();
+        const x = rect.left + rect.width / 2, y = rect.top + rect.height / 2;
+        return el.contains(document.elementFromPoint(x, y)) ? { x, y } : null;
+      })()`);
+      if (!point) throw new Error('点击目标不可见: ' + selector);
+      await send('Input.dispatchMouseEvent', { type: 'mousePressed', ...point, button: 'left', clickCount: 1 });
+      await send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...point, button: 'left', clickCount: 1 });
+    };
     const open = async (query = '') => {
       await evaluate(`window.__bootLeaving = true; try { sessionStorage.clear(); localStorage.clear(); } catch (e) {}`);
       await send('Page.navigate', { url: base + query });
@@ -260,6 +271,18 @@ export async function checkBootBrowser(root, executable, options = {}) {
     await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
     await open('');
     check('减少动态效果时直接显示可操作表单', !(await snapshot()).active && !(await snapshot()).modal && (await snapshot()).inertBoot === 0);
+    const replayFrame = `(() => {
+      const canvas = document.querySelector('.psu-boot-canvas');
+      return canvas.getBoundingClientRect().width > 0 && canvas.bootVideo?.currentTime > 0.8 && Number(canvas.dataset.frame) > 24;
+    })()`;
+    for (const [label, selector] of [['Logo', '.logo'], ['更多菜单', '#btnReplayIntro']]) {
+      if (selector === '#btnReplayIntro') await click('.header-more > summary');
+      await click(selector);
+      check('减少动态效果时点击' + label + '可手动重播视频', await waitFor(replayFrame, 2200));
+      await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+      await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+      check('跳过' + label + '重播后恢复页面输入', await waitFor(settled) && (await snapshot()).inertBoot === 0 && (await snapshot()).overlay === 'none');
+    }
     await send('Emulation.setEmulatedMedia', { media: 'print' });
     check('打印隐藏搜索与底部操作条', await evaluate("getComputedStyle(document.querySelector('#mobileBar')).display === 'none' && document.querySelector('#cpuSearch').getBoundingClientRect().height === 0"));
     await send('Emulation.setEmulatedMedia', { media: 'screen', features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] });
@@ -270,6 +293,13 @@ export async function checkBootBrowser(root, executable, options = {}) {
       const stop = startLightningBoot(canvas, () => { count++; });
       setTimeout(() => { stop(); canvas.dataset.video = src; resolve(count === 1); }, 500);
     })`));
+    await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
+    await send('Page.navigate', { url: pathToFileURL(path.join(root, 'dist', '整机功耗计算器.html')).href });
+    if (!await waitFor("location.protocol === 'file:' && document.readyState === 'complete'")) throw new Error('离线版加载超时');
+    check('离线版在减少动态效果时跳过自动播放', !(await snapshot()).active);
+    await click('.logo');
+    check('离线版点击 Logo 可重播内联视频', await waitFor(replayFrame, 2200));
+    check('离线版播放完成后恢复输入', await waitFor(settled, 5000) && (await snapshot()).inertBoot === 0);
     check('浏览器无未捕获异常', errors.length === 0, errors.slice(0, 2).join(' / '));
     fs.writeFileSync(path.join(artifacts, 'results.json'), JSON.stringify({ results, errors }, null, 2));
   } catch (e) {
