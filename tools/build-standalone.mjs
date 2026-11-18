@@ -19,9 +19,10 @@ const OUT_NAME = '整机功耗计算器.html';
 /* ------------------------------------------------------------------ 读取 */
 const read = p => fs.readFileSync(path.join(root, p), 'utf8');
 let html = read('index.html');
-for (const name of ['lightningz-gap-cut-v2.mp4']) {
-  html = html.replace('assets/' + name, 'data:video/mp4;base64,' + fs.readFileSync(path.join(root, 'assets', name)).toString('base64'));
-}
+const bootVideo = /data-video="(assets\/[a-z0-9.-]+\.mp4)"/i.exec(html);
+if (!bootVideo) throw new Error('index.html 未引用开场视频');
+const bootVideoData = 'data:video/mp4;base64,' + fs.readFileSync(path.join(root, bootVideo[1])).toString('base64');
+html = html.replace(bootVideo[0], `data-video="${bootVideoData}"`);
 
 const css = read('assets/style.css');
 const JS_ORDER = ['js/db-cpus.js', 'js/db-aib.js', 'js/db-psus.js', 'js/db.js', 'js/engine.js', 'js/app.js', 'js/boot-animation.js', 'js/ui.js'];
@@ -156,7 +157,7 @@ checks.push(['无残留本地样式表引用', !localRefPatterns[0].test(built)]
 checks.push(['无残留本地图标引用', !localRefPatterns[1].test(built)]);
 checks.push(['无残留 <script src>', !/<script[^>]+src=/.test(built)]);
 checks.push(['MSI LIGHTNING 启动素材完整内联，无离线图片依赖',
-  built.includes('data-video="data:video/mp4;base64,' + fs.readFileSync(path.join(root, 'assets', 'lightningz-gap-cut-v2.mp4')).toString('base64') + '"') &&
+  built.includes(`data-video="${bootVideoData}"`) &&
   !built.includes('data-video="assets/')]);
 checks.push(['favicon 已内联为 data URI', built.indexOf('data:image/png;base64,') > 0]);
 checks.push(['无残留 favicon.svg 引用', built.indexOf('href="favicon.svg"') === -1]);

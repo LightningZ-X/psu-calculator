@@ -44,7 +44,7 @@
 
 ## 2. 启动动画契约
 
-**实现**：`js/boot-animation.js` 保留 `window.startLightningBoot(canvas, onEnd)` 入口，用静音、内联 HTMLVideoElement 解码用户提供的 `assets/lightningz-gap-cut-v2.mp4`（约 4.1 秒），逐帧绘入 Canvas，完整保留闪电、LIGHTNING 字标与 `build to be perfect` 口号。按视频原比例居中适配视口；结束、错误与跳过都清理解码器及监听器。
+**实现**：`js/boot-animation.js` 保留 `window.startLightningBoot(canvas, onEnd)` 入口，用静音、内联 HTMLVideoElement 解码由用户提供的 720p 源片逐帧超分得到的 `assets/lightningz-gap-cut-sr-1440p.mp4`（约 4.1 秒），逐帧绘入 Canvas，完整保留闪电、LIGHTNING 字标与 `build to be perfect` 口号。按视频原比例居中适配视口；结束、错误与跳过都清理解码器及监听器。
 
 **两段流程**（编排在 `js/ui.js` 末尾的 IIFE）
 
@@ -75,7 +75,7 @@
 | 新增 / 改名关键帧或 animation 声明 | `assets/style.css` 定义 + `tools/boot-motion-check.mjs` 的 `BOOT_NAMES` 与 forms 白名单 |
 | 就位名单、逐块间隔 | `js/ui.js` 的 `ITEM_SELECTOR` / `STAGGER_MS` / `ITEM_MS`；`psu-content-in` 的 `.36s` 要与 `ITEM_MS` 对齐，改一处要改两处 |
 | 时间轴断言 | `tools/boot-browser-check.mjs`（真实时钟采样：靠页面内 RAF 采样器判定「一部分已出现 + 一部分还没」的中间态；并断言 `psu:boot-end` 恰好派发一次、结束后无启动类名残留、各块 opacity 归 1、弹窗背后没有漏藏的块） |
-| Canvas 时间轴与素材 | `js/boot-animation.js`、`assets/lightningz-gap-cut-v2.mp4` |
+| Canvas 时间轴与素材 | `js/boot-animation.js`、`assets/lightningz-gap-cut-sr-1440p.mp4` |
 | 单文件产物 | `tools/build-standalone.mjs`（JS 顺序与内联清单）+ `tools/browsertest.mjs` 的 `srcFiles` 产物过期检测 |
 
 **跳过与抑制**
