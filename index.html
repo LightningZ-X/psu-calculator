@@ -91,6 +91,7 @@
 <script src="js/ui.js"></script>
 </head>
 <body>
+<div class="site-lighting" data-ambient-light aria-hidden="true"><span class="site-cursor-light"></span></div>
 <div class="psu-boot" aria-hidden="true">
   <canvas class="psu-boot-canvas" width="1920" height="1080" data-video="assets/lightningz-gap-cut-sr-1440p.mp4"></canvas>
   <!-- 纯视觉提示：跳过这个动作对所有输入方式都已可用（点任意处 / 按任意键），
@@ -134,6 +135,7 @@
       <!-- 键盘可达的重播入口：logo 本身只挂鼠标点击，而它内部是 <h1>，
            不能改成 role="button"（按钮角色不允许包含标题，会破坏标题语义）。 -->
       <button id="btnReplayIntro" class="ghost">重播开场</button>
+      <button id="btnLightEffects" type="button" class="ghost" aria-pressed="true">光效<span aria-hidden="true">：开启</span></button>
 </div></details>
       <button id="btnTheme" class="ghost" aria-label="切换深浅主题">
         <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"
@@ -147,7 +149,7 @@
 </header>
 
 <div class="wrap">
-  <section class="page-intro" aria-label="计算器介绍">
+  <section class="page-intro" data-ambient-light aria-label="计算器介绍">
     <p class="eyebrow">POWER SUPPLY CALCULATOR</p>
     <h2>为你的配置，选好电源。</h2>
     <p>估算功耗、比较配置，看看升级后能否继续用现有电源。</p>
@@ -492,7 +494,7 @@
         </div>
 
         <!-- 推荐电源：全页最重要的结论，置于结果列最顶部 -->
-        <div class="reco">
+        <div class="reco" data-ambient-light data-gradient-state="empty">
           <div class="reco-label" id="recoLabel">选择硬件后查看建议</div>
           <div class="big" id="recoBig">— W</div>
           <div class="sub" id="recoSub"></div>

@@ -229,6 +229,21 @@ export async function checkBootBrowser(root, executable, options = {}) {
       await open('?noanim=1');
       check('首访为快速估算，CPU 和显卡直接可填', await evaluate(`document.documentElement.dataset.calcMode === 'quick' && !document.querySelector('#cpuSelect').closest('.card').classList.contains('is-collapsed') && !document.querySelector('#gpuModel').closest('.card').classList.contains('is-collapsed')`));
       check('空状态给出下一步而非电源推荐', await evaluate(`document.querySelector('#recoBig').textContent.includes('—') && document.querySelector('#resultNext').textContent === '选择 CPU'`));
+      check('页面留白、页首和待选结果的渐变会自行移动', await evaluate(`new Promise(resolve => {
+        const selectors = ['.site-lighting', '.page-intro', '.reco'];
+        const read = () => selectors.map(selector => getComputedStyle(document.querySelector(selector), '::before').transform);
+        const first = read();
+        setTimeout(() => resolve(read().every((value, index) => value !== 'none' && value !== first[index])), 300);
+      })`));
+      if (await evaluate("matchMedia('(any-hover: hover) and (any-pointer: fine)').matches")) {
+        const points = [{ x: 24, y: 192 }, { x: 1390, y: 310 }];
+        const followed = [];
+        for (const point of points) {
+          await send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...point });
+          followed.push(await waitFor(`document.querySelector('.site-cursor-light[data-active]')?.style.transform.startsWith('translate3d(${point.x}px, ${point.y}px,')`));
+        }
+        check('跨页面留白区域移动光标时高光跟随坐标', followed.every(Boolean));
+      }
       await evaluate(`document.querySelector('#cpuSearch').value = '9600X'; document.querySelector('#cpuSearch').dispatchEvent(new Event('input', { bubbles: true })); document.querySelector('#cpuSearch').focus();`);
       await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'ArrowDown', code: 'ArrowDown', windowsVirtualKeyCode: 40 });
       check('方向键从搜索框进入结果', await evaluate("!!document.activeElement.closest('#cpuSearchResults')"));
@@ -271,6 +286,40 @@ export async function checkBootBrowser(root, executable, options = {}) {
     await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
     await open('');
     check('减少动态效果时直接显示可操作表单', !(await snapshot()).active && !(await snapshot()).modal && (await snapshot()).inertBoot === 0);
+    const ambientStyle = "getComputedStyle(document.querySelector('.site-lighting'), '::before')";
+    const cursor = "document.querySelector('.site-cursor-light')";
+    const ambientPosition = await evaluate(ambientStyle + '.transform');
+    await pause(850);
+    check('系统减少动效时仍默认持续流光', await evaluate(`
+      ${ambientStyle}.animationDuration === '10s' && ${ambientStyle}.animationIterationCount === 'infinite' &&
+      ${ambientStyle}.transform !== ${JSON.stringify(ambientPosition)}`));
+    await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
+    const movePointer = x => send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y: 170 });
+    const spotlightAt = x => waitFor(`(() => {
+      const light = ${cursor};
+      const rect = light.getBoundingClientRect();
+      return Math.abs(rect.left + rect.width / 2 - ${x}) < 2 && getComputedStyle(light).opacity === '1';
+    })()`);
+    await movePointer(20);
+    const leftSpot = await spotlightAt(20);
+    await movePointer(1410);
+    check('系统减少动效时左右留白仍响应真实光标', leftSpot && await spotlightAt(1410));
+    await click('.header-more > summary');
+    await click('#btnLightEffects');
+    await movePointer(20);
+    check('关闭光效后停止流光和追光', await evaluate(`
+      document.querySelector('#btnLightEffects').getAttribute('aria-pressed') === 'false' &&
+      ${ambientStyle}.animationName === 'none' && !${cursor}.hasAttribute('data-active')`));
+    await evaluate('window.__bootLeaving = true');
+    await send('Page.reload');
+    check('重载保留光效选择', await waitFor(`!window.__bootLeaving && document.readyState === 'complete' &&
+      document.querySelector('#btnLightEffects').getAttribute('aria-pressed') === 'false' && ${ambientStyle}.animationName === 'none'`));
+    await click('.header-more > summary');
+    await click('#btnLightEffects');
+    await movePointer(1410);
+    check('重新打开光效后恢复循环和追光', await evaluate(`${ambientStyle}.animationIterationCount === 'infinite'`) && await spotlightAt(1410));
+    if (await evaluate("document.querySelector('.header-more').open")) await click('.header-more > summary');
+    await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: false });
     const replayFrame = `(() => {
       const canvas = document.querySelector('.psu-boot-canvas');
       return canvas.getBoundingClientRect().width > 0 && canvas.bootVideo?.currentTime > 0.8 && Number(canvas.dataset.frame) > 24;

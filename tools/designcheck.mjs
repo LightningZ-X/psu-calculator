@@ -28,32 +28,34 @@ const htmlCode = stripComments(html);
 console.log('铁律自检（设计系统第 4 节）');
 console.log('\u2500'.repeat(58));
 
-/* ---- 铁律② 不要渐变、不要发光、不要 emoji ------------------------------ */
-console.log('\n铁律② 无渐变 / 无发光 / 无 emoji');
+/* ---- 渐变限定区域与动效检查 ---------------------------------------- */
+console.log('\n渐变限定区域与动效检查');
 
-/* 分区标记（三条斜杠 ///）是唯一允许的渐变 —— 它是 ROG 奥创界面的品牌签名。
-   做法：把这条规则整段从扫描范围里剔除，再要求剩下的 CSS 里一个渐变都没有。
-   这比「白名单某些 stop 百分比」更严：白名单只要别处照抄一组相同 stop 值就能绕过。
-   （初版是两条斜杠 >>，对照真实截图后改成三条 —— 两条会读成「快进符号」。） */
 const MARKER_RE = /\.card > h2::before,[\s\S]*?\n\}/;
 const markerRule = MARKER_RE.exec(cssCode);
 const cssNoMarker = markerRule ? cssCode.replace(markerRule[0], '') : cssCode;
-const strayGradients = [...cssNoMarker.matchAll(/linear-gradient\(/g)];
-ck('除分区标记外无渐变', strayGradients.length === 0,
-   strayGradients.length ? strayGradients.length + ' 处' : '仅分区标记');
-ck('分区标记是三条斜杠 ///（对照奥创真实界面）',
+const gradientTargets = new Set([
+  '.site-lighting::before', '.site-cursor-light', '.page-intro::before', '.reco::before', '.reco[data-gradient-state="ready"]::before',
+  '.psu-picks > .empty', '.col-config > .card[data-spotlight]',
+  '.reco[data-spotlight]:not([data-gradient-state="warning"])::after'
+]);
+const strayGradients = [...cssNoMarker.matchAll(/([^{}]+)\{([^{}]*gradient\([^{}]*)\}/g)]
+  .map(([, selector]) => selector.trim()).filter(selector => !gradientTargets.has(selector));
+ck('渐变仅用于环境背景、空态、结果与指针高光', strayGradients.length === 0, strayGradients.join(' | '));
+ck('分区标记是三条斜杠 ///',
    !!markerRule && (markerRule[0].match(/linear-gradient\(/g) || []).length === 3,
    markerRule ? (markerRule[0].match(/linear-gradient\(/g) || []).length + ' 条' : '规则缺失');
 
 const motionErrors = checkBootMotion(css);
-ck('仅允许有限启动动画白名单 / 无越界缓动 / 保留减少动态效果', !motionErrors.length, motionErrors.join(' | '));
-ck('白名单能拦截未知名称、无限循环、越界缓动和非合成属性', [
+ck('动画符合白名单 / 环境循环遵循光效开关', !motionErrors.length, motionErrors.join(' | '));
+ck('白名单拦截未知动画、越界缓动、非合成属性和不受限循环', [
   css.replace('@keyframes psu-content-in', '@keyframes unexpected'),
   css.replace('psu-content-in .36s var(--ease) var(--psu-boot-delay, 0ms) both',
               'psu-content-in .36s var(--ease) var(--psu-boot-delay, 0ms) infinite'),
   css.replace('cubic-bezier(.4, 0, .2, 1)', 'cubic-bezier(.4, 0, .2, 1.2)'),
   css.replace('from { opacity: 0; transform: translate(-3px, 4px); }',
-              'from { opacity: 0; width: 1px; }')
+              'from { opacity: 0; width: 1px; }'),
+  css.replace('.site-lighting::before {\n    animation: ambient-drift', '.card {\n    animation: ambient-drift')
 ].every(s => checkBootMotion(s).length > 0));
 // 浮层阴影（下拉/抽屉/toast）是允许的；禁止的是平面卡片与外发光
 const glows = [...cssCode.matchAll(/box-shadow:\s*([^;]+)/g)]

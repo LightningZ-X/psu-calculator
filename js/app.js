@@ -1589,7 +1589,10 @@
     $('resolveConflict').hidden = !errors;
     $('resultNext').textContent = nextLabel; $('resultNext').hidden = !missingCpu && !missingGpu;
     $('recoLabel').textContent = errors ? '先解决配置冲突' : r.canRecommend && !r.beyond ? '建议选择' : '选择硬件后查看建议';
-    $('recoBig').closest('.reco').classList.toggle('has-conflict', !!errors);
+    var recommendation = $('recoBig').closest('.reco');
+    recommendation.classList.toggle('has-conflict', !!errors);
+    var gradientState = errors || r.beyond ? 'warning' : r.canRecommend ? 'ready' : r.hasSelection ? 'partial' : 'empty';
+    if (recommendation.dataset.gradientState !== gradientState) recommendation.dataset.gradientState = gradientState;
     if (r.canRecommend && !r.beyond) {
       $('recoBig').innerHTML = r.recIdeal + '<span> W</span>';
       $('recoSub').innerHTML = (errors ? '存在 ' + errors + ' 项冲突，以下瓦数仅供功耗推演。<br>' : '') + (quick ? '快速估算' : r.missingPowerParts.length ? '部分配置' : '按已填配置计算') + ' · 最低参考 <b>' + r.recFloor + 'W</b>。';

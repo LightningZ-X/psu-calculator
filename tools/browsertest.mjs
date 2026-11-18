@@ -844,7 +844,7 @@ dcheck('尊重 prefers-reduced-motion', /prefers-reduced-motion/.test(css));
 dcheck('ROG 红主强调色已定义', /--rog:\s*#ff0033/.test(css));
 dcheck('圆角收到 ≤4px', /--radius:\s*2px/.test(css));
 const motionErrors = checkBootMotion(css);
-dcheck('仅允许有限启动动画白名单 / 无 infinite 与越界缓动', !motionErrors.length, motionErrors.join(' | '));
+dcheck('动画符合白名单 / 环境循环遵循光效开关', !motionErrors.length, motionErrors.join(' | '));
 dcheck('浅色主题覆盖同名变量（未增删变量名）', /html\[data-theme="light"\]/.test(css));
 const rootVars = (css.slice(0, css.indexOf('html[data-theme="light"]')).match(/--[a-z0-9-]+:/g) || [])
   .map(s => s.replace(':', '')).sort();

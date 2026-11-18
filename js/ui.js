@@ -745,7 +745,74 @@
   window.addEventListener('beforeprint', function () { printing = true; clear(); });
   window.addEventListener('afterprint', function () { printing = false; });
 
+  var cursorLight = null, pointerSurface = null, pointerFrame = 0, pointerX = 0, pointerY = 0;
+  var hoveredSurface = null;
+  var lightingRoot = document.documentElement;
+  var printMedia = matchMedia('print');
+  function lightingEnabled() {
+    return lightingRoot.dataset.lightEffects !== 'off' && !printing && !document.hidden &&
+      !printMedia.matches && !lightingRoot.classList.contains('psu-boot-active') &&
+      !lightingRoot.classList.contains('psu-boot-pending');
+  }
+  function clearSurfaceLight() {
+    if (!pointerSurface) return;
+    pointerSurface.style.removeProperty('--spot-x');
+    pointerSurface.style.removeProperty('--spot-y');
+    pointerSurface.removeAttribute('data-spotlight');
+    pointerSurface = null;
+  }
+  function clearSpotlight() {
+    if (pointerFrame) cancelAnimationFrame(pointerFrame);
+    pointerFrame = 0;
+    hoveredSurface = null;
+    if (cursorLight) cursorLight.removeAttribute('data-active');
+    clearSurfaceLight();
+  }
+  document.addEventListener('pointermove', function (event) {
+    if (!cursorLight || (event.pointerType !== 'mouse' && event.pointerType !== 'pen')) return;
+    if (!lightingEnabled()) { clearSpotlight(); return; }
+    pointerX = event.clientX;
+    pointerY = event.clientY;
+    hoveredSurface = event.target.closest('.col-config > .card, .reco');
+    if (pointerFrame) return;
+    pointerFrame = requestAnimationFrame(function () {
+      pointerFrame = 0;
+      if (!lightingEnabled()) { clearSpotlight(); return; }
+      cursorLight.style.transform = 'translate3d(' + pointerX + 'px,' + pointerY + 'px,0) translate(-50%,-50%)';
+      if (!cursorLight.hasAttribute('data-active')) cursorLight.setAttribute('data-active', '');
+      if (pointerSurface !== hoveredSurface) clearSurfaceLight();
+      if (!hoveredSurface) return;
+      pointerSurface = hoveredSurface;
+      var bounds = pointerSurface.getBoundingClientRect();
+      pointerSurface.style.setProperty('--spot-x', (pointerX - bounds.left) + 'px');
+      pointerSurface.style.setProperty('--spot-y', (pointerY - bounds.top) + 'px');
+      if (!pointerSurface.hasAttribute('data-spotlight')) pointerSurface.setAttribute('data-spotlight', '');
+    });
+  }, { passive: true });
+  document.documentElement.addEventListener('pointerleave', clearSpotlight);
+  window.addEventListener('blur', clearSpotlight);
+  document.addEventListener('visibilitychange', clearSpotlight);
+  window.addEventListener('beforeprint', clearSpotlight);
+
   function setup() {
+    cursorLight = document.querySelector('.site-cursor-light');
+    var lightControl = document.getElementById('btnLightEffects');
+    if (lightControl) {
+      var lightsOn = true;
+      try { lightsOn = localStorage.getItem('psu-light-effects') !== 'off'; } catch {}
+      function syncLights() {
+        lightingRoot.dataset.lightEffects = lightsOn ? 'on' : 'off';
+        lightControl.setAttribute('aria-pressed', String(lightsOn));
+        lightControl.querySelector('span').textContent = lightsOn ? '：开启' : '：关闭';
+        if (!lightsOn) clearSpotlight();
+      }
+      syncLights();
+      lightControl.addEventListener('click', function () {
+        lightsOn = !lightsOn;
+        try { localStorage.setItem('psu-light-effects', lightsOn ? 'on' : 'off'); } catch {}
+        syncLights();
+      });
+    }
     if (typeof document.documentElement.animate === 'function') document.documentElement.classList.add('psu-motion-ready');
     ['recoBig', 'heroPower', 'heroExpected', 'heroTransient', 'answerChipValue'].forEach(function (id) {
       var target = document.getElementById(id);
