@@ -483,9 +483,6 @@ select option, select optgroup { background: var(--bg-soft); color: var(--text);
 .scenario.on span { color: var(--text-3); }
 .scenario.on::after {
   content: ''; position: absolute; left: 12%; right: 12%; bottom: 0; height: 3px;
-  background: var(--rog);
-  clip-path: polygon(var(--cut-bar) 0, 100% 0,
-                     calc(100% - var(--cut-bar)) 100%, 0 100%);
 }
 
 .seg { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -497,9 +494,32 @@ select option, select optgroup { background: var(--bg-soft); color: var(--text);
    那会连 :focus-visible 的焦点环一起裁掉，键盘用户就看不到焦点了。 */
 .seg button.on::after {
   content: ''; position: absolute; left: 5px; right: 5px; bottom: -1px; height: 2px;
+}
+.scenario.on::after, .seg button.on::after,
+:is(.seg, .scenarios)[data-selection-ready]::after {
   background: var(--rog);
   clip-path: polygon(var(--cut-bar) 0, 100% 0,
                      calc(100% - var(--cut-bar)) 100%, 0 100%);
+}
+
+@media screen {
+  .selection-group { position: relative; }
+  :is(.seg, .scenarios)[data-selection-ready] > button.on::after { content: none; }
+  :is(.seg, .scenarios)[data-selection-ready]::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1;
+    height: 2px;
+    width: var(--selection-width);
+    transform: translate3d(var(--selection-x), var(--selection-y), 0);
+    pointer-events: none;
+  }
+  .scenarios[data-selection-ready]::after { height: 3px; }
+  :is(.seg, .scenarios)[data-selection-moving]::after {
+    transition: transform 260ms cubic-bezier(.22, 1, .36, 1), width 260ms cubic-bezier(.22, 1, .36, 1);
+  }
 }
 
 /* --------------------------------------------------- 关键数值块 --------
@@ -1005,7 +1025,8 @@ html.psu-boot-pending body > :not(.psu-boot):not(script):not(noscript) { opacity
 
 /* 局部回弹不改变控件尺寸或文档布局；JS 从当前帧接续，CSS 保留降级路径。 */
 button, .btn {
-  transition: transform 320ms var(--motion-enter), opacity 180ms var(--motion-fast),
+  transition: scale var(--hover-scale-motion, 240ms var(--motion-enter)), transform 320ms var(--motion-enter),
+    opacity 180ms var(--motion-fast),
     background-color 180ms var(--motion-fast), border-color 180ms var(--motion-fast), color 180ms var(--motion-fast);
 }
 html:not(.psu-motion-ready) button:not(:disabled):active,
@@ -1113,7 +1134,7 @@ html.psu-motion-ready .modal-backdrop > .modal-card { animation: none; }
 .result-fold[open] > summary::after, .result-explain[open] > summary::after { content: '＋'; transform: rotate(45deg); }
 .storage-row, .custom-row { animation: psu-ui-enter .32s var(--motion-enter) both; }
 @media (hover: hover) and (pointer: fine) {
-  button:not(:disabled):hover { transform: translateY(-1px); }
+  button:not(:disabled):not(:is(.seg, .scenarios, .search-results) > button):hover { transform: translateY(-1px); }
   button:not(:disabled):active { transform: translateY(1px) scale(.98); }
 }
 @media (max-width: 700px) {
@@ -1380,22 +1401,18 @@ input[type="search"]:focus-visible { outline: 2px solid var(--err); outline-offs
   .core-search, .quick-budget, #chooseIgpu, #resultNext, #resolveConflict { display: none !important; }
 }
 
-/* Ambient movement and pointer lighting use separate compositor layers. */
+/* Cooler guide lighting geometry, tinted for the calculator's ROG palette. */
 :root {
-  --ambient-red: rgba(225, 29, 75, .35);
-  --ambient-violet: rgba(126, 68, 204, .29);
-  --ambient-amber: rgba(205, 104, 48, .26);
-  --result-glow: rgba(222, 35, 79, .34);
-  --spotlight-glow: rgba(255, 71, 117, .23);
-  --pointer-glow: rgba(250, 48, 97, .31);
+  --ambient-red: rgba(205, 36, 64, .28);
+  --ambient-rose: rgba(220, 74, 100, .25);
+  --ambient-wine: rgba(145, 37, 60, .22);
+  --pointer-glow: rgba(255, 40, 78, .19);
 }
 html[data-theme="light"] {
-  --ambient-red: rgba(201, 44, 78, .22);
-  --ambient-violet: rgba(121, 63, 177, .18);
-  --ambient-amber: rgba(202, 103, 43, .17);
-  --result-glow: rgba(198, 36, 71, .24);
-  --spotlight-glow: rgba(185, 31, 65, .19);
-  --pointer-glow: rgba(201, 36, 91, .23);
+  --ambient-red: rgba(171, 35, 63, .18);
+  --ambient-rose: rgba(196, 61, 83, .17);
+  --ambient-wine: rgba(142, 35, 56, .13);
+  --pointer-glow: rgba(174, 22, 54, .14);
 }
 
 .site-lighting { display: none; }
@@ -1412,52 +1429,35 @@ html[data-theme="light"] {
   .site-lighting::before {
     content: '';
     position: absolute;
-    inset: -24%;
+    inset: -22%;
     background:
-      radial-gradient(ellipse 36% 31% at 71% 27%, var(--ambient-red), transparent 100%),
-      radial-gradient(ellipse 32% 40% at 31% 55%, var(--ambient-violet), transparent 100%),
-      radial-gradient(ellipse 34% 30% at 72% 66%, var(--ambient-amber), transparent 100%);
+      radial-gradient(ellipse 39% 30% at 70% 28%, var(--ambient-red), transparent 100%),
+      radial-gradient(ellipse 34% 37% at 31% 48%, var(--ambient-rose), transparent 100%),
+      radial-gradient(ellipse 29% 38% at 73% 73%, var(--ambient-wine), transparent 100%);
   }
   .page-intro, .reco { position: relative; isolation: isolate; overflow: clip; }
-  .page-intro::before, .reco::before, .reco::after {
+  :is(.page-intro, .reco)::before {
     content: '';
     position: absolute;
-    inset: 0;
+    inset: -28% -20%;
     z-index: -1;
     pointer-events: none;
-  }
-  .page-intro::before {
-    inset: -24% -18%;
     background:
-      radial-gradient(ellipse 32% 62% at 71% 41%, var(--ambient-red), transparent 100%),
-      radial-gradient(ellipse 22% 62% at 48% 89%, var(--ambient-violet), transparent 100%);
+      radial-gradient(ellipse 25% 55% at 74% 66%, var(--ambient-wine), transparent 100%),
+      radial-gradient(ellipse 28% 64% at 62% 22%, var(--ambient-rose), transparent 100%);
   }
-  .reco::before {
-    inset: -20%;
-    background:
-      radial-gradient(ellipse 36% 55% at 73% 39%, var(--result-glow), transparent 100%),
-      radial-gradient(ellipse 34% 45% at 38% 72%, var(--ambient-violet), transparent 100%),
-      radial-gradient(ellipse 32% 32% at 64% 74%, var(--ambient-amber), transparent 100%);
+  .reco[data-gradient-state="warning"]::before,
+  html[data-light-effects="off"] :is(.site-lighting, .page-intro, .reco)::before {
+    content: none;
   }
-  .reco[data-gradient-state="ready"]::before {
-    background: radial-gradient(ellipse at 82% 0%, var(--result-glow), transparent 65%);
-  }
-  .reco[data-gradient-state="warning"]::before { display: none; }
-  .psu-picks > .empty {
-    padding: 22px 14px;
-    background: linear-gradient(110deg, var(--bg-soft), var(--ambient-violet));
-  }
-}
-
-@media screen {
   html:not([data-light-effects="off"]):not(.psu-boot-active):not(.psu-boot-pending) .site-lighting::before {
-    animation: ambient-drift 10s ease-in-out infinite alternate;
+    animation: ambient-drift 11s ease-in-out infinite alternate;
   }
   html:not([data-light-effects="off"]):not(.psu-boot-active):not(.psu-boot-pending) .page-intro::before {
-    animation: intro-drift 6s ease-in-out infinite alternate;
+    animation: section-drift 7s ease-in-out infinite alternate;
   }
-  html:not([data-light-effects="off"]):not(.psu-boot-active):not(.psu-boot-pending) .reco:is([data-gradient-state="empty"], [data-gradient-state="partial"])::before {
-    animation: result-drift 7s ease-in-out infinite alternate;
+  html:not([data-light-effects="off"]):not(.psu-boot-active):not(.psu-boot-pending) .reco:not([data-gradient-state="warning"])::before {
+    animation: section-drift 7s ease-in-out -3s infinite alternate;
   }
 
   .site-cursor-light {
@@ -1465,39 +1465,86 @@ html[data-theme="light"] {
     position: absolute;
     top: 0;
     left: 0;
-    width: clamp(320px, 55vw, 920px);
-    aspect-ratio: 1;
+    width: min(480px, 100%);
+    aspect-ratio: 4 / 3;
     opacity: 0;
     transition: opacity 180ms ease-out;
-    background: radial-gradient(circle, var(--pointer-glow), var(--ambient-violet) 28%, transparent 70%);
+    background: radial-gradient(ellipse closest-side, color-mix(in srgb, var(--pointer-glow) 55%, transparent), transparent);
   }
   html:not([data-light-effects="off"]):not(.psu-boot-active):not(.psu-boot-pending) .site-cursor-light[data-active] { opacity: 1; }
-  .col-config > .card[data-spotlight] {
-    background-image: radial-gradient(275px circle at var(--spot-x) var(--spot-y), var(--spotlight-glow), transparent 100%);
+  .reco { --spot-radius: 320px; }
+  html:not([data-light-effects="off"]):not(.psu-boot-active):not(.psu-boot-pending)
+    :is(.layout .card, .reco:not([data-gradient-state="warning"]))[data-spotlight] {
+    background-image: radial-gradient(
+      circle var(--spot-radius, 280px) at var(--spot-x) var(--spot-y),
+      var(--pointer-glow),
+      transparent 72%
+    );
   }
-  .reco[data-spotlight]:not([data-gradient-state="warning"])::after {
-    background: radial-gradient(240px circle at var(--spot-x) var(--spot-y), var(--spotlight-glow), transparent 100%);
+  /* The fill expands from the entry point, underneath the option label. */
+  :is(.seg, .scenarios, .search-results) > button {
+    position: relative;
+    isolation: isolate;
+  }
+  :is(.seg, .scenarios, .search-results) > button::before {
+    content: '';
+    position: absolute;
+    inset: 1px;
+    z-index: -1;
+    border-radius: inherit;
+    pointer-events: none;
+    background: var(--pointer-glow);
+    opacity: 0;
+    transform: scaleX(.03);
+    transform-origin: var(--option-light-x, 50%) center;
+    transition: transform 260ms cubic-bezier(.22, 1, .36, 1), opacity 180ms ease-out;
+  }
+  html:not([data-light-effects="off"]):not(.psu-boot-active):not(.psu-boot-pending)
+    :is(.seg, .scenarios, .search-results) > button[data-option-light]:enabled::before {
+    opacity: 1;
+    transform: scaleX(1);
   }
 }
 @keyframes ambient-drift {
-  0% { transform: translate(-10%, -7%) scale(1.02); opacity: .75; }
-  50% { transform: translate(6%, 3%) scale(1.1); opacity: 1; }
-  100% { transform: translate(11%, -1%) scale(1.02); opacity: .82; }
+  0% { transform: translate(-11%, 0) scale(1.08); opacity: .7; }
+  55% { transform: translate(7%, -7%) scale(1.08); opacity: 1; }
+  100% { transform: translate(11%, 5%) scale(1.03); opacity: .85; }
 }
-@keyframes intro-drift {
-  from { transform: translateX(-22%); opacity: .65; }
-  to { transform: translateX(16%); opacity: 1; }
+@keyframes section-drift {
+  from { transform: translateX(-24%); opacity: .55; }
+  to { transform: translateX(16%); opacity: .94; }
 }
-@keyframes result-drift {
-  from { transform: translate(-16%, 9%); opacity: .72; }
-  to { transform: translate(14%, -8%); opacity: 1; }
-}
-@media screen and (prefers-reduced-motion: no-preference) {
-  html:not([data-light-effects="off"]) .reco[data-gradient-state="ready"]::before {
-    animation: result-ready 700ms var(--motion-enter) both;
+
+/* Hover zoom stays independent of the press transform and the light fill. */
+@media screen and (hover: hover) and (pointer: fine) {
+  :root { --hover-spring: var(--motion-enter); }
+  @supports (transition-timing-function: linear(0, 1)) {
+    :root { --hover-spring: linear(0, .57 19%, 1.24 46%, .96 75%, 1); }
+  }
+  :is(.seg, .scenarios, .search-results) > button {
+    --hover-scale-motion: 240ms var(--motion-enter);
+  }
+  :is(.layout .card, .reco, .psu-pick) {
+    --hover-scale-motion: 260ms var(--motion-enter);
+    transition: scale var(--hover-scale-motion),
+      border-color 200ms var(--ease), background-color 200ms var(--ease);
+  }
+  html[data-light-effects="on"]:not(:is(.psu-boot-active, .psu-boot-pending, .psu-boot-hold))
+    :is(.layout .card, .reco, .psu-pick):hover {
+    --hover-scale-motion: 420ms var(--hover-spring);
+    scale: 1.027;
+  }
+  html[data-light-effects="on"]:not(:is(.psu-boot-active, .psu-boot-pending, .psu-boot-hold))
+    :is(.seg, .scenarios, .search-results) > button:enabled:hover {
+    --hover-scale-motion: 360ms var(--hover-spring);
+    scale: 1.048;
   }
 }
-@keyframes result-ready {
-  from { opacity: .4; transform: translateY(7%); }
-  to { opacity: 1; transform: translateY(0); }
+
+@media screen and (hover: hover) and (pointer: fine) and (prefers-reduced-motion: reduce) {
+  /* The page's light-effects switch opts into this hover effect only. */
+  html[data-light-effects="on"]
+    :is(.layout .card, .reco, .psu-pick, :is(.seg, .scenarios, .search-results) > button) {
+    transition: scale var(--hover-scale-motion) !important;
+  }
 }

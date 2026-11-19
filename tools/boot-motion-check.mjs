@@ -1,12 +1,12 @@
 /* Shared allowlist for startup, interaction and ambient motion. */
 const namesAllowed = [
   'psu-content-in', 'psu-ui-enter', 'psu-ui-exit', 'psu-ui-feedback',
-  'ambient-drift', 'intro-drift', 'result-drift', 'result-ready'
+  'ambient-drift', 'section-drift'
 ];
 const ambientForms = new Map([
-  ['ambient-drift 10s ease-in-out infinite alternate', '.site-lighting::before'],
-  ['intro-drift 6s ease-in-out infinite alternate', '.page-intro::before'],
-  ['result-drift 7s ease-in-out infinite alternate', '.reco:is([data-gradient-state="empty"], [data-gradient-state="partial"])::before']
+  ['ambient-drift 11s ease-in-out infinite alternate', '.site-lighting::before'],
+  ['section-drift 7s ease-in-out infinite alternate', '.page-intro::before'],
+  ['section-drift 7s ease-in-out -3s infinite alternate', '.reco:not([data-gradient-state="warning"])::before']
 ]);
 
 export function checkBootMotion(source) {
@@ -36,7 +36,7 @@ export function checkBootMotion(source) {
     'psu-content-in .36s var(--ease) var(--psu-boot-delay, 0ms) both',
     'psu-ui-enter .32s var(--motion-enter) both', 'psu-ui-exit .18s var(--motion-exit) both',
     'psu-ui-feedback .18s var(--ease) both', 'none',
-    'none !important', 'result-ready 700ms var(--motion-enter) both', ...ambientForms.keys()
+    'none !important', ...ambientForms.keys()
   ]);
   for (const m of css.matchAll(/(?:^|[;{])\s*((?:-\w+-)?animation(?:-[\w-]+)?)\s*:\s*([^;}]+)/g)) {
     const [, prop, raw] = m;

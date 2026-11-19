@@ -35,12 +35,11 @@ const MARKER_RE = /\.card > h2::before,[\s\S]*?\n\}/;
 const markerRule = MARKER_RE.exec(cssCode);
 const cssNoMarker = markerRule ? cssCode.replace(markerRule[0], '') : cssCode;
 const gradientTargets = new Set([
-  '.site-lighting::before', '.site-cursor-light', '.page-intro::before', '.reco::before', '.reco[data-gradient-state="ready"]::before',
-  '.psu-picks > .empty', '.col-config > .card[data-spotlight]',
-  '.reco[data-spotlight]:not([data-gradient-state="warning"])::after'
+  '.site-lighting::before', '.site-cursor-light', ':is(.page-intro, .reco)::before',
+  'html:not([data-light-effects="off"]):not(.psu-boot-active):not(.psu-boot-pending) :is(.layout .card, .reco:not([data-gradient-state="warning"]))[data-spotlight]'
 ]);
 const strayGradients = [...cssNoMarker.matchAll(/([^{}]+)\{([^{}]*gradient\([^{}]*)\}/g)]
-  .map(([, selector]) => selector.trim()).filter(selector => !gradientTargets.has(selector));
+  .map(([, selector]) => selector.trim().replace(/\s+/g, ' ')).filter(selector => !gradientTargets.has(selector));
 ck('渐变仅用于环境背景、空态、结果与指针高光', strayGradients.length === 0, strayGradients.join(' | '));
 ck('分区标记是三条斜杠 ///',
    !!markerRule && (markerRule[0].match(/linear-gradient\(/g) || []).length === 3,

@@ -618,6 +618,7 @@
   var reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
   var printing = false;
   var active = new Map(), pressed = new Set(), folds = new Map();
+  var optionSelector = ':is(.seg, .scenarios, .search-results) > button:enabled';
   var ENTER = 'cubic-bezier(.16, 1, .3, 1)', FAST = 'cubic-bezier(.2, 0, .2, 1)';
   var EXIT = 'cubic-bezier(.4, 0, 1, 1)';
   function enabled(surface) {
@@ -651,18 +652,20 @@
   function press(el) {
     if (!enabled() || !el || el.disabled || el.getAttribute('aria-disabled') === 'true' || pressed.has(el)) return;
     pressed.add(el);
-    play(el, [{ transform: getComputedStyle(el).transform }, { transform: 'scale(.975)' }], 80, FAST, null, true);
+    var scale = el.matches(optionSelector) ? .965 : .975;
+    play(el, [{ transform: getComputedStyle(el).transform }, { transform: 'scale(' + scale + ')' }], 80, FAST, null, true);
   }
   function release(el) {
     if (!pressed.delete(el)) return;
     if (!el.isConnected) { stop(el); return; }
     if (!enabled()) { stop(el); return; }
-    // 小幅回弹采用有限关键帧；重入时采样当前 transform，避免跳回第一帧。
+    // Start from the current press frame so fast repeat presses stay continuous.
+    var isOption = el.matches(optionSelector);
     play(el, [
       { transform: getComputedStyle(el).transform, offset: 0 },
-      { transform: 'scale(1.006)', offset: .58 },
+      { transform: isOption ? 'scale(1.015)' : 'scale(1.006)', offset: .58 },
       { transform: 'scale(1)', offset: 1 }
-    ], 360, ENTER);
+    ], isOption ? 280 : 360, ENTER);
   }
   function releaseAll() { Array.from(pressed).forEach(release); }
   function buttonFrom(event) { return event.target.closest && event.target.closest('button, .btn'); }
@@ -745,8 +748,8 @@
   window.addEventListener('beforeprint', function () { printing = true; clear(); });
   window.addEventListener('afterprint', function () { printing = false; });
 
-  var cursorLight = null, pointerSurface = null, pointerFrame = 0, pointerX = 0, pointerY = 0;
-  var hoveredSurface = null;
+  var cursorLight = null, pointerSurface = null, pointerFrame = 0, pointerX = null, pointerY = 0;
+  var pointerOption = null;
   var lightingRoot = document.documentElement;
   var printMedia = matchMedia('print');
   function lightingEnabled() {
@@ -761,38 +764,94 @@
     pointerSurface.removeAttribute('data-spotlight');
     pointerSurface = null;
   }
+  function setOptionLight(option) {
+    if (pointerOption === option) return;
+    if (pointerOption) pointerOption.removeAttribute('data-option-light');
+    pointerOption = option;
+    if (!option) return;
+    var bounds = option.getBoundingClientRect();
+    var origin = (pointerX - bounds.left) / bounds.width * 100;
+    option.style.setProperty('--option-light-x', origin + '%');
+    option.setAttribute('data-option-light', '');
+  }
   function clearSpotlight() {
     if (pointerFrame) cancelAnimationFrame(pointerFrame);
     pointerFrame = 0;
-    hoveredSurface = null;
+    pointerX = null;
     if (cursorLight) cursorLight.removeAttribute('data-active');
     clearSurfaceLight();
+    setOptionLight(null);
+  }
+  function queueSpotlight() {
+    if (pointerFrame || pointerX === null) return;
+    pointerFrame = requestAnimationFrame(function () {
+      pointerFrame = 0;
+      if (!lightingEnabled()) { clearSpotlight(); return; }
+      var hit = document.elementFromPoint(pointerX, pointerY);
+      setOptionLight(hit?.closest(optionSelector) || null);
+      var hoveredSurface = hit?.closest('.layout .card, .reco');
+      if (!hoveredSurface) {
+        cursorLight.style.transform = 'translate3d(' + pointerX + 'px,' + pointerY + 'px,0) translate(-50%,-50%)';
+      }
+      cursorLight.toggleAttribute('data-active', !hoveredSurface);
+      if (pointerSurface !== hoveredSurface) clearSurfaceLight();
+      if (!hoveredSurface) return;
+      pointerSurface = hoveredSurface;
+      var bounds = pointerSurface.getBoundingClientRect();
+      pointerSurface.style.setProperty('--spot-x', ((pointerX - bounds.left) * pointerSurface.offsetWidth / bounds.width) + 'px');
+      pointerSurface.style.setProperty('--spot-y', ((pointerY - bounds.top) * pointerSurface.offsetHeight / bounds.height) + 'px');
+      if (!pointerSurface.hasAttribute('data-spotlight')) pointerSurface.setAttribute('data-spotlight', '');
+    });
   }
   document.addEventListener('pointermove', function (event) {
     if (!cursorLight || (event.pointerType !== 'mouse' && event.pointerType !== 'pen')) return;
     if (!lightingEnabled()) { clearSpotlight(); return; }
     pointerX = event.clientX;
     pointerY = event.clientY;
-    hoveredSurface = event.target.closest('.col-config > .card, .reco');
-    if (pointerFrame) return;
-    pointerFrame = requestAnimationFrame(function () {
-      pointerFrame = 0;
-      if (!lightingEnabled()) { clearSpotlight(); return; }
-      cursorLight.style.transform = 'translate3d(' + pointerX + 'px,' + pointerY + 'px,0) translate(-50%,-50%)';
-      if (!cursorLight.hasAttribute('data-active')) cursorLight.setAttribute('data-active', '');
-      if (pointerSurface !== hoveredSurface) clearSurfaceLight();
-      if (!hoveredSurface) return;
-      pointerSurface = hoveredSurface;
-      var bounds = pointerSurface.getBoundingClientRect();
-      pointerSurface.style.setProperty('--spot-x', (pointerX - bounds.left) + 'px');
-      pointerSurface.style.setProperty('--spot-y', (pointerY - bounds.top) + 'px');
-      if (!pointerSurface.hasAttribute('data-spotlight')) pointerSurface.setAttribute('data-spotlight', '');
-    });
+    queueSpotlight();
   }, { passive: true });
+  document.addEventListener('scroll', queueSpotlight, { capture: true, passive: true });
   document.documentElement.addEventListener('pointerleave', clearSpotlight);
   window.addEventListener('blur', clearSpotlight);
   document.addEventListener('visibilitychange', clearSpotlight);
   window.addEventListener('beforeprint', clearSpotlight);
+
+  function setupSelectionTrack(group) {
+    var previous = null, previousTop = null, geometry = '';
+    var scenario = group.classList.contains('scenarios');
+    function sync() {
+      var selected = group.querySelector(':scope > button[aria-pressed="true"]');
+      if (!selected || !selected.offsetWidth) {
+        group.removeAttribute('data-selection-ready');
+        group.removeAttribute('data-selection-moving');
+        previous = null;
+        geometry = '';
+        return;
+      }
+      var top = selected.offsetTop;
+      var width = selected.offsetWidth;
+      var inset = scenario ? Math.round(width * .12) : 6;
+      var x = selected.offsetLeft + inset;
+      var y = top + selected.offsetHeight - (scenario ? 6 : 2);
+      var nextGeometry = x + ',' + y + ',' + width;
+      if (selected === previous && nextGeometry === geometry) return;
+      group.toggleAttribute('data-selection-moving', !!previous && selected !== previous && top === previousTop);
+      group.style.setProperty('--selection-x', x + 'px');
+      group.style.setProperty('--selection-y', y + 'px');
+      group.style.setProperty('--selection-width', (width - inset * 2) + 'px');
+      group.setAttribute('data-selection-ready', '');
+      previous = selected;
+      previousTop = top;
+      geometry = nextGeometry;
+    }
+    // Establish the group's offset origin before reading button coordinates.
+    group.classList.add('selection-group');
+    new MutationObserver(sync).observe(group, { subtree: true, childList: true, attributes: true, attributeFilter: ['aria-pressed'] });
+    if (typeof ResizeObserver === 'function') new ResizeObserver(sync).observe(group);
+    else window.addEventListener('resize', sync);
+    document.fonts?.ready.then(sync);
+    sync();
+  }
 
   function setup() {
     cursorLight = document.querySelector('.site-cursor-light');
@@ -813,6 +872,7 @@
         syncLights();
       });
     }
+    document.querySelectorAll('.seg, .scenarios').forEach(setupSelectionTrack);
     if (typeof document.documentElement.animate === 'function') document.documentElement.classList.add('psu-motion-ready');
     ['recoBig', 'heroPower', 'heroExpected', 'heroTransient', 'answerChipValue'].forEach(function (id) {
       var target = document.getElementById(id);

@@ -243,6 +243,63 @@ export async function checkBootBrowser(root, executable, options = {}) {
           followed.push(await waitFor(`document.querySelector('.site-cursor-light[data-active]')?.style.transform.startsWith('translate3d(${point.x}px, ${point.y}px,')`));
         }
         check('跨页面留白区域移动光标时高光跟随坐标', followed.every(Boolean));
+        const pointAt = (selector, fraction) => evaluate(`(() => {
+          const rect = document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect();
+          return { x: Math.round(rect.left + rect.width * ${fraction}), y: Math.round(rect.top + rect.height / 2) };
+        })()`);
+        const recoPoint = await pointAt('.reco', .5);
+        const recoScale = "getComputedStyle(document.querySelector('.reco')).scale";
+        await send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...recoPoint });
+        const cardSpring = await waitFor(`parseFloat(${recoScale}) > 1.029`, 900) &&
+          await waitFor(`${recoScale} === '1.027'`, 900);
+        await send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...points[0] });
+        check('无需点击，推荐面板悬停时弹性放大并在移出后还原', cardSpring &&
+          await waitFor(`${recoScale} === 'none'`, 900));
+
+        const modeOption = "#calcMode [data-mode='full']";
+        const option = `document.querySelector(${JSON.stringify(modeOption)})`;
+        const optionPoint = await pointAt(modeOption, .2);
+        await send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...optionPoint });
+        const expanding = await waitFor(`(() => {
+          const option = document.querySelector(${JSON.stringify(modeOption)});
+          const fill = getComputedStyle(option, '::before');
+          const origin = parseFloat(option.style.getPropertyValue('--option-light-x'));
+          return option.hasAttribute('data-option-light') && origin > 16 && origin < 24 &&
+            new DOMMatrix(fill.transform).a > .03 && new DOMMatrix(fill.transform).a < 1;
+        })()`, 500);
+        check('选项悬停时整体弹性放大，无须点击', await waitFor(`
+          parseFloat(getComputedStyle(${option}).scale) > 1.05 &&
+          ${option}.getAttribute('aria-pressed') === 'false'
+        `, 900));
+        const expanded = await waitFor(`getComputedStyle(document.querySelector(${JSON.stringify(modeOption)}), '::before').opacity === '1'`);
+        await send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...points[0] });
+        check('鼠标接触选项后从进入点拉伸填充，移开收回且未选中', expanding && expanded &&
+          await waitFor(`(() => {
+            const option = document.querySelector(${JSON.stringify(modeOption)});
+            return option.getAttribute('aria-pressed') === 'false' &&
+              getComputedStyle(option, '::before').opacity === '0';
+          })()`));
+        const group = "document.querySelector('#calcMode')";
+        const trackX = `new DOMMatrix(getComputedStyle(${group}, '::after').transform).m41`;
+        const oldTrackX = await evaluate(trackX);
+        await send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...optionPoint });
+        await send('Input.dispatchMouseEvent', { type: 'mousePressed', ...optionPoint, button: 'left', clickCount: 1 });
+        check('选项按住压缩，同时保留原选中项', await waitFor(`
+          new DOMMatrix(getComputedStyle(${option}).transform).a <= .97 &&
+          ${option}.getAttribute('aria-pressed') === 'false'
+        `, 1000));
+        await send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...optionPoint, button: 'left', clickCount: 1 });
+        check('松开时选项回弹，红色选中条滑向新位置', await waitFor(`(() => {
+          const track = ${group};
+          const targetX = parseFloat(track.style.getPropertyValue('--selection-x'));
+          const currentX = ${trackX};
+          return ${option}.getAttribute('aria-pressed') === 'true' &&
+            new DOMMatrix(getComputedStyle(${option}).transform).a > 1 &&
+            currentX > ${oldTrackX} && currentX < targetX;
+        })()`, 1000) && await waitFor(`
+          Math.abs(${trackX} - parseFloat(${group}.style.getPropertyValue('--selection-x'))) < .5
+        `));
+        await evaluate("document.querySelector('#calcMode [data-mode=quick]').click()");
       }
       await evaluate(`document.querySelector('#cpuSearch').value = '9600X'; document.querySelector('#cpuSearch').dispatchEvent(new Event('input', { bubbles: true })); document.querySelector('#cpuSearch').focus();`);
       await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'ArrowDown', code: 'ArrowDown', windowsVirtualKeyCode: 40 });
@@ -291,7 +348,7 @@ export async function checkBootBrowser(root, executable, options = {}) {
     const ambientPosition = await evaluate(ambientStyle + '.transform');
     await pause(850);
     check('系统减少动效时仍默认持续流光', await evaluate(`
-      ${ambientStyle}.animationDuration === '10s' && ${ambientStyle}.animationIterationCount === 'infinite' &&
+      ${ambientStyle}.animationDuration === '11s' && ${ambientStyle}.animationIterationCount === 'infinite' &&
       ${ambientStyle}.transform !== ${JSON.stringify(ambientPosition)}`));
     await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
     const movePointer = x => send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y: 170 });
@@ -302,14 +359,34 @@ export async function checkBootBrowser(root, executable, options = {}) {
     })()`);
     await movePointer(20);
     const leftSpot = await spotlightAt(20);
+    const cardPoint = await evaluate(`(() => {
+      const rect = document.querySelector('#cpuSelect').closest('.card').getBoundingClientRect();
+      return { x: Math.round(rect.left + 32), y: Math.round(rect.top + 25) };
+    })()`);
+    await send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...cardPoint });
+    const configScale = "getComputedStyle(document.querySelector('#cpuSelect').closest('.card')).scale";
+    check('系统减少动效时，光效开关仍可启用弹性放大', await waitFor(`
+      parseFloat(${configScale}) > 1.029
+    `, 900) && await waitFor(`${configScale} === '1.027'`, 900));
+    await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: cardPoint.x + 1, y: cardPoint.y });
+    check('经过卡片时 ROG 红高光定位在卡片内', await waitFor(`(() => {
+      const card = document.querySelector('#cpuSelect').closest('.card');
+      const rect = card.getBoundingClientRect();
+      const spotX = (${cardPoint.x + 1} - rect.left) * card.offsetWidth / rect.width;
+      return card.hasAttribute('data-spotlight') && !${cursor}.hasAttribute('data-active') &&
+        Math.abs(parseFloat(card.style.getPropertyValue('--spot-x')) - spotX) < 1 &&
+        getComputedStyle(card).backgroundImage.includes('rgba(255, 40, 78, 0.19)');
+    })()`));
     await movePointer(1410);
-    check('系统减少动效时左右留白仍响应真实光标', leftSpot && await spotlightAt(1410));
+    check('系统减少动效时左右留白仍响应真实光标', leftSpot && await spotlightAt(1410) &&
+      await waitFor("!document.querySelector('.layout .card[data-spotlight]')"));
     await click('.header-more > summary');
     await click('#btnLightEffects');
-    await movePointer(20);
-    check('关闭光效后停止流光和追光', await evaluate(`
+    await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: cardPoint.x, y: cardPoint.y });
+    check('关闭光效后停止流光、追光和悬停放大', await waitFor(`
       document.querySelector('#btnLightEffects').getAttribute('aria-pressed') === 'false' &&
-      ${ambientStyle}.animationName === 'none' && !${cursor}.hasAttribute('data-active')`));
+      ${ambientStyle}.animationName === 'none' && !${cursor}.hasAttribute('data-active') && ${configScale} === 'none'
+    `, 900));
     await evaluate('window.__bootLeaving = true');
     await send('Page.reload');
     check('重载保留光效选择', await waitFor(`!window.__bootLeaving && document.readyState === 'complete' &&
