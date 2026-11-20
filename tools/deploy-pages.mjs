@@ -59,6 +59,8 @@ const DIRS = ['assets', 'js'];
    ⚠️ 别漏了 js —— 这个白名单同时作用于两个目录，
    漏掉的直接后果是「一个 js 都没发布」，然后页面上线即白屏。 */
 const ASSET_ALLOW = f => /\.(css|js|png|svg|ico|webp|jpe?g|woff2?|mp4)$/i.test(f);
+// 构建脚本专用源图已 Base64 内联进 style.css，线上浏览器不会请求原图
+const BUILD_ONLY_ASSETS = new Set(['lightning-mark.png', 'lightning-wordmark.png']);
 
 const run = (cmd, args, opts = {}) =>
   execFileSync(cmd, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], ...opts });
@@ -74,6 +76,7 @@ DIRS.forEach(d => {
   const dir = path.join(root, d);
   if (!fs.existsSync(dir)) { console.error('✗ 白名单目录不存在: ' + d); process.exit(1); }
   fs.readdirSync(dir).filter(ASSET_ALLOW).sort().forEach(f => {
+    if (d === 'assets' && BUILD_ONLY_ASSETS.has(f)) return;
     plan.push({ rel: d + '/' + f, from: path.join(dir, f) });
   });
 });

@@ -169,7 +169,14 @@
   --motion-enter: cubic-bezier(.16, 1, .3, 1);
   --motion-exit: cubic-bezier(.4, 0, 1, 1);
   --motion-fast: cubic-bezier(.2, 0, .2, 1);
+  --spring-soft: cubic-bezier(.22, 1, .36, 1);
   --shadow-float: 0 8px 32px rgba(0, 0, 0, .6);
+}
+
+@supports (transition-timing-function: linear(0, 1)) {
+  :root {
+    --spring-soft: linear(0, .42 16%, .94 34%, 1.06 54%, .99 78%, 1);
+  }
 }
 
 /* 浅色主题：变量名与暗色完全一致，仅换值。ROG 红压深以保证白底达标 */
@@ -419,7 +426,7 @@ details.section-collapse > summary::before {
               background-color var(--dur) var(--ease);
 }
 .card-toggle:hover { border-color: var(--text-4); color: var(--text); }
-.card-toggle::before { content: '▾'; font-size: 10px; display: block; transition: transform var(--dur) var(--ease); }
+.card-toggle::before { content: '▾'; font-size: 10px; display: block; transition: transform 280ms var(--motion-enter); }
 .card.is-collapsed .card-toggle::before { transform: rotate(-90deg); }
 /* 收起状态下整行可点，给一点悬停反馈 */
 .card.is-collapsed { cursor: pointer; }
@@ -438,7 +445,10 @@ details.section-collapse > summary::before {
 .card.guide > .card-body { padding: 14px 0 0; }
 
 /* 当前卡：只做「左侧红色指示条」，不做整块变色 */
-.col-config .card { border-left: 2px solid transparent; padding-left: 14px; }
+.col-config .card {
+  border-left: 2px solid transparent; padding-left: 14px;
+  transition: border-left-color 220ms var(--motion-enter), background-color 200ms var(--ease);
+}
 .col-config .card.is-active { border-left-color: var(--rog); }
 
 .sticky-col { position: sticky; top: 72px; }
@@ -613,7 +623,7 @@ select option, select optgroup { background: var(--bg-soft); color: var(--text);
   }
   .scenarios[data-selection-ready]::after { height: 3px; }
   :is(.seg, .scenarios)[data-selection-moving]::after {
-    transition: transform 260ms cubic-bezier(.22, 1, .36, 1), width 260ms cubic-bezier(.22, 1, .36, 1);
+    transition: transform 280ms var(--spring-soft), width 280ms var(--spring-soft);
   }
 }
 
@@ -874,16 +884,17 @@ details.section-collapse > summary .hint {
 /* Toast：不再是 99px 胶囊 + 满饱和实底 + 大阴影 */
 .toast {
   position: fixed; bottom: 24px; left: 50%;
-  transform: translateX(-50%) translateY(10px);
+  transform: translateX(-50%) translateY(12px) scale(.97);
   background: var(--surface); color: var(--text);
   border: 1px solid var(--line); border-left: 3px solid var(--rog);
   border-radius: var(--radius); padding: 10px 16px;
   font-size: var(--fs-sm); font-weight: 600;
   box-shadow: var(--shadow-float);
-  opacity: 0; transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease);
+  opacity: 0;
+  transition: opacity 200ms var(--motion-fast), transform 320ms var(--spring-soft);
   z-index: 200; pointer-events: none;
 }
-.toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+.toast.show { transform: translateX(-50%) translateY(0) scale(1); opacity: 1; }
 .toast.err { border-left-color: var(--err); }
 
 .empty { padding: 22px 0; color: var(--text-3); font-size: var(--fs-sm); }
@@ -984,7 +995,7 @@ body.modal-open { overflow: hidden; }
 .modal-body .result-explain { border-top: 1px solid var(--line); }
 .modal-body .result-explain > summary { padding: 14px 0; color: var(--text-2); }
 .modal-body .result-explain p { margin-bottom: 12px; }
-.modal-backdrop { opacity: 1; transition: opacity 160ms var(--ease); }
+.modal-backdrop { opacity: 1; transition: opacity 200ms var(--motion-fast), backdrop-filter 220ms var(--motion-fast); }
 .modal-backdrop.is-closing { opacity: 0; }
 
 /* ------------------------------------------------------------- 滚动条 - */
@@ -997,120 +1008,30 @@ body.modal-open { overflow: hidden; }
 
 .mobile-bar { display: none; }
 
-@media (max-width: 1180px) {
-  .layout { grid-template-columns: 1fr; }
-  .sticky-col { position: static; }
-}
-
-@media (max-width: 780px) {
-  .psu-picks { grid-template-columns: 1fr; }
-  .psu-pick:first-child { border-top: 1px solid var(--line-soft); }
-}
-
-@media (max-width: 640px) {
-  .wrap, .top-inner { padding-left: 16px; padding-right: 16px; }
-  .grid3, .grid2, .chk-grid { grid-template-columns: 1fr; }
-  .scenarios { grid-template-columns: repeat(2, 1fr); }
-  .scenario:nth-child(2) { border-right: none; }
-  .guide-steps { grid-template-columns: 1fr; }
-  .guide-steps li { flex-direction: row; text-align: left; border-right: none; border-bottom: 1px solid var(--line-soft); }
-  .guide-steps li:last-child { border-bottom: none; }
-  .top-actions { width: 100%; margin-left: 0; }
-  /* 窄屏只留图形本体：140px 的字标会把产品名挤到换行，
-     而顶栏里真正需要被读到的是「这是什么工具」。 */
-  .logo .brand-lockup { display: none; }
-  .logo-text { padding-left: 11px; }
-
-  /* 分区从「左栏分组名 + 右栏字段」改回上下堆叠：
-     152px 的分组名栏在 390px 屏上会把字段压到没法用。
-     图标与 /// 回到标题行内横排。 */
-  .col-config .card {
-    grid-template-columns: minmax(0, 1fr) 28px;
-    column-gap: 14px; row-gap: 9px;
-  }
-  .col-config .card > h2 { grid-column: 1; grid-row: 1; }
-  .card > h2::before { display: inline-block; margin: 0 9px 0 0; vertical-align: -2px; }
-  .card > h2 .sec-ico { display: inline-flex; margin: 0 8px 0 0; }
-  .card > h2 .sec-ico svg { width: 18px; height: 18px; }
-  .card > h2 .hint { display: none; }
-  .col-config .card > .card-summary { grid-column: 1 / 3; grid-row: 2; padding-top: 0; }
-  .col-config .card > .card-body { grid-column: 1 / 3; grid-row: 2; }
-  .col-config .card > .card-toggle { grid-column: 2; grid-row: 1; }
-
-  /* 触控目标 ≥44px */
-  button, .btn, select, input[type="text"], input[type="number"], input[type="search"] { min-height: 44px; }
-  .card-toggle { width: 32px; height: 32px; }
-  .storage-row { grid-template-columns: 1fr 68px 44px; }
-  .storage-row .del { min-height: 44px; }
-  .chk input[type="checkbox"] { width: 20px; height: 20px; flex: 0 0 20px; }
-  .chk { padding: 11px 0; }
-  .field { min-height: 56px; }
-  .field > select, .field > input[type="text"], .field > input[type="number"] { flex: 0 0 170px; width: 170px; }
-
-  /* 窄屏结果条：常驻底部，拇指可达 */
-  .sticky-col { padding-bottom: 62px; }
-  .mobile-bar {
-    display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
-    align-items: baseline; gap: 10px; padding: 11px 16px;
-    background: var(--bg-nav);
-    border-top: 2px solid var(--rog);
-  }
-  .mobile-bar .mb-label { font-size: var(--fs-xs); color: var(--text-3); }
-  .mobile-bar .mb-value {
-    font-family: var(--mono); font-variant-numeric: tabular-nums;
-    font-size: 22px; font-weight: 700; color: var(--text);
-    margin-left: auto; letter-spacing: -.02em;
-  }
-  .mobile-bar .mb-value span { font-size: var(--fs-sm); font-weight: 400; color: var(--text-3); }
-
-  /* 窄屏把声明弹窗做成整屏抽屉：内容多，居中卡片会挤成一条 */
-  .modal-backdrop { padding: 0; }
-  .modal-card {
-    width: 100%; max-height: 100dvh; height: 100dvh;
-    border: none;
-  }
-  .modal-body { padding: 2px 16px 6px; }
-  .modal-head, .modal-foot { padding-left: 16px; padding-right: 16px; }
-  .modal-foot { padding-bottom: max(13px, env(safe-area-inset-bottom, 0px)); }
-  .modal-foot button.primary { flex: 1 1 100%; }
-}
-
-@media (max-width: 420px) {
-  .wrap, .top-inner { padding-left: 12px; padding-right: 12px; }
-  .card-body { padding: 12px 0 16px; }
-  .logo small { display: none; }
-}
-
-/* 启动专用：单一小焦点，有限时长；红色预算来自合并弹窗的重复背景声明。 */
+/* 启动专用与弹窗动态（统一管理，打印段一并归零） */
 .psu-ui-initializing .card-body { transition: none !important; }
 .psu-boot {
   display: none; position: fixed; inset: 0; z-index: 10000;
   align-items: center; justify-content: center;
+  overflow: hidden; height: 100vh; height: 100dvh;
   background: #000; color: var(--rog);
   touch-action: none;
 }
 html.psu-boot-pending .psu-boot { display: flex; }
-/* 跳过提示：纯视觉。遮罩恒为黑底，与站点主题无关，所以这里用绝对色而不是主题 token。
-   动作本身是「点任意位置 / 按任意键」，由 js/ui.js 的捕获监听实现。 */
+.psu-boot-canvas {
+  display: block; flex: none; max-width: none;
+  width: 100%; height: 100%; background: #000;
+}
+/* 跳过提示：纯视觉。遮罩恒为黑底，与站点主题无关。动作由 js/ui.js 的捕获监听实现。 */
 .psu-boot-skip {
   position: absolute; right: max(24px, env(safe-area-inset-right, 0px)); bottom: max(20px, env(safe-area-inset-bottom, 0px));
   font-size: var(--fs-xs); letter-spacing: .08em;
   color: rgba(255, 255, 255, .42);
 }
-/* 窄屏顶栏位置紧张，「重播开场」让位（键盘用户在宽屏可用；窄屏仍可点 logo） */
-@media (max-width: 640px) { #btnReplayIntro { display: none; } }
-/* 没有 JS 时：整张配置/结果区与顶栏按钮都是死的（下拉没有选项、
-   按钮点了没反应、计数是「—」），与其让人以为页面坏了，不如收起它们，
-   只留 <noscript> 的说明。类名由 <head> 最前面的内联脚本摘掉。 */
-.no-js .layout, .no-js .top-actions { display: none; }
+/* 没有 JS 时收起依赖脚本的空壳表单与工具栏，只留 <noscript> 说明。 */
+.no-js .layout, .no-js .top-actions, .no-js .decision-toolbar { display: none; }
 html.psu-boot-active, html.psu-boot-active body { overflow: hidden; }
 html.psu-boot-pending body > :not(.psu-boot):not(script):not(noscript) { opacity: 0; }
-/* 启动动画已经从 DOM/CSS 版改成 Canvas 版（js/boot-animation.js），
-   原来那套靠 .psu-boot-focus / -mark / -half / -line / -ticks 拼出来的
-   分镜连同它的 6 个 keyframes 一并删除。这里只留 Canvas 需要的外框。 */
-/* 卡片逐个弹出分两步：psu-boot-hold 先把它们压成不可见并排好各自的
-   --psu-boot-delay，psu-boot-fill 一到就依次播放 psu-content-in。
-   动画的填充状态会盖过 hold 的 opacity，所以两只类名同时挂着也不会打架。 */
 .psu-boot-hold .psu-boot-item { opacity: 0; }
 .psu-boot-fill .psu-boot-item { animation: psu-content-in .36s var(--ease) var(--psu-boot-delay, 0ms) both; }
 @keyframes psu-content-in {
@@ -1118,7 +1039,7 @@ html.psu-boot-pending body > :not(.psu-boot):not(script):not(noscript) { opacity
   to { opacity: 1; transform: translate(0, 0); }
 }
 
-/* 局部回弹不改变控件尺寸或文档布局；JS 从当前帧接续，CSS 保留降级路径。 */
+/* 局部回弹与交互过渡（JS 从当前帧接续，CSS 保留降级路径） */
 button, .btn {
   transition: scale var(--hover-scale-motion, 240ms var(--motion-enter)), transform 320ms var(--motion-enter),
     opacity 180ms var(--motion-fast),
@@ -1130,7 +1051,11 @@ html:not(.psu-motion-ready) .btn:not([aria-disabled="true"]):active {
 }
 #btnTheme .ico { transition: transform 380ms var(--motion-enter); }
 html[data-theme="light"] #btnTheme .ico { transform: rotate(180deg); }
-.switch .track::after { transition: transform 320ms var(--motion-enter), background-color 180ms var(--motion-fast); }
+.switch .track::after {
+  transition: transform 340ms var(--spring-soft), width 160ms var(--motion-fast), background-color 180ms var(--motion-fast);
+}
+.switch:active .track::after { width: 18px; }
+.switch:active input:checked + .track::after { transform: translateX(14px); }
 .col-config .card > .card-body > .card-body-in {
   transform: translateY(0); transition: transform 320ms var(--motion-enter);
 }
@@ -1141,6 +1066,7 @@ html:not(.psu-boot-active) details[open] > :not(summary),
 html.psu-motion-ready details[open] > :not(summary),
 html.psu-motion-ready .modal-backdrop > .modal-card { animation: none; }
 .psu-ui-feedback { animation: psu-ui-feedback .18s var(--ease) both; }
+.storage-row, .custom-row { animation: psu-ui-enter .32s var(--motion-enter) both; }
 @keyframes psu-ui-enter {
   from { opacity: 0; transform: translateY(8px) scale(.985); }
   to { opacity: 1; transform: translateY(0) scale(1); }
@@ -1153,21 +1079,15 @@ html.psu-motion-ready .modal-backdrop > .modal-card { animation: none; }
   from { opacity: .65; transform: translateY(1px); }
   to { opacity: 1; transform: translateY(0); }
 }
-@media (prefers-reduced-motion: reduce) {
-  #btnTheme .ico, .card-body-in, button:active, .btn:active { transform: none !important; }
-}
-@media print {
-  .psu-ui-feedback, details[open] > :not(summary), .modal-card, .card-body-in {
-    animation: none !important; transition: none !important; transform: none !important; opacity: 1 !important;
-  }
-}
 
-/* 结论优先：详情由用户展开，打印保留完整报告。 */
+/* 结果区折叠、说明、辅助状态与导出动作 */
 .result-fold > summary { display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 14px 0; }
 .result-fold > summary h2 .hint { margin-left: 10px; font-size: var(--fs-xs); font-weight: 400; color: var(--text-3); }
 .result-fold > summary h2 { margin: 0; font-size: var(--fs-h); }
-.result-fold > summary::after, .result-explain > summary::after { content: '＋'; margin-left: auto; color: var(--text-3); }
-.result-fold[open] > summary::after, .result-explain[open] > summary::after { content: '−'; }
+.result-fold > summary::after, .result-explain > summary::after {
+  content: '＋'; margin-left: auto; color: var(--text-3); transition: transform 180ms var(--ease);
+}
+.result-fold[open] > summary::after, .result-explain[open] > summary::after { content: '＋'; transform: rotate(45deg); }
 .result-fold > summary, .result-explain > summary { list-style: none; }
 .result-fold > summary::-webkit-details-marker, .result-explain > summary::-webkit-details-marker { display: none; }
 .result-explain { margin: 10px 0; color: var(--text-3); font-size: var(--fs-sm); }
@@ -1185,22 +1105,37 @@ html.psu-motion-ready .modal-backdrop > .modal-card { animation: none; }
 #upgradeBox > .note:last-child:not(.accent) { display: none; }
 #upgradeBox > .empty, #adviceBox > .empty { display: none; }
 .hero > div { padding-top: 12px; padding-bottom: 12px; }
-@media print {
-  .result-fold > summary { display: block !important; }
-  .result-fold > summary::after, .result-explain > summary::after, .usage-notice { display: none !important; }
-  #issues .issue .d { display: block !important; }
-  details.result-fold > .card-body, details.result-explain > div { display: block !important; }
+.kv dd.kv-hi { color: var(--err); font-weight: 700; }
+.export-actions { gap: 8px 12px; }
+.export-full { grid-column: 1 / -1; }
+
+/* 已有电源负载率刻度条（无渐变无外发光） */
+.psu-meter { margin-top: 9px; }
+.psu-meter-track {
+  position: relative; height: 8px; background: var(--bg-soft);
+  border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden;
+}
+.psu-meter-sweet {
+  position: absolute; left: 40%; width: 30%; top: 0; bottom: 0;
+  border-inline: 1px dashed var(--text-4); opacity: .55; pointer-events: none;
+}
+.psu-meter-fill { display: block; height: 100%; background: var(--ok); transition: width 360ms var(--motion-enter), background-color 220ms var(--motion-fast); }
+.psu-meter-fill.warn { background: var(--warn); }
+.psu-meter-fill.error { background: var(--err); }
+.psu-meter-scale {
+  display: flex; justify-content: space-between; margin-top: 4px;
+  font-size: var(--fs-xs); font-family: var(--mono); color: var(--text-3);
 }
 
-/* 简洁计算器布局：宽配置区、紧凑结果区，帮助按需展开。 */
-@media (min-width: 1181px) {
-  .layout { grid-template-columns: minmax(0, 1.35fr) minmax(360px, .85fr); gap: 40px; }
-  .col-config .card { grid-template-columns: minmax(0, 150px) minmax(0, 1fr) 28px; padding: 18px 0; }
-}
+/* 简洁计算器布局：宽配置区、紧凑结果区，帮助按需展开 */
+.col-config .card { column-gap: 16px; }
+.col-config .card > .card-toggle { justify-self: end; }
 .col-config .card.guide { display: block; padding: 0 0 20px; border-top: none; }
+#guideCard { border-bottom: 0; }
+#guideCard > h2 { display: none; }
 .card.guide > h2 { justify-content: space-between; }
 .card.guide > h2 .hint { display: none; }
-.card.guide > .card-body { display: flex; flex-wrap: wrap; align-items: start; gap: 14px; padding-top: 14px; }
+.card.guide > .card-body { display: flex; flex-wrap: wrap; align-items: start; gap: 14px; padding-block: 4px; padding-top: 14px; }
 .guide-actions { margin: 0; }
 .guide-help { flex: 1 1 150px; font-size: var(--fs-sm); color: var(--text-3); }
 .guide-help > summary { cursor: pointer; padding: 8px 0; }
@@ -1209,8 +1144,8 @@ html.psu-motion-ready .modal-backdrop > .modal-card { animation: none; }
 .col-config .card > h2 .hint { display: none; }
 .col-config .card > h2 .idx { display: none; }
 .col-config .card > h2::before { display: none; }
-.col-config .card > h2 .sec-ico { transition: transform 160ms var(--ease); }
-.col-config .card:hover > h2 .sec-ico { transform: translateX(2px); }
+.col-config .card > h2 .sec-ico { transition: transform 240ms var(--spring-soft), color 180ms var(--motion-fast); }
+.col-config .card:hover > h2 .sec-ico { transform: translateX(3px); }
 .col-result .reco { padding: 24px; }
 .col-result .reco .big { display: block; margin: 14px 0 22px; }
 .col-result .hero { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; padding: 18px 0; }
@@ -1225,77 +1160,9 @@ html.psu-motion-ready .modal-backdrop > .modal-card { animation: none; }
 .col-result .psu-pick .nm { margin: 4px 0; }
 .pick-specs { grid-column: 1 / -1 !important; color: var(--text-3); font-size: var(--fs-xs); margin-top: 8px; }
 .pick-specs > summary { cursor: pointer; padding: 4px 0; }
-.result-fold > summary::after, .result-explain > summary::after { transition: transform 180ms var(--ease); }
-.result-fold[open] > summary::after, .result-explain[open] > summary::after { content: '＋'; transform: rotate(45deg); }
-.storage-row, .custom-row { animation: psu-ui-enter .32s var(--motion-enter) both; }
-@media (hover: hover) and (pointer: fine) {
-  button:not(:disabled):not(:is(.seg, .scenarios, .search-results) > button):hover { transform: translateY(-1px); }
-  button:not(:disabled):active { transform: translateY(1px) scale(.98); }
-}
-@media (max-width: 700px) {
-  .modal-backdrop { padding: 16px; }
-  .modal-card { height: auto; max-height: calc(100dvh - 32px); border: 1px solid var(--line); }
-  .modal-foot { flex-wrap: wrap; }
-  .modal-foot .chk { font-size: var(--fs-sm); }
-  .col-result .reco { padding: 18px; }
-  .col-result .hero { gap: 8px; }
-}
-@media screen and (min-width: 1181px) {
-  .wrap, .top-inner { max-width: 1360px; }
-  .layout { grid-template-columns: minmax(0, 1.65fr) minmax(340px, 1fr); gap: 56px; }
-  .col-config .card { grid-template-columns: 132px minmax(0, 1fr) 28px; padding-top: 24px; padding-bottom: 24px; }
-}
-@media screen {
-  .col-result .reco { border: 1px solid var(--line); background: var(--surface); padding: 30px; }
-  .col-result .reco .big::after { display: none; }
-  .modal-card { width: min(580px, 100%); }
-  .modal-head, .modal-foot { padding: 20px 24px; }
-  .modal-body { padding: 10px 24px 20px; }
-  .col-config .card { transition: border-color 200ms var(--ease), background-color 200ms var(--ease); }
-  select, input { transition: border-color 180ms var(--ease), background-color 180ms var(--ease); }
-  /* .page-intro 不再自带入场动画：它现在和其余各块一样走 psu-boot-hold / psu-boot-fill。
-     留一条自己的 animation 会有两个后果 —— ① 动画盖过 hold 的 opacity:0，
-     于是关掉声明之前它就可见；② 收尾撤掉 psu-boot-fill 时它会重新播一遍。 */
-}
-@media (max-width: 640px) {
-  .page-intro { padding: 14px 0 28px; }
-  .modal-head, .modal-foot { padding: 16px 20px; }
-  .modal-body { padding: 8px 20px 16px; }
-}
-@media print { .page-intro { display: none; } }
-@media (prefers-reduced-motion: reduce) {
-  button:hover, .col-config .card:hover > h2 .sec-ico { transform: none !important; }
-}
-@media print {
-  .guide-help { display: none !important; }
-  .storage-row, .custom-row { animation: none !important; }
-}
 
-/* 尊重系统的「减少动态效果」设置 */
-@media (prefers-reduced-motion: reduce) {
-  html:not(.psu-boot-replaying) .psu-boot { display: none !important; }
-  html.psu-boot-active body > :not(.psu-boot), .psu-boot-hold .psu-boot-item {
-    opacity: 1 !important; transform: none !important; animation: none !important;
-  }
-  *, :not([data-ambient-light])::before, *::after {
-    animation-duration: .001ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: .001ms !important;
-  }
-}
-
-
-.print-only { display: none; }
-
-/* Canvas fills the visible stage; drawing applies one uniform responsive scale. */
-.psu-boot { overflow: hidden; height: 100vh; height: 100dvh; }
-.psu-boot-canvas {
-  display: block; flex: none; max-width: none;
-  width: 100%; height: 100%; background: #000;
-}
-
-/* 配置管理与对比沿用平面分区、细分隔线和现有文字尺度。 */
-.decision-toolbar { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; padding: 18px 0; border-block: 1px solid var(--line); }
+/* 配置管理与对比 */
+.decision-toolbar { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 24px; align-items: start; margin-bottom: 14px; padding: 12px 0; border-block: 1px solid var(--line); }
 .decision-toolbar > *, .search-controls > *, .comparison-table td { min-width: 0; }
 .decision-toolbar label { display: block; font-size: var(--fs-sm); color: var(--text-2); margin-bottom: 6px; }
 .decision-toolbar p { margin: 8px 0 0; }
@@ -1325,106 +1192,205 @@ html.psu-motion-ready .modal-backdrop > .modal-card { animation: none; }
 #comparisonCard .field > label { display: block; margin-bottom: 8px; }
 #comparisonCard .field > select { width: 100%; max-width: 100%; }
 html[data-calc-mode="quick"] .col-config > .card[data-detail-part] { display: none; }
-.no-js .decision-toolbar { display: none; }
-@media (max-width: 640px) {
-  .decision-toolbar { grid-template-columns: 1fr; gap: 14px; }
-  #comparisonCard .grid2, .coverage-list { grid-template-columns: 1fr; }
-  .plan-actions button { flex: 1 1 140px; }
-  .comparison-table th, .comparison-table td { padding: 8px 4px; }
-}
 
-/* LIGHTNING slogan follows the original opening lockup. */
+/* LIGHTNING 标识与快速选型细节 */
 .brand-lockup { display: inline-flex; flex: none; flex-direction: column; align-items: center; gap: 2px; color: var(--rog); }
 .brand-lockup .wordmark { display: block; flex: none; }
 .brand-tagline { display: block; font: 700 10px/1.2 Arial, sans-serif; letter-spacing: .35px; white-space: nowrap; }
 .modal-head .brand-lockup .wordmark { width: 110px; }
 .modal-head .brand-tagline { letter-spacing: .1px; }
 
-/* 快速选型：核心填写优先，结果与字段共用一致的交互反馈。 */
-.page-intro { padding-top: 24px; padding-bottom: 20px; }
+.page-intro { padding: 24px 0 20px; }
 .page-intro .eyebrow { display: none; }
 .page-intro h2 { font-size: clamp(24px, 2.5vw, 32px); }
-.decision-toolbar { margin-bottom: 14px; padding-block: 12px; gap: 12px 24px; }
-.top-actions { flex-wrap: wrap; }
 #dbCounts { display: none; }
 .core-search { margin-bottom: 16px; }
 .core-search > label { display: block; margin-bottom: 8px; color: var(--text-2); }
-.core-search input { width: 100%; min-width: 0; }
-.search-controls input { width: 100%; min-width: 0; }
+.core-search input, .search-controls input { width: 100%; min-width: 0; }
+.core-search .note:empty, .core-search .search-results:empty { display: none; }
 .search-category { color: var(--text-3); font-size: var(--fs-xs); }
 .search-results button:focus-visible { outline: 2px solid var(--err); outline-offset: -2px; }
 .quick-budget { padding: 16px 0; border-bottom: 1px solid var(--line); color: var(--text-2); font-size: var(--fs-sm); }
 .quick-budget[hidden] { display: none; }
 .quick-budget p { margin: 0 0 10px; line-height: 1.7; }
 #resultNext { margin-top: 16px; }
+#resolveConflict { margin-top: 12px; }
 .reco.has-conflict { border-color: var(--err); }
 .reco.has-conflict .big { font-size: var(--fs-sec); color: var(--text-3); }
 .reco.has-conflict .reco-label { color: var(--err); font-size: 18px; }
 .existing-summary { padding-top: 14px; margin-top: 14px; border-top: 1px solid var(--line); font-size: var(--fs-sm); line-height: 1.7; }
+.existing-summary[data-level="error"] { color: var(--err); }
 .col-config .card, #resultPanel { scroll-margin-top: 140px; }
 #resultPanel:focus-visible { outline: 2px solid var(--err); outline-offset: 6px; }
 .card-toggle { min-width: 44px; min-height: 44px; }
 input[type="search"]:focus-visible { outline: 2px solid var(--err); outline-offset: 2px; }
-@media (max-width: 1180px) {
-  .wrap { padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px)); }
-  .mobile-bar { display: flex; position: fixed; inset: auto 0 0; z-index: 60; align-items: center; gap: 12px; padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)); background: var(--bg-nav); border-top: 2px solid var(--err); }
-  .mobile-bar .mb-label { color: var(--text-2); font-size: var(--fs-sm); }
-  .mobile-bar .mb-value { font-family: var(--mono); font-size: 22px; font-variant-numeric: tabular-nums; margin-left: auto; white-space: nowrap; }
-  .mobile-bar button { min-height: 44px; flex-shrink: 0; }
-}
-@media (max-width: 640px) {
-  .top-inner { gap: 6px; padding-block: 8px; }
-  .top-actions { gap: 6px; }
-  .logo small { display: none; }
-  .page-intro { padding-top: 18px; padding-bottom: 16px; }
-  input[type="search"] { min-height: 44px; }
-  .mobile-bar { gap: 8px; }
-  .mobile-bar .mb-label { max-width: 42%; }
-  .col-config .card { grid-template-columns: minmax(0, 1fr) 44px; }
-}
-
 
 .hardware-search > summary { cursor: pointer; color: var(--text-2); padding: 6px 0; }
 .hardware-search[open] > summary { margin-bottom: 10px; }
-.decision-toolbar { align-items: start; }
-#guideCard { border-bottom: 0; }
-#guideCard > h2 { display: none; }
-#guideCard .card-body { padding-block: 4px; }
-.core-search .note:empty { display: none; }
-.core-search .search-results:empty { display: none; }
-.col-config .card { column-gap: 16px; }
-.col-config .card > .card-toggle { justify-self: end; }
-.existing-summary[data-level="error"] { color: var(--err); }
-#resolveConflict { margin-top: 12px; }
-@media (max-width: 640px) {
-  .decision-toolbar { gap: 6px; }
-  .top .logo-text h1 { font-size: var(--fs-base); }
-}
-
-
 .hardware-filters > summary { cursor: pointer; padding-block: 10px; font-size: var(--fs-sm); color: var(--text-2); }
 .hardware-filters[open] > summary { margin-bottom: 10px; }
 .header-more { position: relative; }
 .header-more > summary { cursor: pointer; padding: 10px 14px; min-height: 44px; box-sizing: border-box; color: var(--text-2); border: 1px solid var(--line); }
-.header-more-panel { position: absolute; top: calc(100% + 6px); right: 0; padding: 10px; min-width: 160px; display: grid; gap: 8px; background: var(--bg-nav); border: 1px solid var(--line); z-index: 80; }
+.header-more-panel {
+  position: absolute; top: calc(100% + 6px); right: 0; padding: 10px; min-width: 160px;
+  display: grid; gap: 8px; background: var(--bg-nav); border: 1px solid var(--line); z-index: 80;
+  transform-origin: top right;
+}
 .header-more-panel button { width: 100%; min-height: 44px; text-align: left; }
+
+@media (hover: hover) and (pointer: fine) {
+  button:not(:disabled):not(:is(.seg, .scenarios, .search-results) > button):hover { transform: translateY(-1px); }
+  button:not(:disabled):active { transform: translateY(1px) scale(.98); }
+}
+
+@media screen {
+  .col-result .reco { border: 1px solid var(--line); background: var(--surface); padding: 30px; }
+  .col-result .reco .big::after { display: none; }
+  .modal-card { width: min(580px, 100%); }
+  .modal-head, .modal-foot { padding: 20px 24px; }
+  .modal-body { padding: 10px 24px 20px; }
+  .col-config .card { transition: border-color 200ms var(--ease), background-color 200ms var(--ease); }
+  select, input { transition: border-color 180ms var(--ease), background-color 180ms var(--ease); }
+}
+
+@media screen and (min-width: 1181px) {
+  .wrap, .top-inner { max-width: 1360px; }
+  .layout { grid-template-columns: minmax(0, 1.65fr) minmax(340px, 1fr); gap: 56px; }
+  .col-config .card { grid-template-columns: 132px minmax(0, 1fr) 28px; padding-top: 24px; padding-bottom: 24px; }
+}
+
+@media (max-width: 1180px) {
+  .wrap { padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px)); }
+  .layout { grid-template-columns: 1fr; }
+  .sticky-col { position: static; padding-bottom: 62px; }
+  .mobile-bar {
+    display: flex; position: fixed; inset: auto 0 0; z-index: 60;
+    align-items: center; gap: 12px;
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+    background: var(--bg-nav); border-top: 2px solid var(--err);
+  }
+  .mobile-bar .mb-label { color: var(--text-2); font-size: var(--fs-sm); }
+  .mobile-bar .mb-value {
+    font-family: var(--mono); font-size: 22px; font-weight: 700; color: var(--text);
+    font-variant-numeric: tabular-nums; margin-left: auto; white-space: nowrap; letter-spacing: -.02em;
+  }
+  .mobile-bar .mb-value span { font-size: var(--fs-sm); font-weight: 400; color: var(--text-3); }
+  .mobile-bar button { min-height: 44px; flex-shrink: 0; }
+}
+
+@media (max-width: 780px) {
+  .psu-picks { grid-template-columns: 1fr; }
+  .psu-pick:first-child { border-top: 1px solid var(--line-soft); }
+}
+
+@media (max-width: 700px) {
+  .modal-backdrop { padding: 16px; }
+  .modal-card { height: auto; max-height: calc(100dvh - 32px); border: 1px solid var(--line); }
+  .modal-foot { flex-wrap: wrap; }
+  .modal-foot .chk { font-size: var(--fs-sm); }
+  .col-result .reco { padding: 18px; }
+  .col-result .hero { gap: 8px; }
+}
+
 @media (max-width: 640px) {
-  .top-inner { flex-wrap: nowrap; }
-  .top-actions { width: auto; margin-left: auto; flex-wrap: nowrap; }
+  .wrap, .top-inner { padding-left: 16px; padding-right: 16px; }
+  .top-inner { flex-wrap: nowrap; gap: 6px; padding-block: 8px; }
+  .top-actions { width: auto; margin-left: auto; flex-wrap: nowrap; gap: 6px; }
   .answer-chip { display: none !important; }
   .header-more-panel #btnReplayIntro { display: block; }
   .top .logo .mark { width: 16px; height: 30px; }
+  .top .logo-text h1 { font-size: var(--fs-base); }
   #btnTheme { padding-inline: 9px; }
-  .theme-label { display: none; }
-  .hardware-filters > summary, .advanced-options > summary, .hardware-search > summary { min-height: 44px; display: flex; align-items: center; box-sizing: border-box; }
+  .theme-label, .logo .brand-lockup, .logo small { display: none; }
+  .logo-text { padding-left: 11px; }
+
+  .page-intro { padding: 18px 0 16px; }
+  .decision-toolbar { grid-template-columns: 1fr; gap: 6px; }
+  .grid3, .grid2, .chk-grid, #comparisonCard .grid2, .coverage-list { grid-template-columns: 1fr; }
+  .scenarios { grid-template-columns: repeat(2, 1fr); }
+  .scenario:nth-child(2) { border-right: none; }
+  .guide-steps { grid-template-columns: 1fr; }
+  .guide-steps li { flex-direction: row; text-align: left; border-right: none; border-bottom: 1px solid var(--line-soft); }
+  .guide-steps li:last-child { border-bottom: none; }
+  .plan-actions button { flex: 1 1 140px; }
+  .comparison-table th, .comparison-table td { padding: 8px 4px; }
+
+  .col-config .card {
+    grid-template-columns: minmax(0, 1fr) 44px;
+    column-gap: 14px; row-gap: 9px;
+  }
+  .col-config .card > h2 { grid-column: 1; grid-row: 1; }
+  .card > h2::before { display: inline-block; margin: 0 9px 0 0; vertical-align: -2px; }
+  .card > h2 .sec-ico { display: inline-flex; margin: 0 8px 0 0; }
+  .card > h2 .sec-ico svg { width: 18px; height: 18px; }
+  .card > h2 .hint { display: none; }
+  .col-config .card > .card-summary { grid-column: 1 / 3; grid-row: 2; padding-top: 0; }
+  .col-config .card > .card-body { grid-column: 1 / 3; grid-row: 2; }
+  .col-config .card > .card-toggle { grid-column: 2; grid-row: 1; }
+
+  button, .btn, select, input[type="text"], input[type="number"], input[type="search"] { min-height: 44px; }
+  .hardware-filters > summary, .advanced-options > summary, .hardware-search > summary {
+    min-height: 44px; display: flex; align-items: center; box-sizing: border-box;
+  }
+  .card-toggle { width: 32px; height: 32px; }
+  .storage-row { grid-template-columns: 1fr 68px 44px; }
+  .storage-row .del { min-height: 44px; }
+  .chk input[type="checkbox"] { width: 20px; height: 20px; flex: 0 0 20px; }
+  .chk { padding: 11px 0; }
+  .field { min-height: 56px; }
+  .field > select, .field > input[type="text"], .field > input[type="number"] { flex: 0 0 170px; width: 170px; }
+
+  .mobile-bar { gap: 8px; }
+  .mobile-bar .mb-label { max-width: 42%; }
+
+  .modal-backdrop { padding: 0; }
+  .modal-body { padding: 8px 20px 16px; }
+  .modal-head, .modal-foot { padding: 16px 20px; }
+  .modal-foot { padding-bottom: max(13px, env(safe-area-inset-bottom, 0px)); }
+  .modal-foot button.primary { flex: 1 1 100%; }
 }
+
+@media (max-width: 420px) {
+  .wrap, .top-inner { padding-left: 12px; padding-right: 12px; }
+  .card-body { padding: 12px 0 16px; }
+  .logo small { display: none; }
+}
+
+/* 尊重系统的「减少动态效果」设置 */
+@media (prefers-reduced-motion: reduce) {
+  html:not(.psu-boot-replaying) .psu-boot { display: none !important; }
+  html.psu-boot-active body > :not(.psu-boot), .psu-boot-hold .psu-boot-item {
+    opacity: 1 !important; transform: none !important; animation: none !important;
+  }
+  #btnTheme .ico, .card-body-in, button:hover, button:active, .btn:active,
+  .col-config .card:hover > h2 .sec-ico { transform: none !important; }
+  .switch:active .track::after { width: 14px !important; }
+  .switch:active input:checked + .track::after { transform: translateX(18px) !important; }
+  *, :not([data-ambient-light])::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+  }
+}
+
+.print-only { display: none; }
 
 /* ------------------------------------------------------------- 打印 ----
    ⚠️ 这是导出 PDF 的唯一实现。改版后必须回归验证：
       配置列隐藏、按钮隐藏、折叠内容全部展开、红色指示条压平成黑色。
    --------------------------------------------------------------------- */
 @media print {
-  .psu-boot { display: none !important; }
+  .psu-boot, .page-intro, .guide-help, header.top, .top-actions, .layout > .col-config,
+  .toast, button, .btn, details.section-collapse, .mobile-bar, .card-toggle, .banner,
+  .answer-chip, .modal-backdrop, .decision-toolbar, #comparisonCard .field, #upgradeSimulation,
+  .candidate-row button, .core-search, .quick-budget, #chooseIgpu, #resultNext, #resolveConflict,
+  .result-fold > summary::after, .result-explain > summary::after, .usage-notice {
+    display: none !important;
+  }
+  .psu-ui-feedback, details[open] > :not(summary), .modal-card, .card-body-in,
+  .storage-row, .custom-row {
+    animation: none !important; transition: none !important; transform: none !important; opacity: 1 !important;
+  }
   html.psu-boot-active, html.psu-boot-active body { overflow: visible !important; }
   html.psu-boot-active body > :not(.psu-boot), .psu-boot-hold .psu-boot-item {
     opacity: 1 !important; transform: none !important; animation: none !important;
@@ -1435,10 +1401,6 @@ input[type="search"]:focus-visible { outline: 2px solid var(--err); outline-offs
     --line: #bbb; --line-soft: #ddd;
     --rog: #000; --rog-dim: #000; --warn: #000; --err: #000; --ok: #000;
   }
-  header.top, .top-actions, .layout > .col-config,
-  .toast, button, .btn, details.section-collapse,
-  .mobile-bar, .card-toggle, .banner, .answer-chip,
-  .modal-backdrop { display: none !important; }
 
   body { background: #fff !important; color: #000; font-size: 11pt; }
   .wrap { max-width: 100%; padding: 0; }
@@ -1453,9 +1415,6 @@ input[type="search"]:focus-visible { outline: 2px solid var(--err); outline-offs
   }
   .card > h2 .idx { color: #000; }
 
-  /* 折叠内容必须全部展开，否则 PDF 会缺内容。
-     注意屏幕态的收起是靠 grid-template-rows 0fr 做的，不是 display:none，
-     所以这里要把行高和透明度都还原，光加 display:block 不够。 */
   .card.is-collapsed > .card-body {
     display: grid !important; grid-template-rows: 1fr !important;
     opacity: 1 !important; pointer-events: auto !important;
@@ -1463,8 +1422,14 @@ input[type="search"]:focus-visible { outline: 2px solid var(--err); outline-offs
   .card > .card-body { transition: none !important; }
   .card.is-collapsed > h2 .card-summary { display: none !important; }
   .card.is-collapsed > h2 .hint { display: inline !important; }
-  details, details > *, details > summary + * { display: block !important; }
+  .result-fold > summary { display: block !important; }
+  details, details > *, details > summary + *,
+  details.result-fold > .card-body, details.result-explain > div,
+  .decision-quality details > *, .result-explain > .coverage-list, .result-explain > #allPsuCandidates {
+    display: block !important;
+  }
   details > summary { display: none !important; }
+  #issues .issue .d { display: block !important; }
   .note.note-collapsible {
     display: block !important; -webkit-line-clamp: unset !important;
     overflow: visible !important; padding-right: 12px !important;
@@ -1478,6 +1443,8 @@ input[type="search"]:focus-visible { outline: 2px solid var(--err); outline-offs
     background: none !important; background-image: none !important;
     box-shadow: none !important;
   }
+  .psu-meter-track { border-color: #666 !important; background: #fff !important; }
+  .psu-meter-fill { background: #000 !important; }
   .issue.error, .issue.warn { border-left-color: #000 !important; }
   .reco .big, .hero .v, .psu-pick .w, table.detail tr.sum .wt {
     color: #000 !important; text-shadow: none !important; background-image: none !important;
@@ -1485,15 +1452,12 @@ input[type="search"]:focus-visible { outline: 2px solid var(--err); outline-offs
   .tag, .conf { border-color: #666 !important; color: #333 !important; }
   select, input { border: 1px solid #999; background: #fff !important; color: #000; }
   .table-scroll { overflow: visible !important; }
-  .decision-toolbar, #comparisonCard .field, #upgradeSimulation, .candidate-row button { display: none !important; }
   .candidate-list { max-height: none !important; overflow: visible !important; }
-  .decision-quality details > *, .result-explain > .coverage-list, .result-explain > #allPsuCandidates { display: block !important; }
   .comparison-table, .comparison-table tr, .candidate-row { break-inside: avoid; }
 
   .print-only { display: block !important; }
   a { color: #000; border-bottom: none; }
   a[href^="http"]::after { content: " (" attr(href) ")"; font-size: 8pt; color: #555; }
-  .core-search, .quick-budget, #chooseIgpu, #resultNext, #resolveConflict { display: none !important; }
 }
 
 /* Cooler guide lighting geometry, tinted for the calculator's ROG palette. */
@@ -1563,7 +1527,7 @@ html[data-theme="light"] {
     width: min(480px, 100%);
     aspect-ratio: 4 / 3;
     opacity: 0;
-    transition: opacity 180ms ease-out;
+    transition: opacity 240ms var(--motion-fast);
     background: radial-gradient(ellipse closest-side, color-mix(in srgb, var(--pointer-glow) 55%, transparent), transparent);
   }
   html:not([data-light-effects="off"]):not(.psu-boot-active):not(.psu-boot-pending) .site-cursor-light[data-active] { opacity: 1; }
@@ -1592,7 +1556,7 @@ html[data-theme="light"] {
     opacity: 0;
     transform: scaleX(.03);
     transform-origin: var(--option-light-x, 50%) center;
-    transition: transform 260ms cubic-bezier(.22, 1, .36, 1), opacity 180ms ease-out;
+    transition: transform 280ms var(--motion-enter), opacity 180ms var(--motion-fast);
   }
   html:not([data-light-effects="off"]):not(.psu-boot-active):not(.psu-boot-pending)
     :is(.seg, .scenarios, .search-results) > button[data-option-light]:enabled::before {
@@ -1614,7 +1578,7 @@ html[data-theme="light"] {
 @media screen and (hover: hover) and (pointer: fine) {
   :root { --hover-spring: var(--motion-enter); }
   @supports (transition-timing-function: linear(0, 1)) {
-    :root { --hover-spring: linear(0, .57 19%, 1.24 46%, .96 75%, 1); }
+    :root { --hover-spring: linear(0, .45 14%, .98 30%, 1.22 44%, 1.07 60%, .97 74%, 1.01 87%, 1); }
   }
   :is(.seg, .scenarios, .search-results) > button {
     --hover-scale-motion: 240ms var(--motion-enter);
@@ -1622,7 +1586,7 @@ html[data-theme="light"] {
   :is(.layout .card, .reco, .psu-pick) {
     --hover-scale-motion: 260ms var(--motion-enter);
     transition: scale var(--hover-scale-motion),
-      border-color 200ms var(--ease), background-color 200ms var(--ease);
+      border-color 220ms var(--motion-enter), background-color 200ms var(--ease);
   }
   html[data-light-effects="on"]:not(:is(.psu-boot-active, .psu-boot-pending, .psu-boot-hold))
     :is(.layout .card, .reco, .psu-pick):hover {
@@ -2119,6 +2083,30 @@ html[data-theme="light"] {
     window.__PSU_DISCLAIMER__ = { open: open, close: close, isOpen: isOpen };
   }
 
+  function setupHeaderMore() {
+    var more = document.querySelector('details.header-more');
+    if (!more) return;
+    function closeMore(focusSummary) {
+      var motion = window.__PSU_MOTION__;
+      if (motion && motion.closeDetails && motion.closeDetails(more, focusSummary)) return;
+      more.open = false;
+      if (focusSummary) {
+        var sum = more.querySelector('summary');
+        if (sum && sum.focus) sum.focus();
+      }
+    }
+    document.addEventListener('pointerdown', function (e) {
+      if (more.open && !more.contains(e.target)) closeMore(false);
+    });
+    document.addEventListener('keydown', function (e) {
+      if (more.open && (e.key === 'Escape' || e.key === 'Esc')) closeMore(true);
+    });
+    more.addEventListener('click', function (e) {
+      var btn = e.target.closest('button');
+      if (btn && btn.id !== 'btnLightEffects') closeMore(false);
+    });
+  }
+
   /* ------------------------------------------------------------ 启动 --- */
   function boot() {
     try {
@@ -2126,7 +2114,8 @@ html[data-theme="light"] {
       setupCards();
       setupActiveHighlight();
       collapseNotes();
-        setupDisclaimer();
+      setupDisclaimer();
+      setupHeaderMore();
 
       // 控件值变化 → 刷新摘要
       // 用捕获阶段监听，不影响 app.js 自己的监听器
@@ -2199,7 +2188,7 @@ html[data-theme="light"] {
   };
   var introRan = !seen && !motion.matches;
   if (introRan) root.classList.add('psu-boot-active', 'psu-boot-pending');
-  var done = false, staged = false, timers = [], inertNodes = [], stopAnimation = null;
+  var done = false, staged = false, hadVideo = false, timers = [], inertNodes = [], stopAnimation = null;
   var inputEvents = ['pointerdown', 'click', 'keydown', 'touchstart'];
 
   function later(fn, ms) { timers.push(setTimeout(fn, ms)); }
@@ -2242,6 +2231,8 @@ html[data-theme="light"] {
   function finishIntro(event) {
     if (done || staged) return;
     staged = true;
+    var shouldReveal = hadVideo;
+    hadVideo = false;
     // 跳过手势不穿透到页面按钮。
     if (event && inputEvents.indexOf(event.type) !== -1) {
       if (event.cancelable) event.preventDefault();
@@ -2253,6 +2244,9 @@ html[data-theme="light"] {
     detachInput();
     root.classList.remove('psu-boot-active', 'psu-boot-pending', 'psu-boot-running');
     release(true);
+    if (shouldReveal && window.__PSU_MOTION__ && window.__PSU_MOTION__.revealPage) {
+      window.__PSU_MOTION__.revealPage(!!event);
+    }
   }
 
   function onSkip(event) { finishIntro(event); }
@@ -2279,6 +2273,7 @@ html[data-theme="light"] {
     // 回访或缺少动画脚本时直接显示页面。
     if (!introRan || !canvas || !window.startLightningBoot) { finishIntro(null); return; }
     holdInput();
+    hadVideo = true;
     root.classList.add('psu-boot-running');
     stopAnimation = window.startLightningBoot(canvas, function () { finishIntro(null); });
   }
@@ -2289,11 +2284,13 @@ html[data-theme="light"] {
     if (root.classList.contains('psu-boot-active') || root.classList.contains('psu-boot-hold')) return;
     done = false;
     staged = false;
+    hadVideo = false;
     root.classList.add('psu-boot-active', 'psu-boot-pending', 'psu-boot-replaying');
     watchPlayback(true);
     var canvas = document.querySelector('.psu-boot-canvas');
     if (canvas && window.startLightningBoot) {
       holdInput();
+      hadVideo = true;
       root.classList.add('psu-boot-running');
       stopAnimation = window.startLightningBoot(canvas, function () { finishIntro(null); });
     } else {
@@ -2322,7 +2319,7 @@ html[data-theme="light"] {
   'use strict';
   var reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
   var printing = false;
-  var active = new Map(), pressed = new Set(), folds = new Map();
+  var active = new Map(), pressed = new Set(), folds = new Map(), delayed = new Set();
   var optionSelector = ':is(.seg, .scenarios, .search-results) > button:enabled';
   var ENTER = 'cubic-bezier(.16, 1, .3, 1)', FAST = 'cubic-bezier(.2, 0, .2, 1)';
   var EXIT = 'cubic-bezier(.4, 0, 1, 1)';
@@ -2334,17 +2331,24 @@ html[data-theme="light"] {
     var old = active.get(el);
     if (old) { active.delete(el); old.cancel(); }
   }
-  function play(el, frames, duration, easing, done, hold) {
+  function play(el, frames, duration, easing, done, hold, delay) {
     if (!el || typeof el.animate !== 'function') return;
     stop(el);
-    var animation = el.animate(frames, { duration: duration, easing: easing, fill: 'forwards' });
+    var opts = { duration: duration, easing: easing, fill: delay ? 'both' : 'forwards' };
+    if (delay) opts.delay = delay;
+    var animation = el.animate(frames, opts);
     active.set(el, animation);
     animation.finished.then(function () {
       if (active.get(el) !== animation) return;
       if (hold) return;
-      active.delete(el); animation.cancel();
+      active.delete(el);
       if (done) done();
+      animation.cancel();
     }, function () { if (active.get(el) === animation) active.delete(el); });
+  }
+  function parseMetricNumber(text) {
+    var m = String(text || '').match(/[-+]?\d+(?:\.\d+)?/);
+    return m ? Number(m[0]) : NaN;
   }
   function pulse(el) {
     if (!enabled() || !el || !el.isConnected || !el.getClientRects().length) return;
@@ -2352,7 +2356,59 @@ html[data-theme="light"] {
     play(el, [
       { opacity: running ? style.opacity : .82, transform: running ? style.transform : 'translateY(3px)' },
       { opacity: 1, transform: 'none' }
-    ], 280, ENTER);
+    ], 260, ENTER);
+  }
+  function pulseMetric(el, dir, firstResult) {
+    if (!enabled() || !el || !el.isConnected || !el.getClientRects().length) return;
+    var style = getComputedStyle(el), running = active.has(el);
+    if (firstResult) {
+      play(el, [
+        { opacity: running ? style.opacity : .55, transform: running ? style.transform : 'translateY(8px) scale(.97)' },
+        { opacity: 1, transform: 'translateY(-1px) scale(1.015)', offset: .58 },
+        { opacity: 1, transform: 'none', offset: 1 }
+      ], 340, ENTER);
+      return;
+    }
+    if (dir > 0) {
+      play(el, [
+        { opacity: running ? style.opacity : .72, transform: running ? style.transform : 'translateY(6px) scale(.985)' },
+        { opacity: 1, transform: 'translateY(-1px) scale(1.01)', offset: .6 },
+        { opacity: 1, transform: 'none', offset: 1 }
+      ], 290, ENTER);
+      return;
+    }
+    if (dir < 0) {
+      play(el, [
+        { opacity: running ? style.opacity : .72, transform: running ? style.transform : 'translateY(-5px) scale(1.01)' },
+        { opacity: 1, transform: 'translateY(1px) scale(.996)', offset: .62 },
+        { opacity: 1, transform: 'none', offset: 1 }
+      ], 270, ENTER);
+      return;
+    }
+    pulse(el);
+  }
+  function staggerVisible(nodes, step, maxDelay, duration, yOffset) {
+    if (!enabled() || !nodes || !nodes.length) return;
+    nodes.forEach(function (el, idx) {
+      if (!el || !el.isConnected || !el.getClientRects().length) return;
+      play(el, [
+        { opacity: 0, transform: 'translateY(' + yOffset + 'px) scale(.99)' },
+        { opacity: 1, transform: 'none' }
+      ], duration, ENTER, null, false, Math.min(idx * step, maxDelay));
+    });
+  }
+  function revealPage(skipped) {
+    if (!enabled()) return;
+    var vh = window.innerHeight || 900;
+    var list = window.__PSU_BOOT__ && window.__PSU_BOOT__.items
+      ? window.__PSU_BOOT__.items()
+      : Array.prototype.slice.call(document.querySelectorAll('header.top, .page-intro, .decision-toolbar, .col-config > .card, .col-result .sticky-col > *:not(.print-only)'));
+    var visible = list.filter(function (el) {
+      if (el.matches && el.matches('header.top')) return false;
+      var r = el.getBoundingClientRect();
+      return r.height > 0 && r.top < vh + 100 && r.bottom > -40;
+    }).slice(0, 8);
+    staggerVisible(visible, skipped ? 22 : 34, skipped ? 140 : 220, skipped ? 250 : 320, 10);
   }
   function press(el) {
     if (!enabled() || !el || el.disabled || el.getAttribute('aria-disabled') === 'true' || pressed.has(el)) return;
@@ -2364,13 +2420,14 @@ html[data-theme="light"] {
     if (!pressed.delete(el)) return;
     if (!el.isConnected) { stop(el); return; }
     if (!enabled()) { stop(el); return; }
-    // Start from the current press frame so fast repeat presses stay continuous.
+    // 从当前按压帧起跳，四段阻尼过冲回弹，保持连点不断帧。
     var isOption = el.matches(optionSelector);
     play(el, [
       { transform: getComputedStyle(el).transform, offset: 0 },
-      { transform: isOption ? 'scale(1.015)' : 'scale(1.006)', offset: .58 },
+      { transform: isOption ? 'scale(1.018)' : 'scale(1.008)', offset: .45 },
+      { transform: isOption ? 'scale(.996)' : 'scale(.998)', offset: .76 },
       { transform: 'scale(1)', offset: 1 }
-    ], isOption ? 280 : 360, ENTER);
+    ], isOption ? 320 : 380, ENTER);
   }
   function releaseAll() { Array.from(pressed).forEach(release); }
   function buttonFrom(event) { return event.target.closest && event.target.closest('button, .btn'); }
@@ -2392,13 +2449,81 @@ html[data-theme="light"] {
   function surface(el, opening) {
     if (!el || !enabled(true)) return;
     var current = getComputedStyle(el), running = active.has(el);
-    play(el, [
-      { opacity: running ? current.opacity : (opening ? 0 : 1),
-        transform: running ? current.transform : (opening ? 'translateY(12px) scale(.96)' : 'none') },
-      { opacity: opening ? 1 : 0, transform: opening ? 'none' : 'translateY(8px) scale(.98)' }
-    ], opening ? 340 : 180, opening ? ENTER : EXIT, null, !opening);
+    if (opening) {
+      play(el, [
+        { opacity: running ? current.opacity : 0,
+          transform: running ? current.transform : 'translateY(14px) scale(.96)' },
+        { opacity: 1, transform: 'translateY(-1px) scale(1.005)', offset: .68 },
+        { opacity: 1, transform: 'none', offset: 1 }
+      ], 360, ENTER);
+    } else {
+      play(el, [
+        { opacity: running ? current.opacity : 1,
+          transform: running ? current.transform : 'none' },
+        { opacity: 0, transform: 'translateY(8px) scale(.975)' }
+      ], 180, EXIT, null, true);
+    }
   }
-  window.__PSU_MOTION__ = { surface: surface, stop: stop };
+
+  function toggleMenu(el, summary, opening, focusSummary) {
+    var panel = el.querySelector('.header-more-panel');
+    if (!panel || typeof panel.animate !== 'function') return false;
+    var old = folds.get(el);
+    if (old && old.opening === opening) return true;
+    var panelFrame = null;
+    if (old) {
+      var style = getComputedStyle(panel);
+      panelFrame = { opacity: style.opacity, transform: style.transform };
+      old.restore();
+    }
+    var expanded = summary ? summary.getAttribute('aria-expanded') : null;
+    var record = {
+      opening: opening,
+      restore: function () {
+        stop(panel);
+        if (summary) {
+          if (expanded === null) summary.removeAttribute('aria-expanded');
+          else summary.setAttribute('aria-expanded', expanded);
+        }
+        folds.delete(el);
+      },
+      finish: function () {
+        el.open = opening;
+        record.restore();
+      }
+    };
+    if (!opening && (focusSummary || el.contains(document.activeElement)) && summary && summary.focus) {
+      summary.focus({ preventScroll: true });
+    }
+    el.open = true;
+    if (summary) summary.setAttribute('aria-expanded', String(opening));
+    folds.set(el, record);
+    if (opening) {
+      play(panel, [
+        panelFrame || { opacity: 0, transform: 'translateY(-6px) scale(.95)' },
+        { opacity: 1, transform: 'translateY(1px) scale(1.006)', offset: .68 },
+        { opacity: 1, transform: 'none', offset: 1 }
+      ], 260, ENTER, record.finish);
+    } else {
+      play(panel, [
+        panelFrame || { opacity: 1, transform: 'none' },
+        { opacity: 0, transform: 'translateY(-4px) scale(.96)' }
+      ], 150, EXIT, record.finish);
+    }
+    return true;
+  }
+
+  function closeDetails(el, focusSummary) {
+    if (!el || el.tagName !== 'DETAILS' || !el.open) return false;
+    if (!enabled() || !el.matches('.header-more')) return false;
+    return toggleMenu(el, el.querySelector('summary'), false, focusSummary);
+  }
+  window.__PSU_MOTION__ = {
+    surface: surface,
+    stop: stop,
+    revealPage: revealPage,
+    closeDetails: closeDetails
+  };
 
   document.addEventListener('change', function (event) {
     var input = event.target;
@@ -2412,6 +2537,12 @@ html[data-theme="light"] {
     var el = summary && summary.parentElement;
     if (!el || el.tagName !== 'DETAILS' || event.defaultPrevented ||
         event.target.closest('button, a, input, select, textarea') || !enabled() || typeof el.animate !== 'function') return;
+    if (el.matches('.header-more')) {
+      var oldMenu = folds.get(el);
+      var menuOpening = oldMenu ? !oldMenu.opening : !el.open;
+      if (toggleMenu(el, summary, menuOpening, false)) event.preventDefault();
+      return;
+    }
     event.preventDefault();
     var old = folds.get(el), opening = old ? !old.opening : !el.open;
     var start = el.getBoundingClientRect().height;
@@ -2435,15 +2566,19 @@ html[data-theme="light"] {
     summary.setAttribute('aria-expanded', String(opening));
     el.style.overflow = 'hidden';
     folds.set(el, record);
-    if (Math.abs(end - start) > 1000) { record.finish(); return; }
+    var delta = Math.abs(end - start);
+    if (delta > 1800) { record.finish(); return; }
+    var openDur = Math.min(400, Math.max(240, Math.round(210 + delta * .28)));
+    var closeDur = Math.min(280, Math.max(170, Math.round(150 + delta * .16)));
     contents.forEach(function (child) {
-      play(child, [contentFrames.get(child) || { opacity: opening ? 0 : 1, transform: 'none' },
-        { opacity: opening ? 1 : 0, transform: opening ? 'none' : 'translateY(-4px)' }], opening ? 300 : 180, ENTER, null, !opening);
+      play(child, [contentFrames.get(child) || { opacity: opening ? 0 : 1, transform: opening ? 'translateY(-6px)' : 'none' },
+        { opacity: opening ? 1 : 0, transform: opening ? 'none' : 'translateY(-4px)' }], opening ? openDur : closeDur, opening ? ENTER : FAST, null, !opening);
     });
-    play(el, [{ height: start + 'px' }, { height: end + 'px' }], opening ? 340 : 220, opening ? ENTER : FAST, record.finish);
+    play(el, [{ height: start + 'px' }, { height: end + 'px' }], opening ? openDur : closeDur, opening ? ENTER : FAST, record.finish);
   });
 
   function clear() {
+    delayed.forEach(cancelAnimationFrame); delayed.clear();
     Array.from(folds.values()).forEach(function (record) { record.finish(); });
     active.forEach(function (animation) { animation.cancel(); }); active.clear(); pressed.clear();
     document.querySelectorAll('.psu-ui-feedback').forEach(function (el) { el.classList.remove('psu-ui-feedback'); });
@@ -2454,7 +2589,8 @@ html[data-theme="light"] {
   window.addEventListener('afterprint', function () { printing = false; });
 
   var cursorLight = null, pointerSurface = null, pointerFrame = 0, pointerX = null, pointerY = 0;
-  var pointerOption = null;
+  var pointerOption = null, pointerTarget = null;
+  var surfaceRect = null, surfaceOW = 0, surfaceOH = 0, surfaceDirty = true, surfaceEnteredAt = 0;
   var lightingRoot = document.documentElement;
   var printMedia = matchMedia('print');
   function lightingEnabled() {
@@ -2468,6 +2604,8 @@ html[data-theme="light"] {
     pointerSurface.style.removeProperty('--spot-y');
     pointerSurface.removeAttribute('data-spotlight');
     pointerSurface = null;
+    surfaceRect = null;
+    surfaceDirty = true;
   }
   function setOptionLight(option) {
     if (pointerOption === option) return;
@@ -2483,6 +2621,7 @@ html[data-theme="light"] {
     if (pointerFrame) cancelAnimationFrame(pointerFrame);
     pointerFrame = 0;
     pointerX = null;
+    pointerTarget = null;
     if (cursorLight) cursorLight.removeAttribute('data-active');
     clearSurfaceLight();
     setOptionLight(null);
@@ -2492,19 +2631,31 @@ html[data-theme="light"] {
     pointerFrame = requestAnimationFrame(function () {
       pointerFrame = 0;
       if (!lightingEnabled()) { clearSpotlight(); return; }
-      var hit = document.elementFromPoint(pointerX, pointerY);
+      var hit = pointerTarget || document.elementFromPoint(pointerX, pointerY);
       setOptionLight(hit?.closest(optionSelector) || null);
       var hoveredSurface = hit?.closest('.layout .card, .reco');
       if (!hoveredSurface) {
         cursorLight.style.transform = 'translate3d(' + pointerX + 'px,' + pointerY + 'px,0) translate(-50%,-50%)';
       }
       cursorLight.toggleAttribute('data-active', !hoveredSurface);
-      if (pointerSurface !== hoveredSurface) clearSurfaceLight();
+      if (pointerSurface !== hoveredSurface) {
+        clearSurfaceLight();
+        if (hoveredSurface) {
+          pointerSurface = hoveredSurface;
+          surfaceEnteredAt = performance.now();
+          surfaceDirty = true;
+        }
+      }
       if (!hoveredSurface) return;
-      pointerSurface = hoveredSurface;
-      var bounds = pointerSurface.getBoundingClientRect();
-      pointerSurface.style.setProperty('--spot-x', ((pointerX - bounds.left) * pointerSurface.offsetWidth / bounds.width) + 'px');
-      pointerSurface.style.setProperty('--spot-y', ((pointerY - bounds.top) * pointerSurface.offsetHeight / bounds.height) + 'px');
+      // 悬停入场弹性缩放（约 420ms）与滚动/尺寸变动期间实时测 rect，稳定后复用缓存避免重复回流
+      if (surfaceDirty || !surfaceRect || (performance.now() - surfaceEnteredAt < 500)) {
+        surfaceRect = pointerSurface.getBoundingClientRect();
+        surfaceOW = pointerSurface.offsetWidth;
+        surfaceOH = pointerSurface.offsetHeight;
+        surfaceDirty = false;
+      }
+      pointerSurface.style.setProperty('--spot-x', ((pointerX - surfaceRect.left) * surfaceOW / surfaceRect.width) + 'px');
+      pointerSurface.style.setProperty('--spot-y', ((pointerY - surfaceRect.top) * surfaceOH / surfaceRect.height) + 'px');
       if (!pointerSurface.hasAttribute('data-spotlight')) pointerSurface.setAttribute('data-spotlight', '');
     });
   }
@@ -2513,9 +2664,15 @@ html[data-theme="light"] {
     if (!lightingEnabled()) { clearSpotlight(); return; }
     pointerX = event.clientX;
     pointerY = event.clientY;
+    pointerTarget = event.target instanceof Element ? event.target : null;
     queueSpotlight();
   }, { passive: true });
-  document.addEventListener('scroll', queueSpotlight, { capture: true, passive: true });
+  document.addEventListener('scroll', function () {
+    pointerTarget = null;
+    surfaceDirty = true;
+    queueSpotlight();
+  }, { capture: true, passive: true });
+  window.addEventListener('resize', function () { surfaceDirty = true; }, { passive: true });
   document.documentElement.addEventListener('pointerleave', clearSpotlight);
   window.addEventListener('blur', clearSpotlight);
   document.addEventListener('visibilitychange', clearSpotlight);
@@ -2540,6 +2697,7 @@ html[data-theme="light"] {
       var y = top + selected.offsetHeight - (scenario ? 6 : 2);
       var nextGeometry = x + ',' + y + ',' + width;
       if (selected === previous && nextGeometry === geometry) return;
+      var rowSwitched = !!previous && selected !== previous && top !== previousTop;
       group.toggleAttribute('data-selection-moving', !!previous && selected !== previous && top === previousTop);
       group.style.setProperty('--selection-x', x + 'px');
       group.style.setProperty('--selection-y', y + 'px');
@@ -2548,6 +2706,7 @@ html[data-theme="light"] {
       previous = selected;
       previousTop = top;
       geometry = nextGeometry;
+      if (rowSwitched && !active.has(selected) && !pressed.has(selected)) pulse(selected);
     }
     // Establish the group's offset origin before reading button coordinates.
     group.classList.add('selection-group');
@@ -2579,15 +2738,73 @@ html[data-theme="light"] {
     }
     document.querySelectorAll('.seg, .scenarios').forEach(setupSelectionTrack);
     if (typeof document.documentElement.animate === 'function') document.documentElement.classList.add('psu-motion-ready');
-    ['recoBig', 'heroPower', 'heroExpected', 'heroTransient', 'answerChipValue'].forEach(function (id) {
+    ['recoBig', 'heroPower', 'heroExpected', 'heroTransient', 'answerChipValue', 'mobileBarValue'].forEach(function (id) {
       var target = document.getElementById(id);
       if (!target) return;
-      var last = target.textContent;
+      var lastText = target.textContent;
+      var lastNum = parseMetricNumber(lastText);
       new MutationObserver(function () {
         var value = target.textContent;
-        if (value === last) return;
-        last = value; pulse(target);
+        if (value === lastText) return;
+        var num = parseMetricNumber(value);
+        var firstResult = !Number.isFinite(lastNum) && Number.isFinite(num);
+        var dir = Number.isFinite(lastNum) && Number.isFinite(num) && num !== lastNum ? (num > lastNum ? 1 : -1) : 0;
+        lastText = value;
+        lastNum = num;
+        pulseMetric(target, dir, firstResult);
       }).observe(target, { childList: true, subtree: true, characterData: true });
+    });
+    var chip = document.getElementById('answerChip');
+    if (chip) {
+      var chipHidden = chip.hidden;
+      new MutationObserver(function () {
+        var hidden = chip.hidden;
+        if (hidden === chipHidden) return;
+        chipHidden = hidden;
+        if (!hidden && enabled()) {
+          play(chip, [
+            { opacity: 0, transform: 'translateY(-4px) scale(.96)' },
+            { opacity: 1, transform: 'none' }
+          ], 260, ENTER);
+        }
+      }).observe(chip, { attributes: true, attributeFilter: ['hidden'] });
+    }
+    var lastMode = document.documentElement.dataset.calcMode;
+    new MutationObserver(function () {
+      var nextMode = document.documentElement.dataset.calcMode;
+      if (nextMode === lastMode) return;
+      var prevMode = lastMode;
+      lastMode = nextMode;
+      if (nextMode === 'full' && prevMode === 'quick' && enabled()) {
+        var rafId = requestAnimationFrame(function () {
+          delayed.delete(rafId);
+          if (!enabled() || document.documentElement.dataset.calcMode !== 'full') return;
+          var vh = window.innerHeight || 900;
+          var cards = Array.prototype.filter.call(
+            document.querySelectorAll('.col-config > .card[data-detail-part]'),
+            function (card) {
+              var r = card.getBoundingClientRect();
+              return r.height > 0 && r.top < vh * 2;
+            }
+          ).slice(0, 6);
+          staggerVisible(cards, 36, 180, 290, 10);
+        });
+        delayed.add(rafId);
+      }
+    }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-calc-mode'] });
+    ['hardwareResults', 'cpuSearchResults', 'gpuSearchResults'].forEach(function (id) {
+      var container = document.getElementById(id);
+      if (!container) return;
+      new MutationObserver(function (records) {
+        if (!enabled()) return;
+        var added = [];
+        records.forEach(function (rec) {
+          rec.addedNodes.forEach(function (node) {
+            if (node.nodeType === 1 && node.matches('button')) added.push(node);
+          });
+        });
+        if (added.length) staggerVisible(added.slice(0, 8), 18, 120, 220, 6);
+      }).observe(container, { childList: true });
     });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', setup, { once: true });
@@ -2613,13 +2830,6 @@ html[data-theme="light"] {
         specs.forEach(function (el) { detail.appendChild(el); });
         pick.appendChild(detail);
       });
-      var explanation = root.querySelector('.explain-content');
-      var previous = explanation.querySelector('.recommendation-math');
-      var formula = root.querySelector('#recoSub > span');
-      if (formula) {
-        if (previous) previous.remove();
-        formula.classList.add('recommendation-math'); explanation.appendChild(formula);
-      } else if (!root.querySelector('#recoSub b') && previous) previous.remove();
       root.querySelectorAll('.result-fold').forEach(function (fold) {
         var summary = fold.querySelector('summary'), status = summary.querySelector('.fold-status');
         if (!status) { status = document.createElement('span'); status.className = 'fold-status'; summary.appendChild(status); }
@@ -3090,7 +3300,8 @@ html[data-theme="light"] {
 
         <details class="result-explain"><summary>计算说明</summary><div class="explain-content"><div class="u" id="heroPowerNote">各部件功耗上限之和</div>
 <div class="u" id="heroExpectedNote">按分项负载区间估算</div>
-<div class="u" id="heroTransientNote">含显卡功率尖峰与硬盘启动</div></div></details>
+<div class="u" id="heroTransientNote">含显卡功率尖峰与硬盘启动</div>
+<div class="u" id="recoMath" hidden></div></div></details>
 
         <section class="card decision-quality">
           <h2>结果依据<span class="hint" id="completenessLabel"></span></h2>
@@ -3171,11 +3382,12 @@ html[data-theme="light"] {
         <section class="card">
           <h2>导出报告</h2>
           <div class="card-body">
-            <div class="grid2">
+            <div class="grid2 export-actions">
               <button id="btnCsv" class="primary">导出 Excel (CSV)</button>
               <button id="btnPdf">导出 PDF（打印）</button>
               <button id="btnJson" class="ghost">导出配置 (JSON)</button>
               <button id="btnLink" class="ghost">复制配置链接</button>
+              <button id="btnCopyText" type="button" class="ghost export-full">复制配置清单</button>
             </div>
             <div class="note" style="margin-top:11px">
               配置链接可以直接发给别人，对方打开就是你这一套配置。CSV 可用 Excel / WPS 打开；PDF 请选择“另存为 PDF”。
@@ -5946,14 +6158,14 @@ html[data-theme="light"] {
       pumpWatts: 5, fanCount: 2, wattPerFan: 2.4, radiator: 240, sockets: ['LGA1851', 'LGA1700', 'LGA1200', 'AM5', 'AM4'],
       price: 399, confidence: 'estimate', source: 'tpuGpuDb',
       note: '240 冷排，适合 M-ATX / ITX 机箱。' },
-    { id: 'air-nhd15-g2', kind: 'AIR', model: '猫头鹰 NH-D15 G2',
+    { id: 'air-nhd15-g2', kind: 'AIR', model: '猫头鹰 NH-D15 G2', highEndAir: true,
       pumpWatts: 0, fanCount: 2, wattPerFan: 2.28, radiator: 0, sockets: ['LGA1851', 'LGA1700', 'LGA1200', 'AM5', 'AM4'],
       price: 1099, confidence: 'official', source: 'noctuaD15G2',
       note: '两只 NF-A14x25r G2 PWM，按每只最大输入 2.28W 计；旧包装需核对扣具。' },
     { id: 'air-pa120-se', kind: 'AIR', model: '利民 Peerless Assassin 120 SE',
       pumpWatts: 0, fanCount: 2, wattPerFan: 1.8, radiator: 0, sockets: ['LGA1851', 'LGA1700', 'LGA1200', 'AM5', 'AM4'],
       price: 199, confidence: 'estimate', source: 'tpuGpuDb' },
-    { id: 'air-assassin-iv', kind: 'AIR', model: '九州风神 阿萨辛 IV',
+    { id: 'air-assassin-iv', kind: 'AIR', model: '九州风神 阿萨辛 IV', highEndAir: true,
       pumpWatts: 0, fanCount: 2, wattPerFan: 2.2, radiator: 0, sockets: ['LGA1851', 'LGA1700', 'LGA1200', 'AM5', 'AM4'],
       price: 599, confidence: 'estimate', source: 'tpuGpuDb' },
     { id: 'air-stock-amd', kind: 'AIR', model: 'AMD 原装散热器 (Wraith Stealth)',
@@ -5974,7 +6186,7 @@ html[data-theme="light"] {
     { id: 'air-nhd12l', kind: 'AIR', model: '猫头鹰 Noctua NH-D12L',
       pumpWatts: 0, fanCount: 1, wattPerFan: 1.68, radiator: 0, sockets: ['LGA1851', 'LGA1700', 'LGA1200', 'AM5', 'AM4'],
       price: 0, confidence: 'official', source: 'noctuaD12L', note: '一只 NF-A12x25r PWM，最大输入 1.68W；旧批次核对扣具；参考价未采集。' },
-    { id: 'air-nhd15', kind: 'AIR', model: '猫头鹰 Noctua NH-D15',
+    { id: 'air-nhd15', kind: 'AIR', model: '猫头鹰 Noctua NH-D15', highEndAir: true,
       pumpWatts: 0, fanCount: 2, wattPerFan: 1.56, radiator: 0, sockets: ['LGA1851', 'LGA1700', 'LGA1200', 'AM5', 'AM4'],
       price: 0, confidence: 'official', source: 'noctuaD15', note: '原版双风扇，非 G2；每只最大输入 1.56W；旧批次核对扣具；参考价未采集。' },
     { id: 'air-nhu9s', kind: 'AIR', model: '猫头鹰 Noctua NH-U9S',
@@ -6772,12 +6984,13 @@ html[data-theme="light"] {
     var ramWatts = 0, ramSticks = 0, ramCapacity = 0;
     if (ram) {
       var kits = Math.max(1, num(cfg.ramKits, 1));
+      var ramType = ram.type || 'DDR5';
       ramSticks = ram.sticks * kits;
       ramCapacity = ram.capacityPerStick * ramSticks;
       ramWatts = round1(ram.wattsPerStick * ramSticks);
       items.push({
         group: '核心部件', label: '内存', name: ram.brand + ' ' + ram.model + ' ×' + kits + ' 套',
-        watts: ramWatts, detail: ramSticks + ' 条 · 共 ' + ramCapacity + 'GB · DDR5-' + ram.speed +
+        watts: ramWatts, detail: ramSticks + ' 条 · 共 ' + ramCapacity + 'GB · ' + ramType + '-' + ram.speed +
                               (ram.rgb ? ' · RGB' : ''),
         confidence: ram.confidence, source: ram.source
       });
@@ -7049,7 +7262,7 @@ html[data-theme="light"] {
       cpu: cpu, mobo: mobo, gpu: gpu, aib: aib, ram: ram, pcCase: pcCase,
       cooler: cooler, storage: storageList, nvmeCount: nvmeCount, gen5Count: gen5Count,
       ramSticks: ramSticks, ramCapacity: ramCapacity,
-      psu: byId(HWDB.psus, cfg.psuId), gpuWatts: gpuWatts
+      psu: byId(HWDB.psus, cfg.psuId), gpuWatts: gpuWatts, cpuWatts: cpuWatts
     }));
 
     /* --------------------------------------------- 14. 数据库缺失提醒 ---- */
@@ -7065,11 +7278,12 @@ html[data-theme="light"] {
     }
     var leaks = items.filter(function (it) { return it.confidence === 'leak'; });
     if (leaks.length) {
+      var allNvidiaGpu = leaks.every(function (u) { return u.label === '显卡' && /GeForce|RTX|GTX/i.test(u.name || ''); });
       issues.push({
         level: 'warn', code: 'UNRELEASED',
         title: '配置中包含尚未发布的硬件',
         detail: '「' + leaks.map(function (u) { return u.name; }).join('、') +
-                '」的功耗来自泄露/推算数据，NVIDIA 官方尚未确认规格。',
+                '」的功耗来自泄露/推算数据，' + (allNvidiaGpu ? 'NVIDIA 官方尚未确认规格。' : '厂商官方尚未确认最终规格。'),
         fix: '该结果仅可用于前瞻推演，请勿作为现在购买电源的依据。'
       });
     }
@@ -7181,7 +7395,9 @@ html[data-theme="light"] {
     var total = 0;
     var cpu = byId(HWDB.cpus, cfg.cpuId); if (cpu) total += cpu.price || 0;
     var aib = byId(HWDB.aibs, cfg.gpuAibId);
-    if (aib) { var g = byId(HWDB.gpus, aib.gpuId); if (g) total += g.price || 0; }
+    var gpuForPrice = aib ? byId(HWDB.gpus, aib.gpuId)
+      : (cfg.gpuId && cfg.gpuId !== '__igpu__' ? byId(HWDB.gpus, cfg.gpuId) : null);
+    if (gpuForPrice) total += gpuForPrice.price || 0;
     var mobo = byId(HWDB.motherboards, cfg.moboId); if (mobo) total += mobo.price || 0;
     var ram = byId(HWDB.ram, cfg.ramId);
     if (ram) total += (ram.price || 0) * Math.max(1, num(cfg.ramKits, 1));
@@ -7464,7 +7680,7 @@ html[data-theme="light"] {
         out.push({
           level: 'warn', code: 'RAM_SPEED',
           title: '内存频率高于主板标称支持值',
-          detail: '内存 DDR5-' + ram.speed + '，主板标称最高 DDR5-' + mobo.ramSpeedMax + '。',
+          detail: '内存 ' + ramType + '-' + ram.speed + '，主板标称最高 ' + mobo.ramType + '-' + mobo.ramSpeedMax + '。',
           fix: '通常可通过 XMP/EXPO 手动超频达成，但也可能需降频运行；' +
                '4 条满插时高频更难达成，建议优先 2 条方案。'
         });
@@ -7472,13 +7688,14 @@ html[data-theme="light"] {
     }
     if (ram && cpu && cpu.memMax) {
       var cpuMax = parseInt((/(\d{4,5})/.exec(cpu.memMax) || [])[1], 10);
+      var rType = ram.type || 'DDR5';
       if (cpuMax && ram.speed > cpuMax) {
         out.push({
           level: 'info', code: 'RAM_CPU_SPEED',
           title: '内存频率高于 CPU 官方支持值',
-          detail: cpu.name + ' 官方支持 ' + cpu.memMax + '，内存为 DDR5-' + ram.speed + '。',
-          fix: '超出部分属于内存控制器超频，需在 BIOS 中开启 XMP/EXPO；' +
-               '酷睿 Ultra 200S Plus 平台官方支持已提升至 DDR5-7200。'
+          detail: cpu.name + ' 官方支持 ' + cpu.memMax + '，内存为 ' + rType + '-' + ram.speed + '。',
+          fix: '超出部分属于内存控制器超频，需在 BIOS 中开启 XMP/EXPO' +
+               (cpu.socket === 'LGA1851' ? '；酷睿 Ultra 200S Plus 平台官方支持已提升至 DDR5-7200。' : '。')
         });
       }
     }
@@ -7506,20 +7723,30 @@ html[data-theme="light"] {
     }
     /* ---- 散热能力提示 ---- */
     if (cpu && cooler) {
-      var cap = cooler.kind === 'AIO' ? cooler.radiator : 200;
-      if (cpu.maxTurbo >= 200 && cap < 360) {
+      var cpuHeat = ctx.cpuWatts > 0 ? ctx.cpuWatts : cpu.maxTurbo;
+      var weakCooler = cooler.kind === 'AIO'
+        ? (cpu.maxTurbo >= 200 && cooler.radiator < 360)
+        : (cooler.highEndAir ? cpuHeat > 260 : cpu.maxTurbo >= 200);
+      if (weakCooler) {
         out.push({
           level: 'warn', code: 'COOLING_POWER',
           title: '散热规格对高功耗 CPU 偏弱',
-          detail: cpu.name + ' 最大睿频功耗 ' + cpu.maxTurbo + 'W，' + cooler.model + ' 的散热余量有限。',
-          fix: '建议升级到 360mm 一体式水冷或高端双塔风冷，否则会因温度墙而降频。'
+          detail: cpu.name + (cpuHeat !== cpu.maxTurbo ? ' 当前规划功耗 ' + cpuHeat + 'W，' : ' 最大睿频功耗 ' + cpu.maxTurbo + 'W，') + cooler.model + ' 的散热余量有限。',
+          fix: cooler.highEndAir
+            ? '建议升级到 360mm 一体式水冷，否则高负载可能触发温度墙降频。'
+            : '建议升级到 360mm 一体式水冷或高端双塔风冷，否则会因温度墙而降频。'
         });
       }
       if (cpu.tdp >= 200) {
+        var is9950x3d2 = cpu.id === 'r9-9950x3d2';
         out.push({
           level: 'info', code: 'HIGH_TDP_CPU',
-          title: '该 CPU 是 AM5 平台功耗最高的型号（TDP ' + cpu.tdp + 'W）',
-          detail: cpu.name + ' 双堆叠 3D 缓存结构对供电与散热要求显著高于前代。',
+          title: is9950x3d2
+            ? '该 CPU 是 AM5 平台功耗最高的型号（TDP ' + cpu.tdp + 'W）'
+            : '所选 CPU 属于高 TDP 旗舰型号（TDP ' + cpu.tdp + 'W）',
+          detail: is9950x3d2
+            ? cpu.name + ' 双堆叠 3D 缓存结构对供电与散热要求显著高于前代。'
+            : cpu.name + ' 持续满载与瞬时功耗释放较高，对供电与散热要求显著高于普通型号。',
           fix: '建议搭配 360mm 水冷与供电 ≥14 相的主板，并确保机箱风道良好。'
         });
       }
@@ -7653,8 +7880,8 @@ html[data-theme="light"] {
   /* ==================================================== 预算 / 平衡建议 ==
    *  规则引擎（非 AI 模型）：按功耗结构与预算给出可解释的取舍建议
    * ======================================================================*/
-  function advise(cfg, budget) {
-    var r = calculate(cfg);
+  function advise(cfg, budget, precomputed) {
+    var r = precomputed || calculate(cfg);
     var tips = [];
     if (!r.canRecommend || r.beyond) return { result: r, tips: tips };
     var gpuPct = r.subtotal > 0 ? r.gpuWatts / r.subtotal : 0;
@@ -8090,16 +8317,19 @@ html[data-theme="light"] {
   }
 
   /* ② ③ 两级下拉的联动刷新。纯只读：不修改 S。 */
+  var lastCpuCascadeKey = null;
   function refreshCpuCascade() {
     if (!$('cpuBrand') || !$('cpuGen') || !$('cpuSelect')) return;
+    if (!S.cpuBrand) S.cpuBrand = 'Intel';
+    var key = S.cpuBrand + '|' + S.cpuGen + '|' + S.cpuId;
+    if (key === lastCpuCascadeKey && $('cpuSelect').options.length > 0) return;
+    lastCpuCascadeKey = key;
 
     Array.prototype.forEach.call($('cpuBrand').querySelectorAll('button'), function (b) {
       var on = b.dataset.b === S.cpuBrand;
       b.className = on ? 'on' : '';
       b.setAttribute('aria-pressed', on ? 'true' : 'false');
     });
-
-    if (!S.cpuBrand) S.cpuBrand = 'Intel';
 
     var order = DB.cpuGenOrder || [];
     var ofBrand = DB.cpus.filter(function (c) { return c.brand === S.cpuBrand; });
@@ -8228,18 +8458,31 @@ html[data-theme="light"] {
   }
 
   /* 世代下拉 + ② ③ AIC 联动刷新。纯只读：不修改 S。 */
+  var lastGpuListKey = null;
+  var lastGpuAibModel = null;
   function refreshGpuCascade() {
-    var brandBtns = $('gpuBrand').querySelectorAll('button');
-    for (var i = 0; i < brandBtns.length; i++) {
-      var isI = brandBtns[i].dataset.b === '__igpu__';
-      var on = isI ? (S.gpuId === '__igpu__') : (brandBtns[i].dataset.b === S.gpuBrand && S.gpuId !== '__igpu__');
-      brandBtns[i].className = on ? 'on' : '';
-      brandBtns[i].setAttribute('aria-pressed', on ? 'true' : 'false');
+    var gSel = $('gpuGen'), mSel = $('gpuModel'), aSel = $('gpuAib');
+    var listKey = S.gpuBrand + '|' + S.gpuGen + '|' + S.gpuId;
+    var listChanged = listKey !== lastGpuListKey || mSel.options.length === 0;
+    var aibChanged = S.gpuId !== lastGpuAibModel || aSel.options.length === 0;
+    if (!listChanged && !aibChanged) {
+      if (S.gpuId !== '__igpu__' && aSel.value !== (S.gpuAibId || '')) aSel.value = S.gpuAibId || '';
+      return;
     }
 
-    var gSel = $('gpuGen'), mSel = $('gpuModel'), aSel = $('gpuAib');
+    if (listChanged) {
+      lastGpuListKey = listKey;
+      var brandBtns = $('gpuBrand').querySelectorAll('button');
+      for (var i = 0; i < brandBtns.length; i++) {
+        var isI = brandBtns[i].dataset.b === '__igpu__';
+        var on = isI ? (S.gpuId === '__igpu__') : (brandBtns[i].dataset.b === S.gpuBrand && S.gpuId !== '__igpu__');
+        brandBtns[i].className = on ? 'on' : '';
+        brandBtns[i].setAttribute('aria-pressed', on ? 'true' : 'false');
+      }
+    }
 
     if (S.gpuId === '__igpu__') {
+      lastGpuAibModel = '__igpu__';
       gSel.innerHTML = '<option value="">—</option>';
       gSel.disabled = true;
       mSel.innerHTML = '<option value="__igpu__">使用 CPU 集成显卡（无独立显卡）</option>';
@@ -8250,69 +8493,77 @@ html[data-theme="light"] {
     }
     gSel.disabled = false; mSel.disabled = false; aSel.disabled = false;
 
-    var order = DB.gpuGenOrder || [];
-    var meta = DB.gpuGenMeta || {};
-    var ofBrand = DB.gpus.filter(function (g) { return g.brand === S.gpuBrand; });
+    if (listChanged) {
+      var order = DB.gpuGenOrder || [];
+      var meta = DB.gpuGenMeta || {};
+      var ofBrand = DB.gpus.filter(function (g) { return g.brand === S.gpuBrand; });
 
-    var genIds = [], seen = {};
-    order.forEach(function (id) {
-      if (ofBrand.some(function (g) { return g.gen === id; })) { seen[id] = 1; genIds.push(id); }
-    });
-    ofBrand.forEach(function (g) {
-      if (g.gen && !seen[g.gen]) { seen[g.gen] = 1; genIds.push(g.gen); }
-    });
-
-    /* 世代分组名里直接写明「已停产」，让用户一眼看到老卡也在库里，
-       不用点进去猜。这是「关切久远硬件」最直接的界面表达。 */
-    var SEG_CN = {
-      current: '当前在售',
-      legacy: '已停产 · 二手常见',
-      unreleased: '未发布 / 前瞻',
-      future: '未发布 / 前瞻'
-    };
-    var genItems = genIds.map(function (id) {
-      var list = ofBrand.filter(function (g) { return g.gen === id; });
-      var m = meta[id] || {};
-      return {
-        id: id,
-        text: (m.label || id) + (m.year ? '（' + m.year + ' 年）' : '') + ' · ' + list.length + ' 款',
-        seg: m.segment || list[0].segment
-      };
-    });
-
-    gSel.innerHTML = '<option value="">全部世代（' + ofBrand.length + ' 款）</option>' +
-      optionsHtml(genItems, S.gpuGen,
-        function (it) { return it.text; },
-        function (it) { return SEG_CN[it.seg] || '其他'; });
-
-    var rank = {};
-    order.forEach(function (id, i) { rank[id] = i; });
-    var list = ofBrand.filter(function (g) { return !S.gpuGen || g.gen === S.gpuGen; })
-      .slice()
-      .sort(function (a, b) {
-        var ra = rank[a.gen] === undefined ? 999 : rank[a.gen];
-        var rb = rank[b.gen] === undefined ? 999 : rank[b.gen];
-        return (ra - rb) || (b.tbp - a.tbp);
+      var genIds = [], seen = {};
+      order.forEach(function (id) {
+        if (ofBrand.some(function (g) { return g.gen === id; })) { seen[id] = 1; genIds.push(id); }
+      });
+      ofBrand.forEach(function (g) {
+        if (g.gen && !seen[g.gen]) { seen[g.gen] = 1; genIds.push(g.gen); }
       });
 
-    /* 兜底：已选型号必须始终出现在列表里（理由同 refreshCpuCascade） */
-    if (S.gpuId && !list.some(function (g) { return g.id === S.gpuId; })) {
-      var extraG = DB.gpus.filter(function (g) { return g.id === S.gpuId; })[0];
-      if (extraG) list = [extraG].concat(list);
+      /* 世代分组名里直接写明「已停产」，让用户一眼看到老卡也在库里，
+         不用点进去猜。这是「关切久远硬件」最直接的界面表达。 */
+      var SEG_CN = {
+        current: '当前在售',
+        legacy: '已停产 · 二手常见',
+        unreleased: '未发布 / 前瞻',
+        future: '未发布 / 前瞻'
+      };
+      var genItems = genIds.map(function (id) {
+        var list = ofBrand.filter(function (g) { return g.gen === id; });
+        var m = meta[id] || {};
+        return {
+          id: id,
+          text: (m.label || id) + (m.year ? '（' + m.year + ' 年）' : '') + ' · ' + list.length + ' 款',
+          seg: m.segment || list[0].segment
+        };
+      });
+
+      gSel.innerHTML = '<option value="">全部世代（' + ofBrand.length + ' 款）</option>' +
+        optionsHtml(genItems, S.gpuGen,
+          function (it) { return it.text; },
+          function (it) { return SEG_CN[it.seg] || '其他'; });
+
+      var rank = {};
+      order.forEach(function (id, i) { rank[id] = i; });
+      var list = ofBrand.filter(function (g) { return !S.gpuGen || g.gen === S.gpuGen; })
+        .slice()
+        .sort(function (a, b) {
+          var ra = rank[a.gen] === undefined ? 999 : rank[a.gen];
+          var rb = rank[b.gen] === undefined ? 999 : rank[b.gen];
+          return (ra - rb) || (b.tbp - a.tbp);
+        });
+
+      /* 兜底：已选型号必须始终出现在列表里（理由同 refreshCpuCascade） */
+      if (S.gpuId && !list.some(function (g) { return g.id === S.gpuId; })) {
+        var extraG = DB.gpus.filter(function (g) { return g.id === S.gpuId; })[0];
+        if (extraG) list = [extraG].concat(list);
+      }
+
+      // 未选型号时给一个显式占位项，避免浏览器默认选中第一个型号
+      // （那样界面上像是已经选好了，而 S.gpuId 其实是空的）
+      mSel.innerHTML = (S.gpuId ? '' : '<option value="">— 请选择显卡型号 —</option>') +
+        optionsHtml(list, S.gpuId, function (g) {
+          return g.name + '  ·  TBP ' + g.tbp + 'W  ·  ' + g.memory +
+                 (g.confidence === 'leak' ? '  [未发布]' : '') +
+                 (g.segment === 'legacy' ? '  [已停产]' : '');
+        }, function (g) {
+          var m = meta[g.gen] || {};
+          return (m.label || g.family) + (m.year ? '（' + m.year + ' 年）' : '') +
+                 (g.segment === 'legacy' ? ' · 已停产' : '');
+        });
     }
 
-    // 未选型号时给一个显式占位项，避免浏览器默认选中第一个型号
-    // （那样界面上像是已经选好了，而 S.gpuId 其实是空的）
-    mSel.innerHTML = (S.gpuId ? '' : '<option value="">— 请选择显卡型号 —</option>') +
-      optionsHtml(list, S.gpuId, function (g) {
-        return g.name + '  ·  TBP ' + g.tbp + 'W  ·  ' + g.memory +
-               (g.confidence === 'leak' ? '  [未发布]' : '') +
-               (g.segment === 'legacy' ? '  [已停产]' : '');
-      }, function (g) {
-        var m = meta[g.gen] || {};
-        return (m.label || g.family) + (m.year ? '（' + m.year + ' 年）' : '') +
-               (g.segment === 'legacy' ? ' · 已停产' : '');
-      });
+    if (!aibChanged) {
+      if (aSel.value !== (S.gpuAibId || '')) aSel.value = S.gpuAibId || '';
+      return;
+    }
+    lastGpuAibModel = S.gpuId;
 
     var aibs = DB.aibs.filter(function (a) { return a.gpuId === S.gpuId; });
     var curGpu = DB.gpus.filter(function (x) { return x.id === S.gpuId; })[0];
@@ -8349,11 +8600,17 @@ html[data-theme="light"] {
     $('moboSelect').addEventListener('change', function () { S.moboId = this.value; render(); });
   }
 
+  function ramOptionLabel(r, mobo) {
+    var t = r.type || 'DDR5';
+    var base = r.brand + ' ' + r.model + '  ·  ' + (r.capacityPerStick * r.sticks) + 'GB  ·  ' + t;
+    if (mobo && t !== mobo.ramType) base += ' · ' + t + ' 与 ' + mobo.ramType + ' 主板不兼容';
+    return base;
+  }
+
   function initRam() {
     $('ramSelect').innerHTML = '<option value="">— 请选择内存 —</option>' +
       optionsHtml(DB.ram, S.ramId, function (r) {
-        var t = r.type || 'DDR5';
-        return r.brand + ' ' + r.model + '  ·  ' + (r.capacityPerStick * r.sticks) + 'GB  ·  ' + t;
+        return ramOptionLabel(r, null);
       }, function (r) {
         var t = r.type || 'DDR5';
         return t + ' — ' + (r.rgb ? 'RGB 灯条' : '无灯条');
@@ -8364,18 +8621,19 @@ html[data-theme="light"] {
     $('ramKits').addEventListener('input', function () { S.ramKits = clampNum(this.value, 1, 8, 1); render(); });
   }
 
-  /* 主板变更后，给类型不匹配的内存在下拉里打上警示标记 */
+  /* 主板变更后，给类型不匹配的内存在下拉里打上警示标记；取消主板后恢复原文 */
+  var lastRamFitMobo = '';
   function refreshRamFit() {
-    var mobo = DB.motherboards.filter(function (m) { return m.id === S.moboId; })[0];
-    if (!mobo) return;
+    var mobo = DB.motherboards.filter(function (m) { return m.id === S.moboId; })[0] || null;
+    var nextKey = mobo ? mobo.id : '';
+    if (nextKey === lastRamFitMobo) return;
+    lastRamFitMobo = nextKey;
     var sel = $('ramSelect');
     Array.prototype.forEach.call(sel.options, function (op) {
       if (!op.value) return;
       var r = DB.ram.filter(function (x) { return x.id === op.value; })[0];
       if (!r) return;
-      var t = r.type || 'DDR5';
-      var base = op.textContent.replace(/\s*·.*$/, '');
-      op.textContent = base + (t !== mobo.ramType ? ' · ' + t + ' 与 ' + mobo.ramType + ' 主板不兼容' : '');
+      op.textContent = ramOptionLabel(r, mobo);
       op.disabled = false;
     });
   }
@@ -8656,7 +8914,7 @@ html[data-theme="light"] {
       '<dt>核心</dt><dd>' + esc(c.cores) + '</dd>' +
       '<dt>' + (c.brand === 'AMD' ? 'TDP / PPT估值' : '基础 / 睿频功耗') + '</dt><dd>' + c.tdp + ' W / ' + c.maxTurbo + ' W</dd>' +
       '<dt>超频</dt><dd>' + (c.unlocked === false ? '倍频锁定，不支持超频' : '不锁倍频') + '</dd>' +
-      '<dt>本次计算取值</dt><dd style="color:var(--accent);font-weight:700">' + used + ' W</dd>' +
+      '<dt>本次计算取值</dt><dd class="kv-hi">' + used + ' W</dd>' +
       '</dl>' +
       (c.brand === 'AMD' ? '<div class="note">PPT是平台功耗限制，当前值用于规划估算；不把AMD官方TDP当作PPT来源。</div>' : '') +
       (S.cpuOc && c.unlocked !== false && !parseFloat(S.cpuCustomW) ? '<div class="note">解锁功耗墙取值为工程估算，实际值以BIOS设置和实测为准。</div>' : '') +
@@ -8706,7 +8964,7 @@ html[data-theme="light"] {
            (a.liquid ? ' · 水冷（' + (a.radiator || 360) + 'mm 冷排）' : '') + '</dd>' : '') +
       (a ? '<dt>AIC 超频策略</dt><dd>' + ({ aggressive: '激进', moderate: '中性', conservative: '保守' }[a.ocBias] || '—') + '</dd>' : '') +
       '<dt>瞬时倍率假设</dt><dd>×' + g.transient + '（工程估值）</dd>' +
-      '<dt>本次计算取值</dt><dd style="color:var(--accent);font-weight:700">' + used + ' W</dd>' +
+      '<dt>本次计算取值</dt><dd class="kv-hi">' + used + ' W</dd>' +
       '</dl>' +
       (a && a.recPsu ? '<div class="note accent" style="margin-top:9px">厂商建议整机电源：<b>' +
         a.recPsu + 'W</b>（针对整机全超频场景）</div>' : '') +
@@ -8745,7 +9003,7 @@ html[data-theme="light"] {
     var sticks = r.sticks * S.ramKits;
     box.innerHTML = '<dl class="kv">' +
       '<dt>总容量</dt><dd>' + (r.capacityPerStick * sticks) + ' GB（' + sticks + ' 条）</dd>' +
-      '<dt>频率</dt><dd>DDR5-' + r.speed + '</dd>' +
+      '<dt>频率</dt><dd>' + esc(r.type || 'DDR5') + '-' + r.speed + '</dd>' +
       '<dt>灯效</dt><dd>' + (r.rgb ? 'RGB' : '无') + '</dd>' +
       '<dt>内存功耗</dt><dd>' + (r.wattsPerStick * sticks).toFixed(1) + ' W</dd>' +
       '</dl>' +
@@ -8783,12 +9041,22 @@ html[data-theme="light"] {
     if (!r || !r.existingPsu) { box.innerHTML = ''; return; }
     var p = r.existingPsu.psu;
     var lv = r.existingPsu.level === 'error' ? 'error' : (r.existingPsu.level === 'warn' ? 'warn' : 'ok');
+    var utilPct = Math.max(0, Math.min(100, r.existingPsu.utilization || 0));
+    var meterHtml = p.verified
+      ? '<div class="psu-meter" aria-label="已有电源规划负载率 ' + r.existingPsu.utilization + '%">' +
+          '<div class="psu-meter-track">' +
+            '<span class="psu-meter-sweet" aria-hidden="true" title="常见高效率负载区间 40%–70%"></span>' +
+            '<span class="psu-meter-fill ' + lv + '" style="width:' + utilPct + '%"></span>' +
+          '</div>' +
+          '<div class="psu-meter-scale"><span>0%</span><span>40%–70% 推荐负载</span><span>100%</span></div>' +
+        '</div>'
+      : '';
     box.innerHTML = '<div class="issue ' + lv + '">' +
       '<span class="ico">' + (lv === 'ok' ? SVG.ok : (lv === 'error' ? SVG.error : SVG.warn)) + '</span>' +
       '<div><b>' + (p.verified ? '负载率 ' + r.existingPsu.utilization + '%（规划功耗 / 额定瓦数）' : '具体规格待核实（原录 ' + p.watts + 'W）') + '</b>' +
       '<div class="d">' + esc(r.existingPsu.verdict) + '</div>' +
       (p.verified ? '<div class="d">场景预期负载率 ' + r.existingPsu.utilizationExpected + '%（' +
-        esc(r.scenarioInfo.label) + '）</div>' : '') + '</div></div>' +
+        esc(r.scenarioInfo.label) + '）</div>' : '') + meterHtml + '</div></div>' +
       '<dl class="kv" style="margin-top:9px">' +
       '<dt>额定功率</dt><dd>' + p.watts + ' W</dd>' +
       '<dt>效率认证</dt><dd>' + esc(p.efficiency) + '</dd>' +
@@ -8843,31 +9111,19 @@ html[data-theme="light"] {
       ? '显卡在极短一瞬间能拉到的最高值；杂牌电源扛不住这种冲击，会死机重启'
       : '机械硬盘启动瞬间的额外功耗';
 
-    /* --- 电源推荐 --- */
+    /* --- 电源推荐元数据与计算公式（主结论由 renderDecision 统一渲染） --- */
+    var recoMath = $('recoMath');
     if (!r.canRecommend || r.beyond) {
-      // 空态：不给数字、不给结论、不给推荐，只说明下一步做什么
-      $('recoBig').innerHTML = EMPTY + '<span> W</span>';
-      $('recoSub').textContent = r.beyond ? '需求超出本工具的电源推荐范围，请先调整配置'
-        : (r.hasSelection ? '部分配置：请补齐 ' + r.missing.join('、') : '尚未选择硬件');
       $('recoMeta').innerHTML = '';
+      if (recoMath) { recoMath.hidden = true; recoMath.textContent = ''; }
     } else {
-      var sameW = r.recFloor === r.recIdeal;
-      $('recoBig').innerHTML = sameW
-        ? r.recIdeal + '<span> W</span>'
-        : r.recFloor + '–' + r.recIdeal + '<span> W</span>';
-      // 结论先行：直接告诉用户"买多大"，再附上计算依据
-      $('recoSub').innerHTML = sameW
-        ? '买 <b>' + r.recIdeal + 'W</b> 的电源即可。' +
-      '<span style="opacity:.75">（依据：硬件满载 ' + r.subtotal + 'W × 1.30 = ' +
-          Math.round(r.subtotal * 1.30) + 'W，× ' + r.redundancy.toFixed(2) + ' = ' +
-          Math.round(r.subtotal * r.redundancy) + 'W）</span>'
-        : '推荐买 <b>' + r.recIdeal + 'W</b>；预算紧张时最低不要低于 <b>' + r.recFloor + 'W</b>。' +
-          '<span style="opacity:.75">（依据：硬件满载 ' + r.subtotal + 'W ×' + r.redundancy.toFixed(2) +
-          ' = ' + Math.round(r.subtotal * r.redundancy) + 'W；下限 ×1.30 = ' +
-          Math.round(r.subtotal * 1.30) + 'W）</span>';
-      if (r.hasError) $('recoSub').insertAdjacentHTML('afterbegin', '<b>存在兼容性冲突，请先处理；以下瓦数仅用于功耗推演。</b><br>');
-      else if (r.assumptions.length) $('recoSub').insertAdjacentHTML('afterbegin', '快速估算参考，辅助部件使用默认预算。<br>');
-      else if (r.missingPowerParts.length) $('recoSub').insertAdjacentHTML('afterbegin', '部分配置参考，补齐辅助部件后请重新核对。<br>');
+      if (recoMath) {
+        recoMath.hidden = false;
+        recoMath.textContent = '推荐计算依据：硬件满载 ' + r.subtotal + 'W × 1.30 = ' +
+          Math.round(r.subtotal * 1.30) + 'W（安全下限 ' + r.recFloor + 'W），× ' +
+          r.redundancy.toFixed(2) + ' = ' + Math.round(r.subtotal * r.redundancy) +
+          'W（推荐目标 ' + r.recIdeal + 'W）';
+      }
       $('recoMeta').innerHTML =
         '<span class="tag on">ATX 3.1</span>' +
         '<span class="tag blue">原生 12V-2x6</span>' +
@@ -9025,7 +9281,7 @@ html[data-theme="light"] {
     var u = r.upgrade;
     box.innerHTML =
       '<dl class="kv">' +
-      '<dt>电源余量</dt><dd style="color:var(--accent);font-weight:700">' + u.headroomWatts + ' W（' + u.headroomPct + '%）</dd>' +
+      '<dt>电源余量</dt><dd class="kv-hi">' + u.headroomWatts + ' W（' + u.headroomPct + '%）</dd>' +
       '<dt>可承受显卡 TBP</dt><dd>' + u.gpuBudget + ' W</dd>' +
       '<dt>功耗预算内的参考卡</dt><dd>' + esc(u.maxGpu || '无匹配型号') + '</dd>' +
       '</dl>' +
@@ -9069,7 +9325,7 @@ html[data-theme="light"] {
 
   function renderAdvice(r) {
     var budget = parseFloat($('budgetInput').value) || 0;
-    var adv = EN.advise(toEngineConfig(S), budget);
+    var adv = EN.advise(toEngineConfig(S), budget, r);
 
     var box = $('adviceBox');
     if (!adv.tips.length) { box.innerHTML = '<div class="empty">选好硬件后才能给出平衡建议</div>'; return; }
@@ -9170,21 +9426,43 @@ html[data-theme="light"] {
   }
 
   var searchCategories = { cpu: 'CPU', gpu: '显卡', aib: '显卡板型', mobo: '主板', psu: '电源', ram: '内存', storage: '存储', cooler: '散热器', fan: '风扇', case: '机箱' };
+  var hardwareSearchIndex = null;
+  function getHardwareSearchIndex() {
+    if (hardwareSearchIndex) return hardwareSearchIndex;
+    var lists = { cpu: DB.cpus, gpu: DB.gpus, aib: DB.aibs, mobo: DB.motherboards, psu: DB.psus, ram: DB.ram, storage: DB.storage, cooler: DB.coolers, fan: DB.fans, case: DB.cases };
+    var gpuById = {}; DB.gpus.forEach(function (g) { gpuById[g.id] = g; });
+    var index = {};
+    Object.keys(lists).forEach(function (cat) {
+      index[cat] = (lists[cat] || []).map(function (it) {
+        var g = cat === 'aib' ? gpuById[it.gpuId] : null;
+        var name = g ? g.name + ' · ' + it.vendor + ' ' + it.series + cnLabel(it) : (it.name || it.brand + ' ' + it.model);
+        return {
+          item: it,
+          category: cat,
+          name: name,
+          hay: normalizeSearch([it.id, name, it.brand, it.model, it.alias, it.vendor, it.series, it.cn, it.cnLabel, it.sku].join(' ')),
+          modelNorm: normalizeSearch(it.name || it.model || ''),
+          idNorm: normalizeSearch(it.id),
+          confRank: (it.confidence === 'official' || it.confidence === 'review') ? 0 : 1
+        };
+      });
+    });
+    hardwareSearchIndex = index;
+    return index;
+  }
+
   function findHardware(query, category) {
     var terms = query.trim().split(/\s+/).map(normalizeSearch).filter(Boolean);
     if (!terms.length) return [];
-    var lists = { cpu: DB.cpus, gpu: DB.gpus, aib: DB.aibs, mobo: DB.motherboards, psu: DB.psus, ram: DB.ram, storage: DB.storage, cooler: DB.coolers, fan: DB.fans, case: DB.cases };
-    var categories = category === 'all' ? Object.keys(lists) : category === 'graphics' ? ['gpu', 'aib'] : [category];
-    var gpuById = {}; DB.gpus.forEach(function (g) { gpuById[g.id] = g; });
+    var index = getHardwareSearchIndex();
+    var categories = category === 'all' ? Object.keys(index) : category === 'graphics' ? ['gpu', 'aib'] : [category];
+    var queryNorm = normalizeSearch(query);
     var results = [];
     categories.forEach(function (cat) {
-      (lists[cat] || []).forEach(function (it) {
-        var g = cat === 'aib' ? gpuById[it.gpuId] : null;
-        var name = g ? g.name + ' · ' + it.vendor + ' ' + it.series + cnLabel(it) : (it.name || it.brand + ' ' + it.model);
-        var hay = normalizeSearch([it.id, name, it.brand, it.model, it.alias, it.vendor, it.series, it.cn, it.cnLabel, it.sku].join(' '));
-        if (terms.every(function (q) { return hay.indexOf(q) !== -1; })) {
-          var exact = normalizeSearch(it.name || it.model || '').endsWith(normalizeSearch(query)) || normalizeSearch(query) === normalizeSearch(it.id);
-          results.push({ item: it, category: cat, name: name, rank: (exact ? 0 : 4) + (it.confidence === 'official' || it.confidence === 'review' ? 0 : 1) });
+      (index[cat] || []).forEach(function (entry) {
+        if (terms.every(function (q) { return entry.hay.indexOf(q) !== -1; })) {
+          var exact = entry.modelNorm.endsWith(queryNorm) || queryNorm === entry.idNorm;
+          results.push({ item: entry.item, category: cat, name: entry.name, rank: (exact ? 0 : 4) + entry.confRank });
         }
       });
     });
@@ -9268,7 +9546,8 @@ html[data-theme="light"] {
     if (uc) selectCpu(target, uc);
     if (ug) { target.gpuId = ug; target.gpuAibId = $('upgradeAib').value; target.gpuCustomName = ''; target.gpuCustomW = ''; target.gpuOc = false; }
     simulatedState = target;
-    var br = EN.calculate(toEngineConfig(base)), tr = EN.calculate(toEngineConfig(target));
+    var br = (!bp && lastResult) ? lastResult : EN.calculate(toEngineConfig(base));
+    var tr = (!tp && !uc && !ug && lastResult) ? lastResult : EN.calculate(toEngineConfig(target));
     $('applyUpgrade').disabled = !uc && !ug;
     if (!br.hasSelection || !tr.hasSelection) {
       $('compareOutput').innerHTML = '<div class="empty">先填写硬件并保存原配置，再选择另一方案或模拟更换 CPU / 显卡。</div>'; return;
@@ -9286,9 +9565,17 @@ html[data-theme="light"] {
       return '<tr><th scope="row">' + esc(row[0]) + '</th><td>' + esc(row[1]) + '</td><td>' + esc(row[2]) + '</td></tr>';
     }).join('') + '</tbody></table>';
     if (base.scenario !== target.scenario) html += '<p class="note">两方案的使用场景不同，场景区间不能直接当作同负载实测对比。</p>';
-    var reuseCfg = toEngineConfig(target); reuseCfg.psuId = base.psuId;
-    var rr = EN.calculate(reuseCfg), ep = rr.existingPsu;
-    var psuWarnings = rr.issues.filter(function (i) { return i.level === 'warn' && /^(PSU_|EPS_)/.test(i.code); });
+    var rr = null, ep = null, psuWarnings = [];
+    if (base.psuId) {
+      if (base.psuId === target.psuId) {
+        rr = tr;
+      } else {
+        var reuseCfg = toEngineConfig(target); reuseCfg.psuId = base.psuId;
+        rr = EN.calculate(reuseCfg);
+      }
+      ep = rr.existingPsu;
+      psuWarnings = rr.issues.filter(function (i) { return i.level === 'warn' && /^(PSU_|EPS_)/.test(i.code); });
+    }
     var level = 'info', title, detail;
     if (!base.psuId) { title = '原配置尚未选择已有电源'; detail = '在原配置的“校验已有电源”选择实际型号并保存，才能判断是否可复用。'; }
     else if (!ep) { title = '暂不能判断电源复用'; detail = '请补齐核心配置，并确认原电源型号仍在数据库中。'; }
@@ -9334,10 +9621,15 @@ html[data-theme="light"] {
     recommendation.classList.toggle('has-conflict', !!errors);
     var gradientState = errors || r.beyond ? 'warning' : r.canRecommend ? 'ready' : r.hasSelection ? 'partial' : 'empty';
     if (recommendation.dataset.gradientState !== gradientState) recommendation.dataset.gradientState = gradientState;
-    if (r.canRecommend && !r.beyond) {
+    if (!r.canRecommend || r.beyond) {
+      $('recoBig').innerHTML = '—<span> W</span>';
+      $('recoSub').textContent = r.beyond
+        ? '需求超出本工具的电源推荐范围，请先调整配置'
+        : (missingCpu ? '尚未选择 CPU：选择 CPU 和显卡后，即可查看电源建议。' : missingGpu ? '已选择 CPU，还差显卡或核显选项。' : '补齐核心配置后查看建议。');
+    } else {
       $('recoBig').innerHTML = r.recIdeal + '<span> W</span>';
       $('recoSub').innerHTML = (errors ? '存在 ' + errors + ' 项冲突，以下瓦数仅供功耗推演。<br>' : '') + (quick ? '快速估算' : r.missingPowerParts.length ? '部分配置' : '按已填配置计算') + ' · 最低参考 <b>' + r.recFloor + 'W</b>。';
-    } else if (!r.beyond) $('recoSub').textContent = missingCpu ? '尚未选择 CPU：选择 CPU 和显卡后，即可查看电源建议。' : missingGpu ? '已选择 CPU，还差显卡或核显选项。' : '补齐核心配置后查看建议。';
+    }
     $('quickBudget').hidden = !quick;
     $('quickBudgetNote').textContent = r.assumptions.length ? '辅助硬件预算：' + r.assumptions.join('、') + '。已填写的具体部件继续参与计算。' : r.hasSelection ? '辅助硬件按已填配置计算；可继续完善型号和安装规格。' : '选择 CPU 和显卡后显示辅助硬件预算。';
     $('mobileBar').hidden = false;
@@ -9528,6 +9820,74 @@ html[data-theme="light"] {
     rows.push(['免责声明', '本结果为基于公开数据的估算，真实功耗取决于软件负载、BIOS 功耗墙设置与环境温度。']);
     rows.push(['', '标为"未发布"的硬件规格来自泄露信息，不可作为购买决策依据。']);
     return rows;
+  }
+
+  function buildPlainTextReport() {
+    var r = lastResult;
+    if (!r || !r.hasSelection) return '';
+    var lines = [];
+    lines.push('【台式机功耗与电源选型清单】');
+    lines.push('模式：' + (S.mode === 'quick' ? '快速估算' : '完整配置') + ' · 场景：' + r.scenarioInfo.label + '（冗余 ×' + r.redundancy.toFixed(2) + '）');
+    lines.push('');
+    lines.push('硬件配置：');
+    r.items.forEach(function (it) {
+      lines.push('- ' + it.label + '：' + (it.name || it.label) + '（' + it.watts + ' W）');
+    });
+    var pcCase = DB.cases.filter(function (c) { return c.id === S.caseId; })[0];
+    if (pcCase && !r.items.some(function (it) { return it.label === '机箱灯效'; })) {
+      lines.push('- 机箱：' + pcCase.brand + ' ' + pcCase.model);
+    }
+    lines.push('');
+    lines.push('功耗与电源建议：');
+    lines.push('- 规划功耗（峰值合计）：' + r.subtotal + ' W');
+    lines.push('- 场景功耗区间（部件侧）：' + scenarioRange(r));
+    lines.push('- 瞬时峰值（估算）：' + r.transient + ' W');
+    if (r.canRecommend && !r.beyond) {
+      lines.push('- 推荐电源：' + (r.recFloor === r.recIdeal ? r.recIdeal + ' W' : '推荐目标 ' + r.recIdeal + ' W（安全下限 ' + r.recFloor + ' W）'));
+      var pick = r.picks.balanced || r.picks.value || r.picks.flagship;
+      if (pick) lines.push('- 参考型号：' + pick.brand + ' ' + pick.model + '（' + pick.watts + 'W · ' + pick.efficiency + ' · ' + pick.atx + '）');
+    } else if (r.beyond) {
+      lines.push('- 推荐电源：超出消费级常规范围（>2000W）');
+    } else {
+      lines.push('- 推荐电源：暂不推荐（缺少 ' + r.missing.join('、') + '）');
+    }
+    if (r.existingPsu) {
+      lines.push('- 已有电源：' + r.existingPsu.psu.brand + ' ' + r.existingPsu.psu.model + '（' + r.existingPsu.psu.watts + 'W，负载率 ' + r.existingPsu.utilization + '%，' + r.existingPsu.verdict + '）');
+    }
+    var alerts = r.issues.filter(function (i) { return i.level === 'error' || i.level === 'warn'; });
+    if (alerts.length) {
+      lines.push('');
+      lines.push('风险与兼容性提示：');
+      alerts.forEach(function (i) {
+        lines.push('- [' + (i.level === 'error' ? '错误' : '警告') + '] ' + i.title);
+      });
+    }
+    writeHash();
+    if (/^https?:/.test(location.protocol)) {
+      lines.push('');
+      lines.push('配置链接：' + location.href);
+    }
+    lines.push('');
+    lines.push('注：估算结果仅供电源选型参考（数据版本 ' + DB.meta.version + '）。');
+    return lines.join('\n');
+  }
+
+  function copyPlainTextReport() {
+    if (!lastResult || !lastResult.hasSelection) {
+      toast('先选几件硬件，再来复制配置清单', true);
+      return;
+    }
+    var text = buildPlainTextReport();
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () { toast('配置清单已复制到剪贴板'); },
+        function () {
+          download('配置清单_' + new Date().toISOString().slice(0, 10) + '.txt', text, 'text/plain;charset=utf-8');
+          toast('已下载纯文本配置清单');
+        });
+    } else {
+      download('配置清单_' + new Date().toISOString().slice(0, 10) + '.txt', text, 'text/plain;charset=utf-8');
+      toast('已下载纯文本配置清单');
+    }
   }
 
   function download(filename, content, mime) {
@@ -10039,6 +10399,7 @@ html[data-theme="light"] {
       $('btnCsv').addEventListener('click', exportCsv);
       $('btnJson').addEventListener('click', exportJson);
       $('btnLink').addEventListener('click', copyConfigLink);
+      if ($('btnCopyText')) $('btnCopyText').addEventListener('click', copyPlainTextReport);
       $('btnPdf').addEventListener('click', function () {
         toast('正在打开打印对话框，选择"另存为 PDF"');
         setTimeout(function () { window.print(); }, 320);
@@ -10064,6 +10425,7 @@ html[data-theme="light"] {
         toCsv: function () {
           return buildReportRows().map(function (r) { return r.map(csvCell).join(','); }).join('\r\n');
         },
+        toText: buildPlainTextReport,
         exportCsv: exportCsv,
         exportJson: exportJson,
         applyPreset: applyPreset,

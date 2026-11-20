@@ -8,11 +8,10 @@
 <meta name="theme-color" content="#121212">
 <meta name="color-scheme" content="dark light">
 <!-- 图标与标志都内联成 data URI，本页完全自包含。
-     不用相对路径也不用根绝对路径：本站在 GitHub Pages 上是项目子路径站点
-     （https://<user>.github.io/-/），而 404 是「按出错地址渲染、浏览器 URL 不变」的，
-     相对路径会随出错地址的深度乱跑，根绝对的 /favicon.svg 又会解析到域名根。
-     404 页的职责恰恰是「路径出了问题」，所以它不能依赖任何路径。
-     图形与字标来自 assets/veltrix-*.svg，与首页同源。 -->
+     不用相对路径：本站在 GitHub Pages 上是用户站（https://lightningz-x.github.io/），
+     而 404 是「按出错地址渲染、浏览器 URL 不变」的，深层路径下的相对路径会解析出错。
+     404 页的职责恰恰是「路径出了问题」，所以它不能依赖任何外部路径。
+     图形与字标来自 MSI LIGHTNING 素材，与首页同源。 -->
 <link rel="icon" type="image/png" sizes="32x32" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAADkklEQVR4AdxWTYwURRT+Xk0Ps7i79szs/IobRUVj4kVNMCScIDHGgzF6MXLwoBJMPJgQDRyMuESXmOgByUowXjUmJh48SjTAhQMELpANEAhk2e3p2dmegYHZmdmux+ueWbJMNvTPEkio1Htdr169et+rqq56Co+4PF4ArppmxsoU91goDodd2AeyAnMjI3nLLH6cSgxNK4ZRQuXWQwPAgEHrhg9B4TAxrHa98mNY59445bG1kG0WtgH0Dog6WOJd40ALEcqaAEj0xIqmxF+KGaerN+3T0o5U1wSgks5/LpE/Lx4Xk0vdna8AHWlHqrEBzKzPPg1SX3jeFPNE7mZt2mtHJRXVwBvvLb0xlPxIon+OmC8b6Pzu9cehWADmzNzr4uwbIbgaB7KOc81rx6HIAC4CKaWMHyR6Qw7emacalV8HHVvAsNwL2737YVA3KEcG8GS28BoIW2SiFmu9R773VDudfxWZ4j9Q+KTZbN64R7mKEAmAg3SaQX/KPENgPnqkYR+Vtl+ddPoZK1M44FLiJIi2sLv00yag7SvvwyIB6GZTuwEaF+fNTtv9bB+gZ4EnrExxb5tS/4vuSyKsk5WZLN2onUKIokKM8YfMjo7mXMYOca4VaO/47fma7PM2lSkcl4i/E9oopER/aT23fyaAfcMApgL0d9UJY3iCiDYSaBYd9y9rpPSC7PNmkWsyiIT8yuAjZqNR94UQLBSA2Ux+q0y8S2KqaujvC7eqVrlpnVOOPiQ+3hDyq/wV0yXHPihoQkXvGQUCkJmSCkr2Hn8odt8sO/YvnqH0k86q/Uxk9uVWAu5OcR548LzxyxQIYGZsrOBqnio5lR2FevXssuH8aG6TtD8Q8qvkAcfyTvWkL0RggQDGa7XrGxr2vyvn9KNPGpMAldArWnc7uyX6bk8MzwMBrDZVNZN/S0C85+uYNUN/VW4unPfliCwyAEvyPU1q37IfJrrQXtQP7zFiU78N0Gb0Ckv8h5+9PT/XE6NzFcXEzwFUwsuA+mb8X7leOdgXYn1CA5A9J8kBviZCru9pES4m5eCJqt8T4xMawEI2u4EJ76JXWK7cv+cblRM9MT4PBUBeGcPl5BSxFz3L+8Ofyr3wYZwccBBqKAAvm/n3NWG7pF/fwl3cWlqo/DY4UVw5EAADSSZ6MdnqvlSs2xOlRuNKXGer2anVOlf2ySHrluv2/rHWwszK/gfVDgSwVkdB9ncAAAD//x+5rLkAAAAGSURBVAMArT0vUFyntewAAAAASUVORK5CYII=">
 <style>
   /* 与首页同一套 ROG 奥创令牌：近黑底、ROG 红单一强调色、2px 圆角。
@@ -51,6 +50,13 @@
   }
   a.home:hover { background: #a80021; }
   .hint { margin-top: 26px; font-size: 12.5px; color: #8a8a8a; }
+  @media (prefers-color-scheme: light) {
+    body { background: #f5f5f5; color: #111111; }
+    .code, p, .hint { color: #5c5c5c; }
+    .bar { background: #d40029; }
+    a.home { background: #c40028; }
+    a.home:hover { background: #a80020; }
+  }
 </style>
 </head>
 <body>

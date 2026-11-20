@@ -525,7 +525,8 @@
 
         <details class="result-explain"><summary>计算说明</summary><div class="explain-content"><div class="u" id="heroPowerNote">各部件功耗上限之和</div>
 <div class="u" id="heroExpectedNote">按分项负载区间估算</div>
-<div class="u" id="heroTransientNote">含显卡功率尖峰与硬盘启动</div></div></details>
+<div class="u" id="heroTransientNote">含显卡功率尖峰与硬盘启动</div>
+<div class="u" id="recoMath" hidden></div></div></details>
 
         <section class="card decision-quality">
           <h2>结果依据<span class="hint" id="completenessLabel"></span></h2>
@@ -606,11 +607,12 @@
         <section class="card">
           <h2>导出报告</h2>
           <div class="card-body">
-            <div class="grid2">
+            <div class="grid2 export-actions">
               <button id="btnCsv" class="primary">导出 Excel (CSV)</button>
               <button id="btnPdf">导出 PDF（打印）</button>
               <button id="btnJson" class="ghost">导出配置 (JSON)</button>
               <button id="btnLink" class="ghost">复制配置链接</button>
+              <button id="btnCopyText" type="button" class="ghost export-full">复制配置清单</button>
             </div>
             <div class="note" style="margin-top:11px">
               配置链接可以直接发给别人，对方打开就是你这一套配置。CSV 可用 Excel / WPS 打开；PDF 请选择“另存为 PDF”。

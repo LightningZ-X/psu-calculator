@@ -672,6 +672,45 @@ ok(knownGpuReuse.gpuConnectorKnown && knownGpuReuse.existingPsu.reusable === tru
 ok(engine.calculate({ cpuId: 'r5-9600x', gpuId: '__igpu__', psuId: 'msi-mag-a650gl', mode: 'quick' }).existingPsu.reusable === true,
   '明确使用核显无需独立显卡接口');
 
+section('18. 回归修复验证（DDR4 / 价格回退 / 散热分级 / advise 复用）');
+const ddr4Item = engine.calculate({
+  cpuId: 'r7-5800x3d', gpuId: '__igpu__', moboId: 'msi-pro-b760m-a',
+  ramId: 'ddr4-3600-16x2-gskill', ramKits: 1, mode: 'full'
+});
+const ddr4RamRow = ddr4Item.items.find(i => i.label === '内存');
+const ddr4Warn = ddr4Item.issues.find(i => i.code === 'RAM_SPEED');
+const ddr4CpuInfo = ddr4Item.issues.find(i => i.code === 'RAM_CPU_SPEED');
+ok(ddr4RamRow && /DDR4-3600/.test(ddr4RamRow.detail) && !/DDR5-/.test(ddr4RamRow.detail),
+  'DDR4 内存明细正确显示 DDR4- 而非 DDR5-', ddr4RamRow && ddr4RamRow.detail);
+ok(ddr4Warn && /内存 DDR4-3600/.test(ddr4Warn.detail) && /最高 DDR4-3200/.test(ddr4Warn.detail),
+  'DDR4 频率警告正确标示 DDR4', ddr4Warn && ddr4Warn.detail);
+ok(ddr4CpuInfo && /内存为 DDR4-3600/.test(ddr4CpuInfo.detail) && !/200S Plus/.test(ddr4CpuInfo.fix),
+  'AM4 DDR4 超频提示不误带 LGA1851 说明', ddr4CpuInfo && ddr4CpuInfo.fix);
+
+const refGpuOnly = engine.calculate({ cpuId: 'cu7-270kp', gpuId: 'rtx5090', mode: 'quick' });
+const gpu5090 = HWDB.gpus.find(g => g.id === 'rtx5090');
+const cpu270 = HWDB.cpus.find(c => c.id === 'cu7-270kp');
+ok(refGpuOnly.totalPrice === (cpu270.price + gpu5090.price),
+  '未选 AIC 板型时 totalPrice 回退计入公版显卡参考价', refGpuOnly.totalPrice);
+
+const nhd15g2 = engine.calculate({
+  cpuId: 'cu7-270kp', gpuId: '__igpu__', coolerId: 'air-nhd15-g2', mode: 'full'
+});
+ok(!codes(nhd15g2).includes('COOLING_POWER'),
+  '旗舰双塔风冷 NH-D15 G2 配 250W CPU 不误报散热偏弱');
+const nhd15g2Oc = engine.calculate({
+  cpuId: 'cu7-270kp', overclock: true, gpuId: '__igpu__', coolerId: 'air-nhd15-g2', mode: 'full'
+});
+const nhd15Warn = nhd15g2Oc.issues.find(i => i.code === 'COOLING_POWER');
+ok(nhd15Warn && !/或高端双塔风冷/.test(nhd15Warn.fix),
+  '旗舰双塔超限警告仅建议 360mm 水冷，不自相矛盾建议高端双塔');
+
+const advCfg = Object.assign({}, highEnd, { scenario: 'gaming' });
+const advDirect = engine.advise(advCfg, 25000);
+const advReused = engine.advise(advCfg, 25000, engine.calculate(advCfg));
+ok(JSON.stringify(advDirect) === JSON.stringify(advReused),
+  'advise() 传入预计算结果与独立计算返回一致');
+
 /* ------------------------------------------------------------ 汇总 ----- */
 console.log('\n' + '='.repeat(56));
 console.log('通过 ' + pass + ' / ' + (pass + fail) + '  失败 ' + fail);

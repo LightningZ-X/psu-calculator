@@ -217,12 +217,13 @@
     var ramWatts = 0, ramSticks = 0, ramCapacity = 0;
     if (ram) {
       var kits = Math.max(1, num(cfg.ramKits, 1));
+      var ramType = ram.type || 'DDR5';
       ramSticks = ram.sticks * kits;
       ramCapacity = ram.capacityPerStick * ramSticks;
       ramWatts = round1(ram.wattsPerStick * ramSticks);
       items.push({
         group: '核心部件', label: '内存', name: ram.brand + ' ' + ram.model + ' ×' + kits + ' 套',
-        watts: ramWatts, detail: ramSticks + ' 条 · 共 ' + ramCapacity + 'GB · DDR5-' + ram.speed +
+        watts: ramWatts, detail: ramSticks + ' 条 · 共 ' + ramCapacity + 'GB · ' + ramType + '-' + ram.speed +
                               (ram.rgb ? ' · RGB' : ''),
         confidence: ram.confidence, source: ram.source
       });
@@ -494,7 +495,7 @@
       cpu: cpu, mobo: mobo, gpu: gpu, aib: aib, ram: ram, pcCase: pcCase,
       cooler: cooler, storage: storageList, nvmeCount: nvmeCount, gen5Count: gen5Count,
       ramSticks: ramSticks, ramCapacity: ramCapacity,
-      psu: byId(HWDB.psus, cfg.psuId), gpuWatts: gpuWatts
+      psu: byId(HWDB.psus, cfg.psuId), gpuWatts: gpuWatts, cpuWatts: cpuWatts
     }));
 
     /* --------------------------------------------- 14. 数据库缺失提醒 ---- */
@@ -510,11 +511,12 @@
     }
     var leaks = items.filter(function (it) { return it.confidence === 'leak'; });
     if (leaks.length) {
+      var allNvidiaGpu = leaks.every(function (u) { return u.label === '显卡' && /GeForce|RTX|GTX/i.test(u.name || ''); });
       issues.push({
         level: 'warn', code: 'UNRELEASED',
         title: '配置中包含尚未发布的硬件',
         detail: '「' + leaks.map(function (u) { return u.name; }).join('、') +
-                '」的功耗来自泄露/推算数据，NVIDIA 官方尚未确认规格。',
+                '」的功耗来自泄露/推算数据，' + (allNvidiaGpu ? 'NVIDIA 官方尚未确认规格。' : '厂商官方尚未确认最终规格。'),
         fix: '该结果仅可用于前瞻推演，请勿作为现在购买电源的依据。'
       });
     }
@@ -626,7 +628,9 @@
     var total = 0;
     var cpu = byId(HWDB.cpus, cfg.cpuId); if (cpu) total += cpu.price || 0;
     var aib = byId(HWDB.aibs, cfg.gpuAibId);
-    if (aib) { var g = byId(HWDB.gpus, aib.gpuId); if (g) total += g.price || 0; }
+    var gpuForPrice = aib ? byId(HWDB.gpus, aib.gpuId)
+      : (cfg.gpuId && cfg.gpuId !== '__igpu__' ? byId(HWDB.gpus, cfg.gpuId) : null);
+    if (gpuForPrice) total += gpuForPrice.price || 0;
     var mobo = byId(HWDB.motherboards, cfg.moboId); if (mobo) total += mobo.price || 0;
     var ram = byId(HWDB.ram, cfg.ramId);
     if (ram) total += (ram.price || 0) * Math.max(1, num(cfg.ramKits, 1));
@@ -909,7 +913,7 @@
         out.push({
           level: 'warn', code: 'RAM_SPEED',
           title: '内存频率高于主板标称支持值',
-          detail: '内存 DDR5-' + ram.speed + '，主板标称最高 DDR5-' + mobo.ramSpeedMax + '。',
+          detail: '内存 ' + ramType + '-' + ram.speed + '，主板标称最高 ' + mobo.ramType + '-' + mobo.ramSpeedMax + '。',
           fix: '通常可通过 XMP/EXPO 手动超频达成，但也可能需降频运行；' +
                '4 条满插时高频更难达成，建议优先 2 条方案。'
         });
@@ -917,13 +921,14 @@
     }
     if (ram && cpu && cpu.memMax) {
       var cpuMax = parseInt((/(\d{4,5})/.exec(cpu.memMax) || [])[1], 10);
+      var rType = ram.type || 'DDR5';
       if (cpuMax && ram.speed > cpuMax) {
         out.push({
           level: 'info', code: 'RAM_CPU_SPEED',
           title: '内存频率高于 CPU 官方支持值',
-          detail: cpu.name + ' 官方支持 ' + cpu.memMax + '，内存为 DDR5-' + ram.speed + '。',
-          fix: '超出部分属于内存控制器超频，需在 BIOS 中开启 XMP/EXPO；' +
-               '酷睿 Ultra 200S Plus 平台官方支持已提升至 DDR5-7200。'
+          detail: cpu.name + ' 官方支持 ' + cpu.memMax + '，内存为 ' + rType + '-' + ram.speed + '。',
+          fix: '超出部分属于内存控制器超频，需在 BIOS 中开启 XMP/EXPO' +
+               (cpu.socket === 'LGA1851' ? '；酷睿 Ultra 200S Plus 平台官方支持已提升至 DDR5-7200。' : '。')
         });
       }
     }
@@ -951,20 +956,30 @@
     }
     /* ---- 散热能力提示 ---- */
     if (cpu && cooler) {
-      var cap = cooler.kind === 'AIO' ? cooler.radiator : 200;
-      if (cpu.maxTurbo >= 200 && cap < 360) {
+      var cpuHeat = ctx.cpuWatts > 0 ? ctx.cpuWatts : cpu.maxTurbo;
+      var weakCooler = cooler.kind === 'AIO'
+        ? (cpu.maxTurbo >= 200 && cooler.radiator < 360)
+        : (cooler.highEndAir ? cpuHeat > 260 : cpu.maxTurbo >= 200);
+      if (weakCooler) {
         out.push({
           level: 'warn', code: 'COOLING_POWER',
           title: '散热规格对高功耗 CPU 偏弱',
-          detail: cpu.name + ' 最大睿频功耗 ' + cpu.maxTurbo + 'W，' + cooler.model + ' 的散热余量有限。',
-          fix: '建议升级到 360mm 一体式水冷或高端双塔风冷，否则会因温度墙而降频。'
+          detail: cpu.name + (cpuHeat !== cpu.maxTurbo ? ' 当前规划功耗 ' + cpuHeat + 'W，' : ' 最大睿频功耗 ' + cpu.maxTurbo + 'W，') + cooler.model + ' 的散热余量有限。',
+          fix: cooler.highEndAir
+            ? '建议升级到 360mm 一体式水冷，否则高负载可能触发温度墙降频。'
+            : '建议升级到 360mm 一体式水冷或高端双塔风冷，否则会因温度墙而降频。'
         });
       }
       if (cpu.tdp >= 200) {
+        var is9950x3d2 = cpu.id === 'r9-9950x3d2';
         out.push({
           level: 'info', code: 'HIGH_TDP_CPU',
-          title: '该 CPU 是 AM5 平台功耗最高的型号（TDP ' + cpu.tdp + 'W）',
-          detail: cpu.name + ' 双堆叠 3D 缓存结构对供电与散热要求显著高于前代。',
+          title: is9950x3d2
+            ? '该 CPU 是 AM5 平台功耗最高的型号（TDP ' + cpu.tdp + 'W）'
+            : '所选 CPU 属于高 TDP 旗舰型号（TDP ' + cpu.tdp + 'W）',
+          detail: is9950x3d2
+            ? cpu.name + ' 双堆叠 3D 缓存结构对供电与散热要求显著高于前代。'
+            : cpu.name + ' 持续满载与瞬时功耗释放较高，对供电与散热要求显著高于普通型号。',
           fix: '建议搭配 360mm 水冷与供电 ≥14 相的主板，并确保机箱风道良好。'
         });
       }
@@ -1098,8 +1113,8 @@
   /* ==================================================== 预算 / 平衡建议 ==
    *  规则引擎（非 AI 模型）：按功耗结构与预算给出可解释的取舍建议
    * ======================================================================*/
-  function advise(cfg, budget) {
-    var r = calculate(cfg);
+  function advise(cfg, budget, precomputed) {
+    var r = precomputed || calculate(cfg);
     var tips = [];
     if (!r.canRecommend || r.beyond) return { result: r, tips: tips };
     var gpuPct = r.subtotal > 0 ? r.gpuWatts / r.subtotal : 0;

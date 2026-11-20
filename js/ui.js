@@ -414,6 +414,30 @@
     window.__PSU_DISCLAIMER__ = { open: open, close: close, isOpen: isOpen };
   }
 
+  function setupHeaderMore() {
+    var more = document.querySelector('details.header-more');
+    if (!more) return;
+    function closeMore(focusSummary) {
+      var motion = window.__PSU_MOTION__;
+      if (motion && motion.closeDetails && motion.closeDetails(more, focusSummary)) return;
+      more.open = false;
+      if (focusSummary) {
+        var sum = more.querySelector('summary');
+        if (sum && sum.focus) sum.focus();
+      }
+    }
+    document.addEventListener('pointerdown', function (e) {
+      if (more.open && !more.contains(e.target)) closeMore(false);
+    });
+    document.addEventListener('keydown', function (e) {
+      if (more.open && (e.key === 'Escape' || e.key === 'Esc')) closeMore(true);
+    });
+    more.addEventListener('click', function (e) {
+      var btn = e.target.closest('button');
+      if (btn && btn.id !== 'btnLightEffects') closeMore(false);
+    });
+  }
+
   /* ------------------------------------------------------------ 启动 --- */
   function boot() {
     try {
@@ -421,7 +445,8 @@
       setupCards();
       setupActiveHighlight();
       collapseNotes();
-        setupDisclaimer();
+      setupDisclaimer();
+      setupHeaderMore();
 
       // 控件值变化 → 刷新摘要
       // 用捕获阶段监听，不影响 app.js 自己的监听器
@@ -494,7 +519,7 @@
   };
   var introRan = !seen && !motion.matches;
   if (introRan) root.classList.add('psu-boot-active', 'psu-boot-pending');
-  var done = false, staged = false, timers = [], inertNodes = [], stopAnimation = null;
+  var done = false, staged = false, hadVideo = false, timers = [], inertNodes = [], stopAnimation = null;
   var inputEvents = ['pointerdown', 'click', 'keydown', 'touchstart'];
 
   function later(fn, ms) { timers.push(setTimeout(fn, ms)); }
@@ -537,6 +562,8 @@
   function finishIntro(event) {
     if (done || staged) return;
     staged = true;
+    var shouldReveal = hadVideo;
+    hadVideo = false;
     // 跳过手势不穿透到页面按钮。
     if (event && inputEvents.indexOf(event.type) !== -1) {
       if (event.cancelable) event.preventDefault();
@@ -548,6 +575,9 @@
     detachInput();
     root.classList.remove('psu-boot-active', 'psu-boot-pending', 'psu-boot-running');
     release(true);
+    if (shouldReveal && window.__PSU_MOTION__ && window.__PSU_MOTION__.revealPage) {
+      window.__PSU_MOTION__.revealPage(!!event);
+    }
   }
 
   function onSkip(event) { finishIntro(event); }
@@ -574,6 +604,7 @@
     // 回访或缺少动画脚本时直接显示页面。
     if (!introRan || !canvas || !window.startLightningBoot) { finishIntro(null); return; }
     holdInput();
+    hadVideo = true;
     root.classList.add('psu-boot-running');
     stopAnimation = window.startLightningBoot(canvas, function () { finishIntro(null); });
   }
@@ -584,11 +615,13 @@
     if (root.classList.contains('psu-boot-active') || root.classList.contains('psu-boot-hold')) return;
     done = false;
     staged = false;
+    hadVideo = false;
     root.classList.add('psu-boot-active', 'psu-boot-pending', 'psu-boot-replaying');
     watchPlayback(true);
     var canvas = document.querySelector('.psu-boot-canvas');
     if (canvas && window.startLightningBoot) {
       holdInput();
+      hadVideo = true;
       root.classList.add('psu-boot-running');
       stopAnimation = window.startLightningBoot(canvas, function () { finishIntro(null); });
     } else {
@@ -617,7 +650,7 @@
   'use strict';
   var reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
   var printing = false;
-  var active = new Map(), pressed = new Set(), folds = new Map();
+  var active = new Map(), pressed = new Set(), folds = new Map(), delayed = new Set();
   var optionSelector = ':is(.seg, .scenarios, .search-results) > button:enabled';
   var ENTER = 'cubic-bezier(.16, 1, .3, 1)', FAST = 'cubic-bezier(.2, 0, .2, 1)';
   var EXIT = 'cubic-bezier(.4, 0, 1, 1)';
@@ -629,17 +662,24 @@
     var old = active.get(el);
     if (old) { active.delete(el); old.cancel(); }
   }
-  function play(el, frames, duration, easing, done, hold) {
+  function play(el, frames, duration, easing, done, hold, delay) {
     if (!el || typeof el.animate !== 'function') return;
     stop(el);
-    var animation = el.animate(frames, { duration: duration, easing: easing, fill: 'forwards' });
+    var opts = { duration: duration, easing: easing, fill: delay ? 'both' : 'forwards' };
+    if (delay) opts.delay = delay;
+    var animation = el.animate(frames, opts);
     active.set(el, animation);
     animation.finished.then(function () {
       if (active.get(el) !== animation) return;
       if (hold) return;
-      active.delete(el); animation.cancel();
+      active.delete(el);
       if (done) done();
+      animation.cancel();
     }, function () { if (active.get(el) === animation) active.delete(el); });
+  }
+  function parseMetricNumber(text) {
+    var m = String(text || '').match(/[-+]?\d+(?:\.\d+)?/);
+    return m ? Number(m[0]) : NaN;
   }
   function pulse(el) {
     if (!enabled() || !el || !el.isConnected || !el.getClientRects().length) return;
@@ -647,7 +687,59 @@
     play(el, [
       { opacity: running ? style.opacity : .82, transform: running ? style.transform : 'translateY(3px)' },
       { opacity: 1, transform: 'none' }
-    ], 280, ENTER);
+    ], 260, ENTER);
+  }
+  function pulseMetric(el, dir, firstResult) {
+    if (!enabled() || !el || !el.isConnected || !el.getClientRects().length) return;
+    var style = getComputedStyle(el), running = active.has(el);
+    if (firstResult) {
+      play(el, [
+        { opacity: running ? style.opacity : .55, transform: running ? style.transform : 'translateY(8px) scale(.97)' },
+        { opacity: 1, transform: 'translateY(-1px) scale(1.015)', offset: .58 },
+        { opacity: 1, transform: 'none', offset: 1 }
+      ], 340, ENTER);
+      return;
+    }
+    if (dir > 0) {
+      play(el, [
+        { opacity: running ? style.opacity : .72, transform: running ? style.transform : 'translateY(6px) scale(.985)' },
+        { opacity: 1, transform: 'translateY(-1px) scale(1.01)', offset: .6 },
+        { opacity: 1, transform: 'none', offset: 1 }
+      ], 290, ENTER);
+      return;
+    }
+    if (dir < 0) {
+      play(el, [
+        { opacity: running ? style.opacity : .72, transform: running ? style.transform : 'translateY(-5px) scale(1.01)' },
+        { opacity: 1, transform: 'translateY(1px) scale(.996)', offset: .62 },
+        { opacity: 1, transform: 'none', offset: 1 }
+      ], 270, ENTER);
+      return;
+    }
+    pulse(el);
+  }
+  function staggerVisible(nodes, step, maxDelay, duration, yOffset) {
+    if (!enabled() || !nodes || !nodes.length) return;
+    nodes.forEach(function (el, idx) {
+      if (!el || !el.isConnected || !el.getClientRects().length) return;
+      play(el, [
+        { opacity: 0, transform: 'translateY(' + yOffset + 'px) scale(.99)' },
+        { opacity: 1, transform: 'none' }
+      ], duration, ENTER, null, false, Math.min(idx * step, maxDelay));
+    });
+  }
+  function revealPage(skipped) {
+    if (!enabled()) return;
+    var vh = window.innerHeight || 900;
+    var list = window.__PSU_BOOT__ && window.__PSU_BOOT__.items
+      ? window.__PSU_BOOT__.items()
+      : Array.prototype.slice.call(document.querySelectorAll('header.top, .page-intro, .decision-toolbar, .col-config > .card, .col-result .sticky-col > *:not(.print-only)'));
+    var visible = list.filter(function (el) {
+      if (el.matches && el.matches('header.top')) return false;
+      var r = el.getBoundingClientRect();
+      return r.height > 0 && r.top < vh + 100 && r.bottom > -40;
+    }).slice(0, 8);
+    staggerVisible(visible, skipped ? 22 : 34, skipped ? 140 : 220, skipped ? 250 : 320, 10);
   }
   function press(el) {
     if (!enabled() || !el || el.disabled || el.getAttribute('aria-disabled') === 'true' || pressed.has(el)) return;
@@ -659,13 +751,14 @@
     if (!pressed.delete(el)) return;
     if (!el.isConnected) { stop(el); return; }
     if (!enabled()) { stop(el); return; }
-    // Start from the current press frame so fast repeat presses stay continuous.
+    // 从当前按压帧起跳，四段阻尼过冲回弹，保持连点不断帧。
     var isOption = el.matches(optionSelector);
     play(el, [
       { transform: getComputedStyle(el).transform, offset: 0 },
-      { transform: isOption ? 'scale(1.015)' : 'scale(1.006)', offset: .58 },
+      { transform: isOption ? 'scale(1.018)' : 'scale(1.008)', offset: .45 },
+      { transform: isOption ? 'scale(.996)' : 'scale(.998)', offset: .76 },
       { transform: 'scale(1)', offset: 1 }
-    ], isOption ? 280 : 360, ENTER);
+    ], isOption ? 320 : 380, ENTER);
   }
   function releaseAll() { Array.from(pressed).forEach(release); }
   function buttonFrom(event) { return event.target.closest && event.target.closest('button, .btn'); }
@@ -687,13 +780,81 @@
   function surface(el, opening) {
     if (!el || !enabled(true)) return;
     var current = getComputedStyle(el), running = active.has(el);
-    play(el, [
-      { opacity: running ? current.opacity : (opening ? 0 : 1),
-        transform: running ? current.transform : (opening ? 'translateY(12px) scale(.96)' : 'none') },
-      { opacity: opening ? 1 : 0, transform: opening ? 'none' : 'translateY(8px) scale(.98)' }
-    ], opening ? 340 : 180, opening ? ENTER : EXIT, null, !opening);
+    if (opening) {
+      play(el, [
+        { opacity: running ? current.opacity : 0,
+          transform: running ? current.transform : 'translateY(14px) scale(.96)' },
+        { opacity: 1, transform: 'translateY(-1px) scale(1.005)', offset: .68 },
+        { opacity: 1, transform: 'none', offset: 1 }
+      ], 360, ENTER);
+    } else {
+      play(el, [
+        { opacity: running ? current.opacity : 1,
+          transform: running ? current.transform : 'none' },
+        { opacity: 0, transform: 'translateY(8px) scale(.975)' }
+      ], 180, EXIT, null, true);
+    }
   }
-  window.__PSU_MOTION__ = { surface: surface, stop: stop };
+
+  function toggleMenu(el, summary, opening, focusSummary) {
+    var panel = el.querySelector('.header-more-panel');
+    if (!panel || typeof panel.animate !== 'function') return false;
+    var old = folds.get(el);
+    if (old && old.opening === opening) return true;
+    var panelFrame = null;
+    if (old) {
+      var style = getComputedStyle(panel);
+      panelFrame = { opacity: style.opacity, transform: style.transform };
+      old.restore();
+    }
+    var expanded = summary ? summary.getAttribute('aria-expanded') : null;
+    var record = {
+      opening: opening,
+      restore: function () {
+        stop(panel);
+        if (summary) {
+          if (expanded === null) summary.removeAttribute('aria-expanded');
+          else summary.setAttribute('aria-expanded', expanded);
+        }
+        folds.delete(el);
+      },
+      finish: function () {
+        el.open = opening;
+        record.restore();
+      }
+    };
+    if (!opening && (focusSummary || el.contains(document.activeElement)) && summary && summary.focus) {
+      summary.focus({ preventScroll: true });
+    }
+    el.open = true;
+    if (summary) summary.setAttribute('aria-expanded', String(opening));
+    folds.set(el, record);
+    if (opening) {
+      play(panel, [
+        panelFrame || { opacity: 0, transform: 'translateY(-6px) scale(.95)' },
+        { opacity: 1, transform: 'translateY(1px) scale(1.006)', offset: .68 },
+        { opacity: 1, transform: 'none', offset: 1 }
+      ], 260, ENTER, record.finish);
+    } else {
+      play(panel, [
+        panelFrame || { opacity: 1, transform: 'none' },
+        { opacity: 0, transform: 'translateY(-4px) scale(.96)' }
+      ], 150, EXIT, record.finish);
+    }
+    return true;
+  }
+
+  function closeDetails(el, focusSummary) {
+    if (!el || el.tagName !== 'DETAILS' || !el.open) return false;
+    if (!enabled() || !el.matches('.header-more')) return false;
+    return toggleMenu(el, el.querySelector('summary'), false, focusSummary);
+  }
+  window.__PSU_MOTION__ = {
+    surface: surface,
+    stop: stop,
+    revealPage: revealPage,
+    closeDetails: closeDetails
+  };
 
   document.addEventListener('change', function (event) {
     var input = event.target;
@@ -707,6 +868,12 @@
     var el = summary && summary.parentElement;
     if (!el || el.tagName !== 'DETAILS' || event.defaultPrevented ||
         event.target.closest('button, a, input, select, textarea') || !enabled() || typeof el.animate !== 'function') return;
+    if (el.matches('.header-more')) {
+      var oldMenu = folds.get(el);
+      var menuOpening = oldMenu ? !oldMenu.opening : !el.open;
+      if (toggleMenu(el, summary, menuOpening, false)) event.preventDefault();
+      return;
+    }
     event.preventDefault();
     var old = folds.get(el), opening = old ? !old.opening : !el.open;
     var start = el.getBoundingClientRect().height;
@@ -730,15 +897,19 @@
     summary.setAttribute('aria-expanded', String(opening));
     el.style.overflow = 'hidden';
     folds.set(el, record);
-    if (Math.abs(end - start) > 1000) { record.finish(); return; }
+    var delta = Math.abs(end - start);
+    if (delta > 1800) { record.finish(); return; }
+    var openDur = Math.min(400, Math.max(240, Math.round(210 + delta * .28)));
+    var closeDur = Math.min(280, Math.max(170, Math.round(150 + delta * .16)));
     contents.forEach(function (child) {
-      play(child, [contentFrames.get(child) || { opacity: opening ? 0 : 1, transform: 'none' },
-        { opacity: opening ? 1 : 0, transform: opening ? 'none' : 'translateY(-4px)' }], opening ? 300 : 180, ENTER, null, !opening);
+      play(child, [contentFrames.get(child) || { opacity: opening ? 0 : 1, transform: opening ? 'translateY(-6px)' : 'none' },
+        { opacity: opening ? 1 : 0, transform: opening ? 'none' : 'translateY(-4px)' }], opening ? openDur : closeDur, opening ? ENTER : FAST, null, !opening);
     });
-    play(el, [{ height: start + 'px' }, { height: end + 'px' }], opening ? 340 : 220, opening ? ENTER : FAST, record.finish);
+    play(el, [{ height: start + 'px' }, { height: end + 'px' }], opening ? openDur : closeDur, opening ? ENTER : FAST, record.finish);
   });
 
   function clear() {
+    delayed.forEach(cancelAnimationFrame); delayed.clear();
     Array.from(folds.values()).forEach(function (record) { record.finish(); });
     active.forEach(function (animation) { animation.cancel(); }); active.clear(); pressed.clear();
     document.querySelectorAll('.psu-ui-feedback').forEach(function (el) { el.classList.remove('psu-ui-feedback'); });
@@ -749,7 +920,8 @@
   window.addEventListener('afterprint', function () { printing = false; });
 
   var cursorLight = null, pointerSurface = null, pointerFrame = 0, pointerX = null, pointerY = 0;
-  var pointerOption = null;
+  var pointerOption = null, pointerTarget = null;
+  var surfaceRect = null, surfaceOW = 0, surfaceOH = 0, surfaceDirty = true, surfaceEnteredAt = 0;
   var lightingRoot = document.documentElement;
   var printMedia = matchMedia('print');
   function lightingEnabled() {
@@ -763,6 +935,8 @@
     pointerSurface.style.removeProperty('--spot-y');
     pointerSurface.removeAttribute('data-spotlight');
     pointerSurface = null;
+    surfaceRect = null;
+    surfaceDirty = true;
   }
   function setOptionLight(option) {
     if (pointerOption === option) return;
@@ -778,6 +952,7 @@
     if (pointerFrame) cancelAnimationFrame(pointerFrame);
     pointerFrame = 0;
     pointerX = null;
+    pointerTarget = null;
     if (cursorLight) cursorLight.removeAttribute('data-active');
     clearSurfaceLight();
     setOptionLight(null);
@@ -787,19 +962,31 @@
     pointerFrame = requestAnimationFrame(function () {
       pointerFrame = 0;
       if (!lightingEnabled()) { clearSpotlight(); return; }
-      var hit = document.elementFromPoint(pointerX, pointerY);
+      var hit = pointerTarget || document.elementFromPoint(pointerX, pointerY);
       setOptionLight(hit?.closest(optionSelector) || null);
       var hoveredSurface = hit?.closest('.layout .card, .reco');
       if (!hoveredSurface) {
         cursorLight.style.transform = 'translate3d(' + pointerX + 'px,' + pointerY + 'px,0) translate(-50%,-50%)';
       }
       cursorLight.toggleAttribute('data-active', !hoveredSurface);
-      if (pointerSurface !== hoveredSurface) clearSurfaceLight();
+      if (pointerSurface !== hoveredSurface) {
+        clearSurfaceLight();
+        if (hoveredSurface) {
+          pointerSurface = hoveredSurface;
+          surfaceEnteredAt = performance.now();
+          surfaceDirty = true;
+        }
+      }
       if (!hoveredSurface) return;
-      pointerSurface = hoveredSurface;
-      var bounds = pointerSurface.getBoundingClientRect();
-      pointerSurface.style.setProperty('--spot-x', ((pointerX - bounds.left) * pointerSurface.offsetWidth / bounds.width) + 'px');
-      pointerSurface.style.setProperty('--spot-y', ((pointerY - bounds.top) * pointerSurface.offsetHeight / bounds.height) + 'px');
+      // 悬停入场弹性缩放（约 420ms）与滚动/尺寸变动期间实时测 rect，稳定后复用缓存避免重复回流
+      if (surfaceDirty || !surfaceRect || (performance.now() - surfaceEnteredAt < 500)) {
+        surfaceRect = pointerSurface.getBoundingClientRect();
+        surfaceOW = pointerSurface.offsetWidth;
+        surfaceOH = pointerSurface.offsetHeight;
+        surfaceDirty = false;
+      }
+      pointerSurface.style.setProperty('--spot-x', ((pointerX - surfaceRect.left) * surfaceOW / surfaceRect.width) + 'px');
+      pointerSurface.style.setProperty('--spot-y', ((pointerY - surfaceRect.top) * surfaceOH / surfaceRect.height) + 'px');
       if (!pointerSurface.hasAttribute('data-spotlight')) pointerSurface.setAttribute('data-spotlight', '');
     });
   }
@@ -808,9 +995,15 @@
     if (!lightingEnabled()) { clearSpotlight(); return; }
     pointerX = event.clientX;
     pointerY = event.clientY;
+    pointerTarget = event.target instanceof Element ? event.target : null;
     queueSpotlight();
   }, { passive: true });
-  document.addEventListener('scroll', queueSpotlight, { capture: true, passive: true });
+  document.addEventListener('scroll', function () {
+    pointerTarget = null;
+    surfaceDirty = true;
+    queueSpotlight();
+  }, { capture: true, passive: true });
+  window.addEventListener('resize', function () { surfaceDirty = true; }, { passive: true });
   document.documentElement.addEventListener('pointerleave', clearSpotlight);
   window.addEventListener('blur', clearSpotlight);
   document.addEventListener('visibilitychange', clearSpotlight);
@@ -835,6 +1028,7 @@
       var y = top + selected.offsetHeight - (scenario ? 6 : 2);
       var nextGeometry = x + ',' + y + ',' + width;
       if (selected === previous && nextGeometry === geometry) return;
+      var rowSwitched = !!previous && selected !== previous && top !== previousTop;
       group.toggleAttribute('data-selection-moving', !!previous && selected !== previous && top === previousTop);
       group.style.setProperty('--selection-x', x + 'px');
       group.style.setProperty('--selection-y', y + 'px');
@@ -843,6 +1037,7 @@
       previous = selected;
       previousTop = top;
       geometry = nextGeometry;
+      if (rowSwitched && !active.has(selected) && !pressed.has(selected)) pulse(selected);
     }
     // Establish the group's offset origin before reading button coordinates.
     group.classList.add('selection-group');
@@ -874,15 +1069,73 @@
     }
     document.querySelectorAll('.seg, .scenarios').forEach(setupSelectionTrack);
     if (typeof document.documentElement.animate === 'function') document.documentElement.classList.add('psu-motion-ready');
-    ['recoBig', 'heroPower', 'heroExpected', 'heroTransient', 'answerChipValue'].forEach(function (id) {
+    ['recoBig', 'heroPower', 'heroExpected', 'heroTransient', 'answerChipValue', 'mobileBarValue'].forEach(function (id) {
       var target = document.getElementById(id);
       if (!target) return;
-      var last = target.textContent;
+      var lastText = target.textContent;
+      var lastNum = parseMetricNumber(lastText);
       new MutationObserver(function () {
         var value = target.textContent;
-        if (value === last) return;
-        last = value; pulse(target);
+        if (value === lastText) return;
+        var num = parseMetricNumber(value);
+        var firstResult = !Number.isFinite(lastNum) && Number.isFinite(num);
+        var dir = Number.isFinite(lastNum) && Number.isFinite(num) && num !== lastNum ? (num > lastNum ? 1 : -1) : 0;
+        lastText = value;
+        lastNum = num;
+        pulseMetric(target, dir, firstResult);
       }).observe(target, { childList: true, subtree: true, characterData: true });
+    });
+    var chip = document.getElementById('answerChip');
+    if (chip) {
+      var chipHidden = chip.hidden;
+      new MutationObserver(function () {
+        var hidden = chip.hidden;
+        if (hidden === chipHidden) return;
+        chipHidden = hidden;
+        if (!hidden && enabled()) {
+          play(chip, [
+            { opacity: 0, transform: 'translateY(-4px) scale(.96)' },
+            { opacity: 1, transform: 'none' }
+          ], 260, ENTER);
+        }
+      }).observe(chip, { attributes: true, attributeFilter: ['hidden'] });
+    }
+    var lastMode = document.documentElement.dataset.calcMode;
+    new MutationObserver(function () {
+      var nextMode = document.documentElement.dataset.calcMode;
+      if (nextMode === lastMode) return;
+      var prevMode = lastMode;
+      lastMode = nextMode;
+      if (nextMode === 'full' && prevMode === 'quick' && enabled()) {
+        var rafId = requestAnimationFrame(function () {
+          delayed.delete(rafId);
+          if (!enabled() || document.documentElement.dataset.calcMode !== 'full') return;
+          var vh = window.innerHeight || 900;
+          var cards = Array.prototype.filter.call(
+            document.querySelectorAll('.col-config > .card[data-detail-part]'),
+            function (card) {
+              var r = card.getBoundingClientRect();
+              return r.height > 0 && r.top < vh * 2;
+            }
+          ).slice(0, 6);
+          staggerVisible(cards, 36, 180, 290, 10);
+        });
+        delayed.add(rafId);
+      }
+    }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-calc-mode'] });
+    ['hardwareResults', 'cpuSearchResults', 'gpuSearchResults'].forEach(function (id) {
+      var container = document.getElementById(id);
+      if (!container) return;
+      new MutationObserver(function (records) {
+        if (!enabled()) return;
+        var added = [];
+        records.forEach(function (rec) {
+          rec.addedNodes.forEach(function (node) {
+            if (node.nodeType === 1 && node.matches('button')) added.push(node);
+          });
+        });
+        if (added.length) staggerVisible(added.slice(0, 8), 18, 120, 220, 6);
+      }).observe(container, { childList: true });
     });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', setup, { once: true });
@@ -908,13 +1161,6 @@
         specs.forEach(function (el) { detail.appendChild(el); });
         pick.appendChild(detail);
       });
-      var explanation = root.querySelector('.explain-content');
-      var previous = explanation.querySelector('.recommendation-math');
-      var formula = root.querySelector('#recoSub > span');
-      if (formula) {
-        if (previous) previous.remove();
-        formula.classList.add('recommendation-math'); explanation.appendChild(formula);
-      } else if (!root.querySelector('#recoSub b') && previous) previous.remove();
       root.querySelectorAll('.result-fold').forEach(function (fold) {
         var summary = fold.querySelector('summary'), status = summary.querySelector('.fold-status');
         if (!status) { status = document.createElement('span'); status.className = 'fold-status'; summary.appendChild(status); }
