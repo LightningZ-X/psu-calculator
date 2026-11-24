@@ -9,6 +9,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { checkBootMotion } from './boot-motion-check.mjs';
+import { checkBootBrowser } from './boot-browser-check.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, '..');
@@ -16,12 +18,12 @@ const SRC = path.join(root, 'index.html');
 const TMP = path.join(root, '_browsertest.html');
 
 const EDGE_CANDIDATES = [
+  process.env.CHROME_PATH || '',
   'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
-  'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
-  process.env.CHROME_PATH || ''
+  'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe'
 ];
 const edge = EDGE_CANDIDATES.find(p => p && fs.existsSync(p));
-if (!edge) { console.error('未找到 Edge / Chrome，跳过浏览器测试'); process.exit(0); }
+if (!edge) { console.error('未找到 Edge / Chrome，请设置 CHROME_PATH'); process.exit(1); }
 
 /* ------------------------------------------------------------ 测试脚本 -- */
 const TEST = `
@@ -58,7 +60,7 @@ setTimeout(function () {
     t('空态推荐瓦数显示 —',
       $('recoBig').textContent.indexOf('—') >= 0, $('recoBig').textContent.trim());
     t('空态明确写出「尚未选择硬件」',
-      $('recoSub').textContent.indexOf('尚未选择硬件') >= 0, $('recoSub').textContent.trim());
+      $('recoSub').textContent.indexOf('选择 CPU') >= 0, $('recoSub').textContent.trim());
     t('空态不打绿勾（兼容性走中性态）',
       $('issues').querySelectorAll('.issue.ok').length === 0 &&
       $('issues').textContent.indexOf('未检测到兼容性问题') === -1,
@@ -71,7 +73,7 @@ setTimeout(function () {
       $('upgradeBox').textContent.indexOf('RTX') === -1,
       $('upgradeBox').textContent.replace(/\s+/g, ' ').slice(0, 40));
     t('空态顶栏答案筹码隐藏', $('answerChip').hidden === true);
-    t('空态底部结果条隐藏', $('mobileBar').hidden === true);
+    t('空态底部结果条提示下一步', $('mobileBarLabel').textContent.includes('CPU'));
 
     /* --- 0c. 显式载入示例配置（之后所有断言都基于它） --- */
     $('btnQuickStart').click();
@@ -108,7 +110,7 @@ setTimeout(function () {
     /* --- 2. 示例配置计算结果 --- */
     t('规划功耗 947.6W', $('heroPower').textContent.indexOf('947.6') >= 0, $('heroPower').textContent.trim());
     t('推荐电源 1300~1500W',
-      $('recoBig').textContent.indexOf('1300') >= 0 && $('recoBig').textContent.indexOf('1500') >= 0,
+      $('recoSub').textContent.indexOf('1300') >= 0 && $('recoBig').textContent.indexOf('1500') >= 0,
       $('recoBig').textContent.trim());
     t('三档电源卡片 3 张', $('psuPicks').querySelectorAll('.psu-pick').length === 3);
     t('明细表已渲染', $('detailTable').querySelectorAll('tbody tr').length > 10,
@@ -119,9 +121,9 @@ setTimeout(function () {
 
     /* --- 3. 场景切换影响冗余系数 --- */
     document.querySelector('.scenario[data-sc="creator"]').click();
-    t('切换创作场景 -> 冗余 1.50', $('recoSub').textContent.indexOf('1.50') >= 0);
+    t('切换创作场景 -> 冗余 1.50', $('heroPowerNote').textContent.indexOf('1.50') >= 0);
     document.querySelector('.scenario[data-sc="office"]').click();
-    t('切换办公场景 -> 冗余 1.30', $('recoSub').textContent.indexOf('1.30') >= 0);
+    t('切换办公场景 -> 冗余 1.30', $('heroPowerNote').textContent.indexOf('1.30') >= 0);
     document.querySelector('.scenario[data-sc="gaming"]').click();
 
     /* --- 4. 显卡四级联动：品牌 → 世代 → 型号 → AIC --- */
@@ -362,8 +364,10 @@ setTimeout(function () {
     t('引导已改为直白短文案',
        $('guideCard').textContent.indexOf('选硬件') >= 0 &&
        $('guideCard').textContent.indexOf('看瓦数') >= 0);
-    t('推荐结论直接给出"买多大"',
-       $('recoSub').textContent.indexOf('买') >= 0 && $('recoSub').textContent.indexOf('W') >= 0,
+    t('推荐结论按配置完整度给出瓦数或补齐提示',
+       window.__PSU_DEBUG.result().canRecommend
+         ? $('recoSub').textContent.indexOf('最低参考') >= 0 && $('recoSub').textContent.indexOf('W') >= 0
+         : $('recoSub').textContent.indexOf('选择 CPU') >= 0,
        $('recoSub').textContent.replace(/\\s+/g, ' ').slice(0, 56));
     t('核心数字配白话解释',
        $('heroPowerNote').textContent.indexOf('电源至少要扛得住') >= 0,
@@ -399,22 +403,23 @@ setTimeout(function () {
     var collapsed = document.querySelectorAll('.col-config .card.is-collapsed');
     /* 需求：打开页面时把选项收起来，供用户自行打开。
        所以默认应该是「全部 10 张都收起」，而不是以前的「前 3 张展开」。 */
-    t('默认全部收起（需求：打开页面时选项收起来）', collapsed.length === cfgCards.length,
+    t('默认展开核心填写，其余可按需展开', collapsed.length === cfgCards.length - 3,
       '折叠 ' + collapsed.length + ' / 共 ' + cfgCards.length);
 
     // 点开关能真正展开 / 折叠，且摘要能显示当前选择
-    var card1 = cfgCards[0];                       // 使用场景
+    var card1 = document.querySelector('#scenarios').closest('.card');                       // 使用场景
     var toggle1 = card1.querySelector('.card-toggle');
     t('收起状态下显示已选摘要',
       card1.querySelector('.card-summary').textContent.trim().length > 0,
       card1.querySelector('.card-summary').textContent.trim());
+    if (!card1.classList.contains('is-collapsed')) toggle1.click();
     toggle1.click();
     t('点开关可展开卡片', !card1.classList.contains('is-collapsed'));
     toggle1.click();
     t('再点一次可收起', card1.classList.contains('is-collapsed'));
 
     // 摘要必须跟随选择变化
-    var cpuCard = cfgCards[1];
+    var cpuCard = $('cpuSelect').closest('.card');
     var cpuToggle = cpuCard.querySelector('.card-toggle');
     cpuToggle.click();                              // 展开 CPU 卡
     var sumBefore = cpuCard.querySelector('.card-summary').textContent.trim();
@@ -430,15 +435,19 @@ setTimeout(function () {
 
     // 冗长说明收纳（只作用于配置列，结果列不动）
     var clamped = document.querySelectorAll('.col-config .note.note-collapsible');
-    t('配置列长说明已收纳', clamped.length > 0, clamped.length + ' 块');
+    var uncollapsedLong = Array.from(document.querySelectorAll('.col-config .note')).filter(function (n) {
+      return n.textContent.trim().length >= 90 && !n.closest('.glossary, .banner') &&
+        !n.querySelector('dl, table, ul, ol') && !n.classList.contains('note-collapsible');
+    });
+    t('配置列无未收纳的长说明', uncollapsedLong.length === 0, uncollapsedLong.length + ' 块未收纳');
     t('结果列说明未被折叠（那是结论的一部分）',
       document.querySelectorAll('.col-result .note.note-collapsible').length === 0);
 
     /* 数据声明：原来的「数据来源」独立卡片已撤掉，改到打开页面时的声明弹窗里。
-       本轮 URL 带了 ?nodisclaimer=1（不带的话弹窗会盖住整页，
+       本轮 URL 带了 ?nodisclaimer=1&noanim=1（不带的话弹窗会盖住整页，
        所有布局 / 可见性断言都会失真），所以这里只验证抑制开关与搬迁结果；
        弹窗本身由文件末尾的独立用例验证。 */
-    t('?nodisclaimer=1 可抑制声明弹窗',
+    t('?nodisclaimer=1&noanim=1 可抑制声明弹窗',
       !!$('disclaimerModal') && $('disclaimerModal').hidden === true,
       $('disclaimerModal') ? 'hidden=' + $('disclaimerModal').hidden : '节点不存在');
     t('「数据来源」已从页面移入弹窗（不再是独立卡片）',
@@ -557,7 +566,12 @@ const PROFILE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'psu-prof-'));
 const PROFILE_ARGS = ['--user-data-dir=' + PROFILE_DIR];
 process.on('exit', () => { try { fs.rmSync(PROFILE_DIR, { recursive: true, force: true }); } catch (e) {} });
 
-const html = fs.readFileSync(SRC, 'utf8');
+// Existing functional tests deliberately skip the intro; its real timeline has separate coverage below.
+// The color/toggle assertions begin in dark mode; make that precondition explicit
+// instead of depending on the host OS or Chromium's preferred color scheme.
+const readTestPage = () => fs.readFileSync(SRC, 'utf8').replace('<head>',
+  '<head><script>window.__PSU_NOANIM = true; localStorage.setItem("psu-calc-2026-v1-theme", "dark");</script>');
+const html = readTestPage();
 fs.writeFileSync(TMP, html.replace('</body>', TEST + '</body>'), 'utf8');
 
 let dom = '';
@@ -565,11 +579,11 @@ try {
   dom = execFileSync(edge, [
     '--headless=new', '--disable-gpu', '--no-sandbox', ...PROFILE_ARGS,
     '--virtual-time-budget=9000', '--dump-dom',
-    /* ?nodisclaimer=1 跳过「数据声明弹窗」——
+    /* ?nodisclaimer=1&noanim=1 跳过「数据声明弹窗」——
        弹窗是 position:fixed + body.modal-open{overflow:hidden}，
        开着的话会盖住整页，让所有布局与可见性断言失真。
        弹窗本身由文件末尾的独立用例验证。 */
-    'file:///' + TMP.replace(/\\/g, '/') + '?nodisclaimer=1'
+    'file:///' + TMP.replace(/\\/g, '/') + '?nodisclaimer=1&noanim=1'
   ], { encoding: 'utf8', maxBuffer: 40 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] });
 } catch (e) {
   console.error('无头浏览器执行失败:', e.message);
@@ -579,7 +593,7 @@ try {
 fs.unlinkSync(TMP);
 
 const m = /<pre id="RESULT">([\s\S]*?)<\/pre>/.exec(dom);
-if (!m) { console.error('未取到测试结果，页面可能未正常初始化'); process.exit(1); }
+if (!m) { console.error('未取到测试结果，页面可能未正常初始化；可用 CHROME_PATH 指定独立 Chromium'); process.exit(1); }
 
 const lines = m[1].trim().split('\n').map(s =>
   s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').replace(/&quot;/g, '"'));
@@ -611,8 +625,9 @@ if (!fs.existsSync(STANDALONE)) {
   console.log('\u2500'.repeat(56));
 
   /* 产物是否已过期：源文件比产物新就说明忘了重新构建 */
-  const srcFiles = ['index.html', 'assets/style.css', 'assets/rog-eye.png',
-    'js/db-cpus.js', 'js/db-aib.js', 'js/db.js', 'js/engine.js', 'js/app.js', 'js/ui.js']
+  const srcFiles = ['index.html', 'assets/style.css', 'assets/lightning-mark.png', 'assets/lightning-wordmark.png', 'favicon.svg',
+    'assets/apple-touch-icon.png', 'assets/lightningz-gap-cut-sr-1440p.mp4', 'js/boot-animation.js',
+    'js/db-cpus.js', 'js/db-aib.js', 'js/db-psus.js', 'js/db.js', 'js/engine.js', 'js/app.js', 'js/ui.js']
     .map(f => path.join(root, f));
   const newestSrc = Math.max(...srcFiles.map(f => fs.statSync(f).mtimeMs));
   const builtAt = fs.statSync(STANDALONE).mtimeMs;
@@ -636,7 +651,7 @@ if (!fs.existsSync(STANDALONE)) {
     saDom = execFileSync(edge, [
       '--headless=new', '--disable-gpu', '--no-sandbox', ...PROFILE_ARGS,
       '--virtual-time-budget=9000', '--dump-dom',
-      'file:///' + isoFile.replace(/\\/g, '/') + '?nodisclaimer=1'
+      'file:///' + isoFile.replace(/\\/g, '/') + '?nodisclaimer=1&noanim=1'
     ], { encoding: 'utf8', maxBuffer: 40 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] });
   } catch (e) {
     console.log('  \u2717 无头浏览器执行失败: ' + e.message);
@@ -797,7 +812,7 @@ dcheck('有部署说明文档', fs.existsSync(path.join(root, 'DEPLOY.md')));
    @media print 是导出 PDF 的唯一实现。改版最容易把它改坏，
    所以这里逐条断言关键规则还在（静态检查，不依赖浏览器）。 */
 const css = fs.readFileSync(path.join(root, 'assets/style.css'), 'utf8');
-const printIdx = css.lastIndexOf('@media print');
+const printIdx = css.indexOf('/* ------------------------------------------------------------- 打印 ----');
 const printBlock = printIdx >= 0 ? css.slice(printIdx) : '';
 
 dcheck('存在 @media print 块', printIdx >= 0);
@@ -828,7 +843,8 @@ dcheck('尊重 prefers-reduced-motion', /prefers-reduced-motion/.test(css));
 /* -------------------------------------------------------- 奥创令牌 ------ */
 dcheck('ROG 红主强调色已定义', /--rog:\s*#ff0033/.test(css));
 dcheck('圆角收到 ≤4px', /--radius:\s*2px/.test(css));
-dcheck('无装饰性呼吸动画', !/animation:\s*\w/.test(css));
+const motionErrors = checkBootMotion(css);
+dcheck('动画符合白名单 / 环境循环遵循光效开关', !motionErrors.length, motionErrors.join(' | '));
 dcheck('浅色主题覆盖同名变量（未增删变量名）', /html\[data-theme="light"\]/.test(css));
 const rootVars = (css.slice(0, css.indexOf('html[data-theme="light"]')).match(/--[a-z0-9-]+:/g) || [])
   .map(s => s.replace(':', '')).sort();
@@ -860,7 +876,7 @@ let mobFail = 0;
   const inject = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>vp</title>
 <style>html,body{margin:0}iframe{border:0;display:block}</style></head>
 <body>
-<iframe id="f" src="index.html?nodisclaimer=1" width="${MOBILE_W}" height="844"></iframe>
+<iframe id="f" src="index.html?nodisclaimer=1&noanim=1" width="${MOBILE_W}" height="844"></iframe>
 <script>
 window.addEventListener('load', function () {
   setTimeout(function () {
@@ -989,7 +1005,7 @@ console.log('\u2500'.repeat(56));
 let layFail = 0;
 {
   const probe = path.join(root, '_probe-layout.html');
-  const src = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  const src = readTestPage();
   const inject = `<script>
 window.addEventListener('load', function () {
   setTimeout(function () {
@@ -1048,10 +1064,10 @@ window.addEventListener('load', function () {
 
 /* ==========================================================================
  *  数据声明弹窗专项
- *  ⚠️ 这一轮**故意不带** ?nodisclaimer=1：弹窗必须在打开页面时自动出现。
+ *  ⚠️ 这一轮**故意不带** ?nodisclaimer=1&noanim=1：启动结束后自动展示声明。
  *     其余所有用例都带这个参数把它关掉，否则它会盖住整页。
  * ========================================================================*/
-console.log('\n数据声明弹窗检查（不带 ?nodisclaimer=1）');
+console.log('\n数据声明弹窗检查（不带 ?nodisclaimer=1&noanim=1）');
 console.log('\u2500'.repeat(56));
 
 let dmFail = 0;
@@ -1064,13 +1080,16 @@ function m(name, cond, extra) { window.__M.push((cond ? 'PASS' : 'FAIL') + ' | '
 function $(id) { return document.getElementById(id); }
 window.addEventListener('error', function (e) { window.__M.push('FAIL | 未捕获的 JS 错误 | ' + e.message); });
 
-setTimeout(function () {
+setTimeout(async function () {
   try {
     var md = $('disclaimerModal');
     /* role / aria-modal / aria-labelledby 挂在内层的 .modal-card 上
        （#disclaimerModal 只是遮罩层），所以要从遮罩里往下找。 */
     var card = md.querySelector('[role="dialog"]');
-    m('打开页面时自动弹出声明', md && !md.hidden);
+    m('首次打开不自动弹须知', md && md.hidden);
+    document.querySelector('.usage-open').click();
+    m('推荐区使用须知入口可打开弹窗', !md.hidden);
+    m('弹窗详情默认折叠', Array.from(md.querySelectorAll('details')).every(d => !d.open));
     m('弹窗是 role=dialog + aria-modal',
       !!card && card.getAttribute('aria-modal') === 'true',
       card ? card.getAttribute('role') + '/' + card.getAttribute('aria-modal') : '未找到 dialog');
@@ -1097,6 +1116,7 @@ setTimeout(function () {
     /* 关闭路径 */
     m('弹窗关闭按钮存在', !!$('dmClose'));
     $('dmClose').click();
+    await new Promise(resolve => setTimeout(resolve, 220));
     m('点关闭后弹窗隐藏', md.hidden === true);
     m('关闭后恢复页面滚动', !document.body.classList.contains('modal-open'));
     m('关闭后仍可从顶栏重开', !!$('btnDisclaimer'));
@@ -1105,19 +1125,17 @@ setTimeout(function () {
 
     /* 遮罩点击关闭 */
     md.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    await new Promise(resolve => setTimeout(resolve, 220));
     m('点遮罩关闭弹窗', md.hidden === true);
 
-    /* 勾了「不再提示」才写入 localStorage */
     $('btnDisclaimer').click();
-    m('重开后「不再提示」默认未勾选', $('dmNever').checked === false);
-    $('dmNever').checked = true;
+    m('说明由用户主动打开', !$('disclaimerModal').hidden);
     $('dmOk').click();
-    var stored = null;
-    try { stored = localStorage.getItem('psu-calc-2026-v1-disclaimer'); } catch (e) {}
-    m('勾选「不再提示」后记住了当前数据版本', stored === (window.HWDB.meta.version),
-      String(stored) + ' vs ' + window.HWDB.meta.version);
+    await new Promise(resolve => setTimeout(resolve, 220));
+    m('知道了关闭弹窗', md.hidden);
 
-    /* 其余用例都会带 ?nodisclaimer=1，验证抑制开关本身有效 */
+
+    /* 其余用例都会带 ?nodisclaimer=1&noanim=1，验证抑制开关本身有效 */
     m('window.__PSU_DISCLAIMER__ 调试接口已暴露',
       !!window.__PSU_DISCLAIMER__ && typeof window.__PSU_DISCLAIMER__.open === 'function');
   } catch (e) {
@@ -1129,7 +1147,7 @@ setTimeout(function () {
   document.body.appendChild(p);
 }, 900);
 <\/script>`;
-  fs.writeFileSync(probe, fs.readFileSync(SRC, 'utf8').replace('</body>', inject + '</body>'), 'utf8');
+  fs.writeFileSync(probe, readTestPage().replace('</body>', inject + '</body>'), 'utf8');
 
   let dom = '';
   try {
@@ -1163,7 +1181,7 @@ setTimeout(function () {
  *  表现是「标志变成一块红矩形 + 按钮掉回浏览器默认样式」。
  *  这种失败**不会报错**，只能靠「后面那条规则到底生效没有」来发现。
  *  所以这里同时钉住两件事：
- *    · ROG 之眼确实渲染出来了（mask 生效 / 图片加载成功，不是一块实心方块）
+ *    · MSI LIGHTNING 闪电确实渲染出来了（mask 生效 / 图片加载成功，不是一块实心方块）
  *    · 样式表尾部的规则仍然生效（解析没有被截断）
  * ========================================================================*/
 console.log('\n品牌标志与样式表完整性检查');
@@ -1194,7 +1212,7 @@ try {
     var r = mark.getBoundingClientRect();
     out.push('MARK_SIZE=' + Math.round(r.width) + 'x' + Math.round(r.height));
   }
-  /* 字标：官方 REPUBLIC OF GAMERS 图形。窄屏会被隐藏，这里在宽视口下断言它可见 */
+  /* 字标：MSI LIGHTNING 截图提取字标。窄屏会被隐藏，这里在宽视口下断言它可见 */
   var wm = document.querySelector('.logo .wordmark');
   if (!wm) { out.push('WORDMARK=missing'); }
   else {
@@ -1236,14 +1254,14 @@ setTimeout(function () {
   document.getElementById('L').textContent = out.join('\\n');
 }, 600);
 <\/script>`;
-  fs.writeFileSync(probe, fs.readFileSync(SRC, 'utf8').replace('</body>', inject + '</body>'), 'utf8');
+  fs.writeFileSync(probe, readTestPage().replace('</body>', inject + '</body>'), 'utf8');
 
   let dom = '';
   try {
     dom = execFileSync(edge, ['--headless=new', '--disable-gpu', '--no-sandbox',
       '--allow-file-access-from-files', ...PROFILE_ARGS,
       '--virtual-time-budget=9000', '--dump-dom',
-      'file:///' + probe.replace(/\\/g, '/') + '?nodisclaimer=1'],
+      'file:///' + probe.replace(/\\/g, '/') + '?nodisclaimer=1&noanim=1'],
       { encoding: 'utf8', maxBuffer: 40 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] });
   } catch (e) { console.log('  \u2717 渲染失败: ' + e.message.slice(0, 60)); logoFail++; }
   fs.unlinkSync(probe);
@@ -1263,12 +1281,12 @@ setTimeout(function () {
   /* 230 是当前值。给一点余量，但不能低太多 ——
      低于这个量级基本就是样式表被从中间截断了。 */
   chk('首页样式表解析完整（未被静默截断）', rules >= 200, rules + ' 条规则');
-  chk('顶栏标志是用官方之眼图形 + CSS mask 上色',
+  chk('顶栏标志是用MSI LIGHTNING图形 + CSS mask 上色',
     val('MARK_MASK') === 'set' && val('MARK_BG') !== 'rgba(0, 0, 0, 0)',
     'mask=' + val('MARK_MASK') + ' bg=' + val('MARK_BG'));
   chk('顶栏标志尺寸正常（没有被 mask 撑成一整块）',
     /^\d+x\d+$/.test(val('MARK_SIZE')) && parseInt(val('MARK_SIZE'), 10) > 0, val('MARK_SIZE'));
-  chk('Rog 字标 REPUBLIC OF GAMERS 已渲染',
+  chk('MSI LIGHTNING 字标 已渲染',
     val('WORDMARK_MASK') === 'set', val('WORDMARK_MASK') + ' ' + val('WORDMARK_SIZE'));
   /* 字标是细笔画定制字形，低于 120px 就开始糊 —— 顶栏里必须给它足够宽度 */
   chk('字标宽度足够看清定制字形（≥120px）',
@@ -1287,7 +1305,7 @@ setTimeout(function () {
 <pre id="L">x</pre><script>
 setTimeout(function () {
   var o = [];
-  /* 404 页显示的是官方纵向锁定版：图形在上、字标在下，两张图都要真的加载出来 */
+  /* 404 页显示的是MSI LIGHTNING 横向组合：图形在上、字标在下，两张图都要真的加载出来 */
   var imgs = document.querySelectorAll('.lockup img');
   o.push('IMG_COUNT=' + imgs.length);
   var okAll = imgs.length === 2, sizes = [];
@@ -1331,19 +1349,20 @@ setTimeout(function () {
     console.log('  ' + (ok ? '\u2713' : '\u2717') + ' ' + label + (extra ? '  [' + extra + ']' : ''));
   };
 
-  chk4('404 页显示官方纵向锁定版（图形 + 字标两张图）',
+  chk4('404 页显示MSI LIGHTNING 横向组合（图形 + 字标两张图）',
     v4('IMG_COUNT') === '2', v4('IMG_COUNT') + ' 张');
   chk4('404 页两张图都真的加载出来了（不是 alt 文字 / 也不是一块实心红）',
     v4('IMG_OK') === 'true', v4('IMG_SIZES'));
   chk4('404 页标志都带无障碍名称', v4('IMG_ALT_ALL') === 'true');
   chk4('404 页尾部的按钮样式生效（样式表没被截断）',
-    v4('LINK_BG') === 'rgb(255, 0, 51)' && v4('LINK_DECOR') === 'none',
+    /* #c40028：白字在 #ff0033 上只有 3.96:1，压深后 6.2:1 */
+    v4('LINK_BG') === 'rgb(196, 0, 40)' && v4('LINK_DECOR') === 'none',
     v4('LINK_BG') + ' / ' + v4('LINK_DECOR'));
   /* 本站是 GitHub Pages 的「项目子路径站点」（/‑/）。
      根绝对的 "/" 会跳到账号根 https://<user>.github.io/ —— 那是另一个地方；
      相对路径又会随出错地址的深度乱跑。只有带项目名的绝对路径是对的。 */
-  chk4('404 页「回到首页」指向项目根 /-/（不是账号根 /）',
-    v4('LINK_HREF') === '/-/', v4('LINK_HREF'));
+  chk4('404 页「回到首页」指向站点根 /',
+    v4('LINK_HREF') === '/', v4('LINK_HREF'));
   /* 404 页的样式表规则数是固定的（少了就是被截断） */
   chk4('404 页样式表规则齐全', (parseInt(v4('RULES'), 10) || 0) >= 11, v4('RULES') + ' 条');
 
@@ -1351,4 +1370,5 @@ setTimeout(function () {
 }
 
 console.log('');
-process.exit((fail || saFail || deployFail || mobFail || layFail || dmFail || logoFail) ? 1 : 0);
+const bootFail = await checkBootBrowser(root, edge);
+process.exit((fail || saFail || deployFail || mobFail || layFail || dmFail || logoFail || bootFail) ? 1 : 0);

@@ -1,11 +1,14 @@
 /* ============================================================================
  *  硬件功耗数据库  HWDB  ——  主装配文件
- *  版本: 2026.09.6   数据截止: 2026-09-13
+ *  数据版本: 2026.11.1   本轮扩充: 2026-11-14；电源核对日期按条目记录
+ *  （下面 meta 里那两项才是界面与导出真正读的值，改数据时两处一起改。
+ *    这里以前写的是 2026.09.7 / 2026-09-14，已经跟 meta 对不上了。）
  * ----------------------------------------------------------------------------
  *  模块划分（加载顺序不可调换）:
  *    js/db-cpus.js   桌面处理器（Intel 10/11/12/13/14 代 + Core Ultra 200S 系列；
  *                    AMD AM4 全系 + AM5 全系），164 款，含世代分组元数据
- *    js/db-aib.js    AIC 厂商系列目录 + 规则生成器（23 家厂商 / 85 系列）
+ *    js/db-aib.js    AIC 厂商系列目录 + 规则生成器（23 家厂商 / 86 系列）
+ *    js/db-psus.js   已核电源规格与厂家来源；旧版ID保留及待核隔离
  *    js/db.js        本文件：来源表、平台表、GPU、主板、内存、存储、散热、电源
  *
  *  confidence 语义:
@@ -19,16 +22,55 @@
   if (typeof module === 'object' && module.exports) {
     require('./db-cpus.js');
     require('./db-aib.js');
+    require('./db-psus.js');
   }
 
   var CPU_DB = root.HWDB_CPUS;
   var AIB_DB = root.HWDB_AIB;
-  if (!CPU_DB || !AIB_DB) {
-    throw new Error('db.js 依赖 db-cpus.js 与 db-aib.js，请先加载它们');
+  if (!CPU_DB || !AIB_DB || !root.HWDB_PSU_AUDIT) {
+    throw new Error('db.js 依赖 db-cpus.js、db-aib.js 与 db-psus.js，请先加载它们');
   }
 
   /* ------------------------------------------------------------------ 来源 */
   var SOURCES = {
+    kingstonKC600: { label: 'Kingston KC600 官方数据表（2.5英寸SATA版，最大写入3.2W）', url: 'https://www.kingston.com/datasheets/KC600_en.pdf' },
+    thermalrightPS120SE: { label: 'Thermalright Phantom Spirit 120 SE 官方规格（风扇0.20A；按12V折算功耗预算）', url: 'https://www.thermalright.com/product/phantom-spirit-120-se/' },
+    thermalrightAX120AM: { label: 'Thermalright Assassin X 120 Refined SE AM4/AM5 官方规格（仅AMD扣具版）', url: 'https://www.thermalright.com/product/assassin-x-120-refined-se-am4am5/' },
+    thermalrightPA120Mini: { label: 'Thermalright Peerless Assassin 120 MINI BLACK 官方规格（单风扇0.20A）', url: 'https://www.thermalright.com/product/peerless-assassin-120-mini-black/' },
+    noctuaA8: { label: 'Noctua NF-A8 PWM 官方规格（最大输入0.96W）', url: 'https://www.noctua.at/en/products/nf-a8-pwm/specifications' },
+    noctuaA9: { label: 'Noctua NF-A9 PWM 官方规格（最大输入1.2W）', url: 'https://www.noctua.at/en/products/nf-a9-pwm/specifications' },
+    fractalNorthXL: { label: 'Fractal North XL 官方产品表（原版，非Momentum/RC）', url: 'https://www.fractal-design.com/app/uploads/2024/02/North-XL_Product-Sheet_EN.pdf' },
+    fractalPopAir: { label: 'Fractal Pop Air 无灯原版官方产品表', url: 'https://assets.fractal-design.com/files/uxzbxy2o/production/aee3c31f032ec28432cd15cf6396576b01b43ec4.pdf' },
+    fractalMeshify2C: { label: 'Fractal Meshify 2 Compact 官方产品表（非Lite/RGB）', url: 'https://www.fractal-design.com/app/uploads/2021/02/Meshify-2-Compact_Product-Sheet_EN.pdf' },
+    amd7900xt: { label: 'AMD RX 7900 XT 官方规格：315W / 双 8pin', url: 'https://www.amd.com/en/support/downloads/drivers.html/graphics/radeon-rx/radeon-rx-7000-series/amd-radeon-rx-7900-xt.html' },
+    amd7900gre: { label: 'AMD RX 7900 GRE 官方规格：260W / 双 8pin', url: 'https://www.amd.com/en/products/graphics/desktops/radeon/7000-series/amd-radeon-rx-7900-gre.html' },
+    amd7700xt: { label: 'AMD RX 7700 XT 官方规格：245W / 双 8pin', url: 'https://www.amd.com/en/products/graphics/desktops/radeon/7000-series/amd-radeon-rx-7700-xt.html' },
+    amd7600xt: { label: 'AMD RX 7600 XT 官方规格：190W / 双 8pin', url: 'https://www.amd.com/en/products/graphics/desktops/radeon/7000-series/amd-radeon-rx-7600-xt.html' },
+    kingstonKC3000: { label: 'Kingston KC3000 官方数据表（分容量最大读写功耗）', url: 'https://www.kingston.com/datasheets/KC3000_en.pdf' },
+    kingstonRenegade: { label: 'Kingston FURY Renegade PCIe 4.0 官方数据表（最大读写功耗）', url: 'https://www.kingston.com/datasheets/sfyr_en.pdf' },
+    kingstonNV3: { label: 'Kingston NV3 官方数据表（型号与容量；未公布瓦数，功耗为估算）', url: 'https://www.kingston.com/datasheets/snv3s_en.pdf' },
+    kingstonA400: { label: 'Kingston A400 官方数据表（最大写入 1.535W）', url: 'https://www.kingston.com/datasheets/SA400S37_us.pdf' },
+    noctuaU12A: { label: 'Noctua NH-U12A 官方数据表（每只风扇最大 1.68W）', url: 'https://www.noctua.at/pub/media/blfa_files/infosheet/noctua_nh_u12a_datasheet_en_v3_web.pdf' },
+    noctuaU12Sredux: { label: 'Noctua NH-U12S redux 官方规格', url: 'https://www.noctua.at/en/products/nh-u12s-redux/specifications' },
+    noctuaD12L: { label: 'Noctua NH-D12L 官方规格', url: 'https://www.noctua.at/en/products/nh-d12l/specifications' },
+    noctuaD15: { label: 'Noctua NH-D15 官方数据表（每只风扇最大 1.56W）', url: 'https://noctua.at/pub/media/blfa_files/infosheet/noctua_nh_d15_datasheet_en_web_3.pdf' },
+    noctuaD15G2: { label: 'Noctua NH-D15 G2 官方数据表（每只风扇最大 2.28W）', url: 'https://noctua.at/pub/media/blfa_files/infosheet/NH-D15_G2_.pdf' },
+    noctuaU9S: { label: 'Noctua NH-U9S 官方数据表（单风扇最大 1.2W）', url: 'https://noctua.at/pub/media/blfa_files/infosheet/noctua_nh_u9s_datasheet_en_web_3.pdf' },
+    deepcoolAK400: { label: 'DeepCool AK400 官方规格（单风扇 1.56W）', url: 'https://deepcool.com/products/Cooling/cpuaircoolers/AK400-Performance-CPU-Cooler-1851-1700-AM5/2024/15222.shtml' },
+    deepcoolAK500: { label: 'DeepCool AK500 官方规格（单风扇 1.44W）', url: 'https://www.deepcool.com/products/Cooling/cpuaircoolers/AK500-High-Performance-CPU-Cooler-1851-1700-AM5/2022/16040.shtml' },
+    deepcoolAK620: { label: 'DeepCool AK620 官方规格（每只风扇 1.44W）', url: 'https://www.deepcool.com/products/Cooling/cpuaircoolers/AK620-High-Performance-CPU-Cooler-1851-1700-AM5/2024/13067.shtml' },
+    arcticP12: { label: 'ARCTIC P12 PWM PST 官方规格（12V / 0.1A）', url: 'https://www.arctic.de/en/P12-PWM-PST/P12-PWM-PST' },
+    arcticP14: { label: 'ARCTIC P14 PWM PST 官方数据表（12V / 0.12A）', url: 'https://www.arctic.de/media/1d/98/04/1693306037/Spec_Sheet_P14_PWM_PST_EN.pdf' },
+    arcticP12Max: { label: 'ARCTIC P12 Max 官方数据表（12V / 0.29A，FDB 版）', url: 'https://www.arctic.de/media/3d/1d/c2/1705490814/Spec_Sheet_P12_Max_EN.pdf' },
+    arcticP12Slim: { label: 'ARCTIC P12 Slim PWM PST 官方数据表（12V / 0.12A）', url: 'https://www.arctic.de/media/57/d0/e2/1647521732/Spec_Sheet_P12_Slim_PWM_PST_EN_6years.pdf' },
+    noctuaA14: { label: 'Noctua NF-A14 PWM 官方规格（最大输入 1.56W）', url: 'https://www.noctua.at/en/products/nf-a14-pwm/specifications' },
+    noctuaF12: { label: 'Noctua NF-F12 PWM 官方规格（最大输入 0.6W）', url: 'https://www.noctua.at/en/products/nf-f12-pwm/specifications' },
+    noctuaP12redux: { label: 'Noctua NF-P12 redux-1700 PWM 官方规格（最大输入 1.08W）', url: 'https://www.noctua.at/en/products/nf-p12-redux-1700-pwm/specifications' },
+    noctuaA14G2: { label: 'Noctua NF-A14x25 G2 PWM 官方规格（最大输入 2.28W）', url: 'https://www.noctua.at/en/products/nf-a14x25-g2-pwm/specifications' },
+    noctuaA12Slim: { label: 'Noctua NF-A12x15 PWM 官方规格（最大输入 1.56W）', url: 'https://www.noctua.at/en/products/nf-a12x15-pwm/specifications' },
+    noctuaA12Round: { label: 'Noctua NF-A12x25r PWM 官方规格（最大输入 1.68W）', url: 'https://www.noctua.at/en/products/nf-a12x25r-pwm/specifications' },
+    amd9060spec: { label: 'AMD RX 9060 XT 发布规格：8GB 150W / 16GB 160W', url: 'https://www.amd.com/zh-tw/newsroom/press-releases/2025-5-20-amd-introduces-new-radeon-graphics-cards-and-ryzen.html' },
+    nvidia4060spec: { label: 'NVIDIA RTX 4060 Ti / 4060 官方规格', url: 'https://www.nvidia.com/en-us/geforce/graphics-cards/40-series/rtx-4060-4060ti/' },
     yesky200splus: {
       label: '天极网 — 酷睿Ultra 200S Plus系列首发评测',
       url: 'https://wap.yesky.com/diy/285/343785.shtml'
@@ -86,8 +128,20 @@
       url: 'https://www.intel.com/content/www/us/en/products/details/processors/core-ultra.html'
     },
     amdSpec: {
-      label: 'AMD 官方产品规格页（TDP / PPT）',
+      label: 'AMD 官方产品规格页（TDP / 插槽；PPT不等同TDP，另行估算）',
       url: 'https://www.amd.com/zh-cn/products/processors/desktops/ryzen.html'
+    },
+    gskill: {
+      label: '芝奇 G.SKILL 官网产品规格页（Trident Z5 CK 幻锋CK 等 CU-DIMM）',
+      url: 'https://www.gskill.com/cn/products/1/204/台式机内存-U-DIMM-CU-DIMM'
+    },
+    p51review: {
+      label: 'Guru3D — SK hynix Platinum P51 (PCIe Gen5 NVMe) 评测',
+      url: 'https://www.guru3d.com/review/review-sk-hynix-platinum-p51-pcie-gen-50-nvme-ssd-15gb-s/'
+    },
+    expreview: {
+      label: '超能网 expreview — 电源评测 / 推荐',
+      url: 'https://www.expreview.com/power-supplies'
     }
   };
 
@@ -170,11 +224,41 @@
       connector: '1× 12VHPWR (16pin)', pcie: 'PCIe 4.0 x16', slots: 3,
       transient: 1.9, released: '2024-01', price: 8099,
       confidence: 'official', source: 'tpuGpuDb' },
+    { id: 'rtx4080', brand: 'NVIDIA', family: 'GeForce RTX 40 (Ada)',
+      name: 'GeForce RTX 4080', tbp: 320, memory: '16GB GDDR6X 256-bit',
+      connector: '1× 12VHPWR (16pin)', pcie: 'PCIe 4.0 x16', slots: 3,
+      transient: 1.9, released: '2022-11', price: 9499,
+      confidence: 'official', source: 'tpuGpuDb' },
+    { id: 'rtx4070tisuper', brand: 'NVIDIA', family: 'GeForce RTX 40 (Ada)',
+      name: 'GeForce RTX 4070 Ti SUPER', tbp: 285, memory: '16GB GDDR6X 256-bit',
+      connector: '1× 12VHPWR (16pin)', pcie: 'PCIe 4.0 x16', slots: 2.5,
+      transient: 1.8, released: '2024-01', price: 6499,
+      confidence: 'official', source: 'tpuGpuDb' },
+    { id: 'rtx4070ti', brand: 'NVIDIA', family: 'GeForce RTX 40 (Ada)',
+      name: 'GeForce RTX 4070 Ti', tbp: 285, memory: '12GB GDDR6X 192-bit',
+      connector: '1× 12VHPWR (16pin)', pcie: 'PCIe 4.0 x16', slots: 2.5,
+      transient: 1.8, released: '2023-01', price: 5999,
+      confidence: 'official', source: 'tpuGpuDb' },
     { id: 'rtx4070super', brand: 'NVIDIA', family: 'GeForce RTX 40 (Ada)',
       name: 'GeForce RTX 4070 SUPER', tbp: 220, memory: '12GB GDDR6X 192-bit',
       connector: '1× 12VHPWR (16pin)', pcie: 'PCIe 4.0 x16', slots: 2.5,
       transient: 1.8, released: '2024-01', price: 4899,
       confidence: 'official', source: 'tpuGpuDb' },
+    { id: 'rtx4070', brand: 'NVIDIA', family: 'GeForce RTX 40 (Ada)',
+      name: 'GeForce RTX 4070', tbp: 200, memory: '12GB GDDR6X 192-bit',
+      connector: '1× 8pin', pcie: 'PCIe 4.0 x16', slots: 2,
+      transient: 1.8, released: '2023-04', price: 4799,
+      confidence: 'official', source: 'tpuGpuDb' },
+    { id: 'rtx4060ti', brand: 'NVIDIA', family: 'GeForce RTX 40 (Ada)',
+      name: 'GeForce RTX 4060 Ti 16GB', tbp: 165, memory: '16GB GDDR6 128-bit',
+      connector: '1× 8pin', pcie: 'PCIe 4.0 x8', slots: 2,
+      transient: 1.7, released: '2023-07', price: 3199,
+      confidence: 'official', source: 'nvidia4060spec', note: '16GB版165W；具体AIC接口可能为8pin或16pin，需按SKU核对。' },
+    { id: 'rtx4060ti-8gb', brand: 'NVIDIA', family: 'GeForce RTX 40 (Ada)',
+      name: 'GeForce RTX 4060 Ti 8GB', tbp: 160, memory: '8GB GDDR6 128-bit',
+      connector: '1× 12VHPWR (16pin)', pcie: 'PCIe 4.0 x8', slots: 2,
+      transient: 1.7, released: '2023-05', price: 0,
+      confidence: 'official', source: 'nvidia4060spec', note: '8GB版160W；此处按FE显卡侧16-pin记录，部分AIC使用8pin。' },
     { id: 'rtx4060', brand: 'NVIDIA', family: 'GeForce RTX 40 (Ada)',
       name: 'GeForce RTX 4060', tbp: 115, memory: '8GB GDDR6 128-bit',
       connector: '1× 8pin', pcie: 'PCIe 4.0 x8', slots: 2,
@@ -193,11 +277,41 @@
       transient: 1.6, released: '2025-03', price: 3999,
       confidence: 'official', source: 'guru3d9070' },
     { id: 'rx9060xt', brand: 'AMD', family: 'Radeon RX 9000 (RDNA 4)',
-      name: 'Radeon RX 9060 XT', tbp: 160, memory: '8GB / 16GB GDDR6 128-bit',
+      name: 'Radeon RX 9060 XT 16GB', tbp: 160, memory: '16GB GDDR6 128-bit',
       connector: '1× 8pin', pcie: 'PCIe 5.0 x16', slots: 2,
       transient: 1.6, released: '2025-06', price: 2299,
-      confidence: 'official', source: 'tpuGpuDb',
-      note: '16GB 版 TBP 160W，8GB 版 150W。' },
+      confidence: 'official', source: 'amd9060spec',
+      note: '16GB基准TBP从160W起；AIC功耗墙可能更高。' },
+    { id: 'rx9060xt-8gb', brand: 'AMD', family: 'Radeon RX 9000 (RDNA 4)',
+      name: 'Radeon RX 9060 XT 8GB', tbp: 150, memory: '8GB GDDR6 128-bit',
+      connector: '1× 8pin', pcie: 'PCIe 5.0 x16', slots: 2,
+      transient: 1.6, released: '2025-06', price: 0,
+      confidence: 'official', source: 'amd9060spec', note: '8GB基准TBP从150W起；AIC功耗墙可能更高。' },
+    /* 2026-10-27：TBP / 显存 / 接口取厂家规格；瞬态与通用槽宽仍为估算。 */
+    { id: 'rx7900xt', brand: 'AMD', family: 'Radeon RX 7000 (RDNA 3)',
+      name: 'Radeon RX 7900 XT', tbp: 315, memory: '20GB GDDR6 320-bit',
+      connector: '2× 8pin', pcie: 'PCIe 4.0 x16', slots: 2.5,
+      transient: 1.7, released: '2022-12', price: 0,
+      confidence: 'official', source: 'amd7900xt',
+      note: 'AMD 基准 TBP 315W；厂家整机电源建议 750W（指定测试配置）。参考价未采集；槽宽与瞬态倍率为估算，非公版依具体板型。' },
+    { id: 'rx7900gre', brand: 'AMD', family: 'Radeon RX 7000 (RDNA 3)',
+      name: 'Radeon RX 7900 GRE', tbp: 260, memory: '16GB GDDR6 256-bit',
+      connector: '2× 8pin', pcie: 'PCIe 4.0 x16', slots: 2.5,
+      transient: 1.7, released: '2023-07', price: 0,
+      confidence: 'official', source: 'amd7900gre',
+      note: 'AMD 基准 TBP 260W。参考价未采集；槽宽与瞬态倍率为估算，非公版依具体板型。' },
+    { id: 'rx7700xt', brand: 'AMD', family: 'Radeon RX 7000 (RDNA 3)',
+      name: 'Radeon RX 7700 XT', tbp: 245, memory: '12GB GDDR6 192-bit',
+      connector: '2× 8pin', pcie: 'PCIe 4.0 x16', slots: 2.5,
+      transient: 1.7, released: '2023-09', price: 0,
+      confidence: 'official', source: 'amd7700xt',
+      note: 'AMD 基准 TBP 245W；厂家整机电源建议 700W（指定测试配置）。参考价未采集；槽宽与瞬态倍率为估算。' },
+    { id: 'rx7600xt', brand: 'AMD', family: 'Radeon RX 7000 (RDNA 3)',
+      name: 'Radeon RX 7600 XT', tbp: 190, memory: '16GB GDDR6 128-bit',
+      connector: '2× 8pin', pcie: 'PCIe 4.0 x8', slots: 2.5,
+      transient: 1.6, released: '2024-01', price: 0,
+      confidence: 'official', source: 'amd7600xt',
+      note: 'AMD 基准 TBP 190W、双 8pin；厂家整机电源建议 600W（指定测试配置）。参考价未采集；槽宽与瞬态倍率为估算。' },
     { id: 'rx7900xtx', brand: 'AMD', family: 'Radeon RX 7000 (RDNA 3)',
       name: 'Radeon RX 7900 XTX', tbp: 355, memory: '24GB GDDR6 384-bit',
       connector: '2× 8pin', pcie: 'PCIe 4.0 x16', slots: 2.5,
@@ -744,6 +858,76 @@
       speed: 7200, capacityPerStick: 128, sticks: 1, rgb: false, wattsPerStick: 6.5,
       price: 4999, confidence: 'estimate', source: 'yesky200splus',
       note: '酷睿 Ultra 200S Plus 率先支持 4-Rank CUDIMM，单模块最高 128GB。' },
+    /* ---------------------------------------- 2026.09.7 扩充：主流 DDR5 -- */
+    { id: 'ddr5-9000-24x2-gskill-tz5ck', brand: '芝奇 G.SKILL', model: 'Trident Z5 CK RGB 幻锋CK DDR5-9000 CL42 (CU-DIMM)',
+      speed: 9000, capacityPerStick: 24, sticks: 2, rgb: true, wattsPerStick: 6.8,
+      price: 2899, confidence: 'estimate', source: 'gskill',
+      note: 'CU-DIMM 带 CKD 时钟驱动，专配 Intel 酷睿 Ultra 200K + Z890；SPD 默认 6400 MT/s，需开 XMP 3.0 达 9000。' },
+    { id: 'ddr5-8200-24x2-gskill-tz5ck', brand: '芝奇 G.SKILL', model: 'Trident Z5 CK 炫锋CK DDR5-8200 CL40 (CU-DIMM)',
+      speed: 8200, capacityPerStick: 24, sticks: 2, rgb: false, wattsPerStick: 6.2,
+      price: 2199, confidence: 'estimate', source: 'gskill',
+      note: 'CU-DIMM 无灯版，CKD 时钟驱动，适合偏爱无光方案的高频平台。' },
+    { id: 'ddr5-8000-24x2-gskill-royal', brand: '芝奇 G.SKILL', model: 'Trident Z5 Royal 皇家戟 DDR5-8000 CL40',
+      speed: 8000, capacityPerStick: 24, sticks: 2, rgb: true, wattsPerStick: 6.0,
+      price: 2599, confidence: 'estimate', source: 'gskill' },
+    { id: 'ddr5-6400-16x2-gskill-neo', brand: '芝奇 G.SKILL', model: 'Trident Z5 Neo RGB 焰锋戟 DDR5-6400 CL32',
+      speed: 6400, capacityPerStick: 16, sticks: 2, rgb: true, wattsPerStick: 4.6,
+      price: 599, confidence: 'estimate', source: 'tpuGpuDb' },
+    { id: 'ddr5-6000-32x2-gskill-tz5', brand: '芝奇 G.SKILL', model: 'Trident Z5 炫锋戟 DDR5-6000 CL36',
+      speed: 6000, capacityPerStick: 32, sticks: 2, rgb: false, wattsPerStick: 3.6,
+      price: 899, confidence: 'estimate', source: 'tpuGpuDb' },
+    { id: 'ddr5-8000-24x2-kf-renegade', brand: '金士顿 Kingston', model: 'FURY Renegade DDR5-8000 CL38',
+      speed: 8000, capacityPerStick: 24, sticks: 2, rgb: true, wattsPerStick: 6.0,
+      price: 1799, confidence: 'estimate', source: 'tpuGpuDb' },
+    { id: 'ddr5-5200-16x2-kf-beast', brand: '金士顿 Kingston', model: 'FURY Beast DDR5-5200 CL40',
+      speed: 5200, capacityPerStick: 16, sticks: 2, rgb: false, wattsPerStick: 2.8,
+      price: 399, confidence: 'estimate', source: 'tpuGpuDb',
+      note: '入门级 DDR5，适合预算向装机。' },
+    { id: 'ddr5-6000-16x2-corsair-vengeance', brand: '海盗船 Corsair', model: 'Vengeance RGB DDR5-6000 CL30',
+      speed: 6000, capacityPerStick: 16, sticks: 2, rgb: true, wattsPerStick: 4.4,
+      price: 699, confidence: 'estimate', source: 'tpuGpuDb' },
+    { id: 'ddr5-6400-32x2-corsair-vengeance', brand: '海盗船 Corsair', model: 'Vengeance DDR5-6400 CL32',
+      speed: 6400, capacityPerStick: 32, sticks: 2, rgb: false, wattsPerStick: 4.4,
+      price: 1099, confidence: 'estimate', source: 'tpuGpuDb' },
+    { id: 'ddr5-6400-32x2-corsair-dominator', brand: '海盗船 Corsair', model: 'DOMINATOR TITANIUM DDR5-6400 CL32',
+      speed: 6400, capacityPerStick: 32, sticks: 2, rgb: true, wattsPerStick: 5.6,
+      price: 2299, confidence: 'estimate', source: 'tpuGpuDb' },
+    { id: 'ddr5-5600-16x2-crucial', brand: '美光 Crucial', model: 'UDIMM DDR5-5600 CL46',
+      speed: 5600, capacityPerStick: 16, sticks: 2, rgb: false, wattsPerStick: 2.6,
+      price: 399, confidence: 'estimate', source: 'tpuGpuDb',
+      note: '基础规格 DDR5，无散热马甲，主打兼容与性价比。' },
+    { id: 'ddr5-6000-16x2-crucial-pro', brand: '美光 Crucial', model: 'PRO DDR5-6000 CL36',
+      speed: 6000, capacityPerStick: 16, sticks: 2, rgb: false, wattsPerStick: 3.0,
+      price: 549, confidence: 'estimate', source: 'tpuGpuDb' },
+    { id: 'ddr5-6000-32x2-xpg-lancerblade', brand: '威刚 ADATA', model: 'XPG Lancer Blade DDR5-6000 CL30',
+      speed: 6000, capacityPerStick: 32, sticks: 2, rgb: false, wattsPerStick: 4.2,
+      price: 999, confidence: 'estimate', source: 'tpuGpuDb' },
+    { id: 'ddr5-6400-16x2-xpg-caster', brand: '威刚 ADATA', model: 'XPG Caster RGB DDR5-6400 CL32',
+      speed: 6400, capacityPerStick: 16, sticks: 2, rgb: true, wattsPerStick: 4.6,
+      price: 499, confidence: 'estimate', source: 'tpuGpuDb' },
+    { id: 'ddr5-6000-32x2-team-delta', brand: '十铨 TeamGroup', model: 'T-Force DELTA RGB DDR5-6000 CL30',
+      speed: 6000, capacityPerStick: 32, sticks: 2, rgb: true, wattsPerStick: 4.8,
+      price: 999, confidence: 'estimate', source: 'tpuGpuDb' },
+    { id: 'ddr5-5600-16x2-kbg-silver', brand: '金百达 KINGBANK', model: '银爵 DDR5-5600 CL46',
+      speed: 5600, capacityPerStick: 16, sticks: 2, rgb: false, wattsPerStick: 2.6,
+      price: 299, confidence: 'estimate', source: 'tpuGpuDb',
+      note: '国产高性价比颗粒，无灯马甲。' },
+    { id: 'ddr5-6000-32x2-gloway-yipro', brand: '光威 Gloway', model: '弈 Pro DDR5-6000 CL30',
+      speed: 6000, capacityPerStick: 32, sticks: 2, rgb: false, wattsPerStick: 3.8,
+      price: 699, confidence: 'estimate', source: 'tpuGpuDb',
+      note: '国产高性价比颗粒，无灯马甲。' },
+    { id: 'ddr5-6000-16x2-apacer-nox', brand: '宇瞻 Apacer', model: 'NOX DDR5-6000 CL30',
+      speed: 6000, capacityPerStick: 16, sticks: 2, rgb: true, wattsPerStick: 4.4,
+      price: 449, confidence: 'estimate', source: 'tpuGpuDb' },
+    { id: 'ddr5-6400-32x2-acer-predator', brand: '宏碁 Acer', model: 'Predator Hermes DDR5-6400 CL32',
+      speed: 6400, capacityPerStick: 32, sticks: 2, rgb: true, wattsPerStick: 5.0,
+      price: 1299, confidence: 'estimate', source: 'tpuGpuDb' },
+    { id: 'ddr5-7600-16x2-galaxy-hof', brand: '影驰 Galaxy', model: 'HOF 名人堂 DDR5-7600 CL36',
+      speed: 7600, capacityPerStick: 16, sticks: 2, rgb: true, wattsPerStick: 5.6,
+      price: 1499, confidence: 'estimate', source: 'tpuGpuDb' },
+    { id: 'ddr5-6000-16x2-colorful-cvn', brand: '七彩虹 Colorful', model: 'CVN Guardian DDR5-6000 CL36',
+      speed: 6000, capacityPerStick: 16, sticks: 2, rgb: true, wattsPerStick: 4.2,
+      price: 449, confidence: 'estimate', source: 'tpuGpuDb' },
     /* ------------------------------------------------ DDR4（老平台保留） - */
     { id: 'ddr4-3200-16x2-kf', brand: '金士顿 Kingston', model: 'FURY Beast DDR4-3200 CL16',
       speed: 3200, capacityPerStick: 16, sticks: 2, rgb: false, wattsPerStick: 2.4,
@@ -753,7 +937,20 @@
       price: 449, confidence: 'estimate', source: 'tpuGpuDb', type: 'DDR4' },
     { id: 'ddr4-3200-32x2-kf', brand: '金士顿 Kingston', model: 'FURY Beast DDR4-3200 CL16 (32GB×2)',
       speed: 3200, capacityPerStick: 32, sticks: 2, rgb: false, wattsPerStick: 2.8,
-      price: 599, confidence: 'estimate', source: 'tpuGpuDb', type: 'DDR4' }
+      price: 599, confidence: 'estimate', source: 'tpuGpuDb', type: 'DDR4' },
+    { id: 'ddr4-3200-8x2-kf', brand: '金士顿 Kingston', model: 'FURY Beast DDR4-3200 CL16 (8GB×2)',
+      speed: 3200, capacityPerStick: 8, sticks: 2, rgb: false, wattsPerStick: 1.8,
+      price: 199, confidence: 'estimate', source: 'tpuGpuDb', type: 'DDR4' },
+    { id: 'ddr4-3200-16x2-corsair-lpx', brand: '海盗船 Corsair', model: 'Vengeance LPX DDR4-3200 CL16',
+      speed: 3200, capacityPerStick: 16, sticks: 2, rgb: false, wattsPerStick: 2.4,
+      price: 299, confidence: 'estimate', source: 'tpuGpuDb', type: 'DDR4' },
+    { id: 'ddr4-3600-16x2-crucial-ballistix', brand: '美光 Crucial', model: 'Ballistix DDR4-3600 CL16',
+      speed: 3600, capacityPerStick: 16, sticks: 2, rgb: true, wattsPerStick: 3.0,
+      price: 499, confidence: 'estimate', source: 'tpuGpuDb', type: 'DDR4',
+      note: '已停产，二手常见，适合老平台补内存。' },
+    { id: 'ddr4-3200-32x2-kbg', brand: '金百达 KINGBANK', model: 'DDR4-3200 CL16 (32GB×2)',
+      speed: 3200, capacityPerStick: 32, sticks: 2, rgb: false, wattsPerStick: 2.8,
+      price: 399, confidence: 'estimate', source: 'tpuGpuDb', type: 'DDR4' }
   ];
 
   /* ========================================================== 存储 ======== */
@@ -777,8 +974,123 @@
     { id: 'hdd-ironwolf-8t', kind: 'HDD', model: '希捷 酷狼 IronWolf 8TB (7200rpm)',
       watts: 7.5, spinUp: 20, capacity: '8TB', price: 1299, confidence: 'estimate', source: 'tpuGpuDb' },
     { id: 'ssd-870evo-4t', kind: 'SATA', model: '三星 870 EVO 4TB (SATA 2.5")',
-      watts: 3, spinUp: 0, capacity: '4TB', price: 1699, confidence: 'estimate', source: 'tpuGpuDb' }
+      watts: 3, spinUp: 0, capacity: '4TB', price: 1699, confidence: 'estimate', source: 'tpuGpuDb' },
+    /* ---------------------------------------- 2026.09.7 扩充：主流 SSD ---- */
+    { id: 'ssd-p51-1t', kind: 'NVMe', model: '海力士 SK hynix Platinum P51 1TB (PCIe 5.0 x4)',
+      watts: 8, spinUp: 0, capacity: '1TB', price: 899, confidence: 'estimate', source: 'p51review' },
+    { id: 'ssd-p51-2t', kind: 'NVMe', model: '海力士 SK hynix Platinum P51 2TB (PCIe 5.0 x4)',
+      watts: 9, spinUp: 0, capacity: '2TB', price: 1499, confidence: 'estimate', source: 'p51review',
+      note: '238 层 NAND，顺序读约 14700 MB/s、写约 13400 MB/s；Gen5 里功耗控制较出色。' },
+    { id: 'ssd-p51-4t', kind: 'NVMe', model: '海力士 SK hynix Platinum P51 4TB (PCIe 5.0 x4)',
+      watts: 10, spinUp: 0, capacity: '4TB', price: 2999, confidence: 'estimate', source: 'p51review' },
+    { id: 'ssd-p41-2t', kind: 'NVMe', model: '海力士 SK hynix Platinum P41 2TB (PCIe 4.0 x4)',
+      watts: 6.5, spinUp: 0, capacity: '2TB', price: 999, confidence: 'estimate', source: 'tpuGpuDb' },
+    { id: 'ssd-9100pro-1t', kind: 'NVMe', model: '三星 9100 PRO 1TB (PCIe 5.0 x4)',
+      watts: 10, spinUp: 0, capacity: '1TB', price: 999, confidence: 'estimate', source: 'tpuGpuDb' },
+    { id: 'ssd-990pro-1t', kind: 'NVMe', model: '三星 990 PRO 1TB (PCIe 4.0 x4)',
+      watts: 6.5, spinUp: 0, capacity: '1TB', price: 699, confidence: 'estimate', source: 'tpuGpuDb' },
+    { id: 'ssd-990pro-4t', kind: 'NVMe', model: '三星 990 PRO 4TB (PCIe 4.0 x4)',
+      watts: 8, spinUp: 0, capacity: '4TB', price: 2199, confidence: 'estimate', source: 'tpuGpuDb' },
+    { id: 'ssd-sn850x-1t', kind: 'NVMe', model: '西数 WD_BLACK SN850X 1TB (PCIe 4.0 x4)',
+      watts: 6.5, spinUp: 0, capacity: '1TB', price: 699, confidence: 'estimate', source: 'tpuGpuDb' },
+    { id: 'ssd-sn7100-2t', kind: 'NVMe', model: '西数 WD_BLACK SN7100 2TB (PCIe 4.0 x4)',
+      watts: 6, spinUp: 0, capacity: '2TB', price: 899, confidence: 'estimate', source: 'tpuGpuDb' },
+    { id: 'ssd-sn5000-2t', kind: 'NVMe', model: '西数 WD Blue SN5000 2TB (PCIe 4.0 x4)',
+      watts: 5, spinUp: 0, capacity: '2TB', price: 799, confidence: 'estimate', source: 'tpuGpuDb' },
+    { id: 'ssd-t705-2t', kind: 'NVMe', model: '英睿达 Crucial T705 2TB (PCIe 5.0 x4)',
+      watts: 10.5, spinUp: 0, capacity: '2TB', price: 1899, confidence: 'estimate', source: 'tpuGpuDb' },
+    { id: 'ssd-t500-2t', kind: 'NVMe', model: '英睿达 Crucial T500 2TB (PCIe 4.0 x4)',
+      watts: 6.5, spinUp: 0, capacity: '2TB', price: 1099, confidence: 'estimate', source: 'tpuGpuDb' },
+    { id: 'ssd-kc3000-2t', kind: 'NVMe', model: '金士顿 Kingston KC3000 2TB (PCIe 4.0 x4)',
+      watts: 9.9, spinUp: 0, capacity: '2TB', price: 999, confidence: 'official', source: 'kingstonKC3000',
+      note: '2048GB 版本；取官方最大写入 9.9W，而非平均功耗 0.36W。' },
+    { id: 'ssd-firecuda540-2t', kind: 'NVMe', model: '希捷 Seagate FireCuda 540 2TB (PCIe 5.0 x4)',
+      watts: 10, spinUp: 0, capacity: '2TB', price: 1699, confidence: 'estimate', source: 'tpuGpuDb' },
+    { id: 'ssd-tiplus7100-2t', kind: 'NVMe', model: '致态 Zhitai TiPlus7100 2TB (PCIe 4.0 x4)',
+      watts: 6, spinUp: 0, capacity: '2TB', price: 899, confidence: 'estimate', source: 'tpuGpuDb' },
+    { id: 'ssd-ti600-2t', kind: 'NVMe', model: '致态 Zhitai Ti600 2TB (PCIe 4.0 x4, QLC)',
+      watts: 5, spinUp: 0, capacity: '2TB', price: 749, confidence: 'estimate', source: 'tpuGpuDb',
+      note: 'QLC 颗粒，性价比向，重度写入场景慎选。' },
+    { id: 'ssd-exceria-pro-2t', kind: 'NVMe', model: '铠侠 KIOXIA Exceria Pro 2TB (PCIe 4.0 x4)',
+      watts: 7, spinUp: 0, capacity: '2TB', price: 999, confidence: 'estimate', source: 'tpuGpuDb' },
+    { id: 'ssd-exceria-g3-2t', kind: 'NVMe', model: '铠侠 KIOXIA Exceria Plus G3 2TB (PCIe 4.0 x4)',
+      watts: 5.5, spinUp: 0, capacity: '2TB', price: 699, confidence: 'estimate', source: 'tpuGpuDb' },
+    { id: 'ssd-p7000z-2t', kind: 'NVMe', model: '爱国者 aigo P7000Z 2TB (PCIe 4.0 x4)',
+      watts: 6, spinUp: 0, capacity: '2TB', price: 749, confidence: 'estimate', source: 'tpuGpuDb' },
+    { id: 'ssd-n7000-2t', kind: 'NVMe', model: '宏碁 Acer N7000 2TB (PCIe 4.0 x4)',
+      watts: 6, spinUp: 0, capacity: '2TB', price: 849, confidence: 'estimate', source: 'tpuGpuDb' },
+    { id: 'ssd-nm790-2t', kind: 'NVMe', model: '雷克沙 Lexar NM790 2TB (PCIe 4.0 x4)',
+      watts: 6, spinUp: 0, capacity: '2TB', price: 799, confidence: 'estimate', source: 'tpuGpuDb' },
+    { id: 'ssd-p44pro-2t', kind: 'NVMe', model: 'Solidigm P44 Pro 2TB (PCIe 4.0 x4)',
+      watts: 7, spinUp: 0, capacity: '2TB', price: 949, confidence: 'estimate', source: 'tpuGpuDb' },
+    { id: 'ssd-870evo-1t', kind: 'SATA', model: '三星 870 EVO 1TB (SATA 2.5")',
+      watts: 2.8, spinUp: 0, capacity: '1TB', price: 499, confidence: 'estimate', source: 'tpuGpuDb' },
+    { id: 'ssd-mx500-1t', kind: 'SATA', model: '英睿达 Crucial MX500 1TB (SATA 2.5")',
+      watts: 2.5, spinUp: 0, capacity: '1TB', price: 449, confidence: 'estimate', source: 'tpuGpuDb' },
+    { id: 'hdd-barracuda-4t', kind: 'HDD', model: '希捷 酷鱼 BarraCuda 4TB (5400rpm)',
+      watts: 6.5, spinUp: 18, capacity: '4TB', price: 599, confidence: 'estimate', source: 'tpuGpuDb' },
+    { id: 'hdd-wd-blue-4t', kind: 'HDD', model: '西数 蓝盘 WD40EZAX 4TB (5400rpm)',
+      watts: 6.5, spinUp: 18, capacity: '4TB', price: 599, confidence: 'estimate', source: 'tpuGpuDb' },
+    { id: 'hdd-toshiba-p300-3t', kind: 'HDD', model: '东芝 P300 3TB (7200rpm)',
+      watts: 7, spinUp: 20, capacity: '3TB', price: 499, confidence: 'estimate', source: 'tpuGpuDb' }
   ];
+
+  /* 2026-10-27：同系列不同容量分别建档，保留原有 ID。瓦数取最大读写值。
+     NV3 厂家未公布瓦数，单独标为 estimate，不将型号来源当作功耗证据。 */
+  STORAGE = STORAGE.concat([
+    { id: 'ssd-kc3000-512g', kind: 'NVMe', model: '金士顿 Kingston KC3000 512GB (PCIe 4.0 x4)',
+      watts: 4.1, spinUp: 0, capacity: '512GB', price: 0, confidence: 'official', source: 'kingstonKC3000',
+      note: '官方最大写入 4.1W；参考价未采集。' },
+    { id: 'ssd-kc3000-1t', kind: 'NVMe', model: '金士顿 Kingston KC3000 1TB (PCIe 4.0 x4)',
+      watts: 6.3, spinUp: 0, capacity: '1TB', price: 0, confidence: 'official', source: 'kingstonKC3000',
+      note: '1024GB 版本，官方最大写入 6.3W；参考价未采集。' },
+    { id: 'ssd-kc3000-4t', kind: 'NVMe', model: '金士顿 Kingston KC3000 4TB (PCIe 4.0 x4)',
+      watts: 10.2, spinUp: 0, capacity: '4TB', price: 0, confidence: 'official', source: 'kingstonKC3000',
+      note: '4096GB 版本，官方最大写入 10.2W；参考价未采集。' },
+    { id: 'ssd-fury-renegade-1t', kind: 'NVMe', model: '金士顿 Kingston FURY Renegade 1TB (PCIe 4.0 x4)',
+      watts: 6.3, spinUp: 0, capacity: '1TB', price: 0, confidence: 'official', source: 'kingstonRenegade',
+      note: 'Gen4 版本，非 G5；官方最大写入 6.3W；参考价未采集。' },
+    { id: 'ssd-fury-renegade-2t', kind: 'NVMe', model: '金士顿 Kingston FURY Renegade 2TB (PCIe 4.0 x4)',
+      watts: 9.9, spinUp: 0, capacity: '2TB', price: 0, confidence: 'official', source: 'kingstonRenegade',
+      note: 'Gen4 版本，非 G5；官方最大写入 9.9W；参考价未采集。' },
+    { id: 'ssd-fury-renegade-4t', kind: 'NVMe', model: '金士顿 Kingston FURY Renegade 4TB (PCIe 4.0 x4)',
+      watts: 10.2, spinUp: 0, capacity: '4TB', price: 0, confidence: 'official', source: 'kingstonRenegade',
+      note: 'Gen4 版本，非 G5；官方最大写入 10.2W；参考价未采集。' },
+    { id: 'ssd-nv3-500g', kind: 'NVMe', model: '金士顿 Kingston NV3 500GB (PCIe 4.0 x4)',
+      watts: 5, spinUp: 0, capacity: '500GB', price: 0, confidence: 'estimate', source: 'kingstonNV3',
+      note: '型号与容量有厂家依据；5W 为同类 Gen4 无缓存 SSD 规划预算，非厂家标称。参考价未采集。' },
+    { id: 'ssd-nv3-1t', kind: 'NVMe', model: '金士顿 Kingston NV3 1TB (PCIe 4.0 x4)',
+      watts: 5, spinUp: 0, capacity: '1TB', price: 0, confidence: 'estimate', source: 'kingstonNV3',
+      note: '型号与容量有厂家依据；5W 为同类 Gen4 无缓存 SSD 规划预算，非厂家标称。参考价未采集。' },
+    { id: 'ssd-nv3-2t', kind: 'NVMe', model: '金士顿 Kingston NV3 2TB (PCIe 4.0 x4)',
+      watts: 6, spinUp: 0, capacity: '2TB', price: 0, confidence: 'estimate', source: 'kingstonNV3',
+      note: '型号与容量有厂家依据；6W 为同类 Gen4 无缓存 SSD 规划预算，非厂家标称。参考价未采集。' },
+    { id: 'ssd-nv3-4t', kind: 'NVMe', model: '金士顿 Kingston NV3 4TB (PCIe 4.0 x4)',
+      watts: 7, spinUp: 0, capacity: '4TB', price: 0, confidence: 'estimate', source: 'kingstonNV3',
+      note: '型号与容量有厂家依据；7W 为同类 Gen4 无缓存 SSD 规划预算，非厂家标称。参考价未采集。' },
+    { id: 'ssd-a400-480g', kind: 'SATA', model: '金士顿 Kingston A400 480GB (SATA 2.5")',
+      watts: 1.535, spinUp: 0, capacity: '480GB', price: 0, confidence: 'official', source: 'kingstonA400',
+      note: 'SA400S37；取官方最大写入 1.535W，非平均功耗；参考价未采集。' },
+    { id: 'ssd-a400-960g', kind: 'SATA', model: '金士顿 Kingston A400 960GB (SATA 2.5")',
+      watts: 1.535, spinUp: 0, capacity: '960GB', price: 0, confidence: 'official', source: 'kingstonA400',
+      note: 'SA400S37；取官方最大写入 1.535W，非平均功耗；参考价未采集。' }
+  ]);
+
+  /* 2026-11-14：只收录2.5英寸KC600；mSATA功耗及容量表不同，不合并。 */
+  STORAGE = STORAGE.concat([
+    { id: 'ssd-kc600-256g', kind: 'SATA', model: '金士顿 Kingston KC600 256GB (SATA 2.5")',
+      watts: 3.2, spinUp: 0, capacity: '256GB', price: 0, confidence: 'official', source: 'kingstonKC600',
+      note: '2.5英寸SKC600版本；厂家最大写入3.2W，非平均0.2W；参考价未采集。' },
+    { id: 'ssd-kc600-512g', kind: 'SATA', model: '金士顿 Kingston KC600 512GB (SATA 2.5")',
+      watts: 3.2, spinUp: 0, capacity: '512GB', price: 0, confidence: 'official', source: 'kingstonKC600',
+      note: '2.5英寸SKC600版本；厂家最大写入3.2W，非平均0.2W；参考价未采集。' },
+    { id: 'ssd-kc600-1t', kind: 'SATA', model: '金士顿 Kingston KC600 1TB (SATA 2.5")',
+      watts: 3.2, spinUp: 0, capacity: '1TB', price: 0, confidence: 'official', source: 'kingstonKC600',
+      note: '1024GB的2.5英寸SKC600版本；厂家最大写入3.2W；参考价未采集。' },
+    { id: 'ssd-kc600-2t', kind: 'SATA', model: '金士顿 Kingston KC600 2TB (SATA 2.5")',
+      watts: 3.2, spinUp: 0, capacity: '2TB', price: 0, confidence: 'official', source: 'kingstonKC600',
+      note: '2048GB的2.5英寸SKC600版本；厂家最大写入3.2W；参考价未采集。' }
+  ]);
 
   /* ========================================================== 散热器 ==== */
   var COOLERS = [
@@ -798,13 +1110,14 @@
       pumpWatts: 5, fanCount: 2, wattPerFan: 2.4, radiator: 240, sockets: ['LGA1851', 'LGA1700', 'LGA1200', 'AM5', 'AM4'],
       price: 399, confidence: 'estimate', source: 'tpuGpuDb',
       note: '240 冷排，适合 M-ATX / ITX 机箱。' },
-    { id: 'air-nhd15-g2', kind: 'AIR', model: '猫头鹰 NH-D15 G2',
-      pumpWatts: 0, fanCount: 2, wattPerFan: 1.7, radiator: 0, sockets: ['LGA1851', 'LGA1700', 'LGA1200', 'AM5', 'AM4'],
-      price: 1099, confidence: 'estimate', source: 'tpuGpuDb' },
+    { id: 'air-nhd15-g2', kind: 'AIR', model: '猫头鹰 NH-D15 G2', highEndAir: true,
+      pumpWatts: 0, fanCount: 2, wattPerFan: 2.28, radiator: 0, sockets: ['LGA1851', 'LGA1700', 'LGA1200', 'AM5', 'AM4'],
+      price: 1099, confidence: 'official', source: 'noctuaD15G2',
+      note: '两只 NF-A14x25r G2 PWM，按每只最大输入 2.28W 计；旧包装需核对扣具。' },
     { id: 'air-pa120-se', kind: 'AIR', model: '利民 Peerless Assassin 120 SE',
       pumpWatts: 0, fanCount: 2, wattPerFan: 1.8, radiator: 0, sockets: ['LGA1851', 'LGA1700', 'LGA1200', 'AM5', 'AM4'],
       price: 199, confidence: 'estimate', source: 'tpuGpuDb' },
-    { id: 'air-assassin-iv', kind: 'AIR', model: '九州风神 阿萨辛 IV',
+    { id: 'air-assassin-iv', kind: 'AIR', model: '九州风神 阿萨辛 IV', highEndAir: true,
       pumpWatts: 0, fanCount: 2, wattPerFan: 2.2, radiator: 0, sockets: ['LGA1851', 'LGA1700', 'LGA1200', 'AM5', 'AM4'],
       price: 599, confidence: 'estimate', source: 'tpuGpuDb' },
     { id: 'air-stock-amd', kind: 'AIR', model: 'AMD 原装散热器 (Wraith Stealth)',
@@ -812,6 +1125,52 @@
       price: 0, confidence: 'estimate', source: 'amdSpec',
       note: '65W TDP 处理器附赠，仅适合低功耗型号。' }
   ];
+
+  /* 2026-10-27：均为无灯、无数显的原版风冷，不套用 DIGITAL / G2 规格。
+     扣具覆盖当前平台；旧批次可能需要厂家升级扣具。瓦数为风扇输入，非散热能力。 */
+  COOLERS = COOLERS.concat([
+    { id: 'air-nhu12a', kind: 'AIR', model: '猫头鹰 Noctua NH-U12A',
+      pumpWatts: 0, fanCount: 2, wattPerFan: 1.68, radiator: 0, sockets: ['LGA1851', 'LGA1700', 'LGA1200', 'AM5', 'AM4'],
+      price: 0, confidence: 'official', source: 'noctuaU12A', note: '两只 NF-A12x25 PWM，各取最大输入 1.68W；旧批次核对扣具；参考价未采集。' },
+    { id: 'air-nhu12s-redux', kind: 'AIR', model: '猫头鹰 Noctua NH-U12S redux',
+      pumpWatts: 0, fanCount: 1, wattPerFan: 1.08, radiator: 0, sockets: ['LGA1851', 'LGA1700', 'LGA1200', 'AM5', 'AM4'],
+      price: 0, confidence: 'official', source: 'noctuaU12Sredux', note: '一只 NF-P12 redux-1700 PWM，最大输入 1.08W；旧批次核对扣具；参考价未采集。' },
+    { id: 'air-nhd12l', kind: 'AIR', model: '猫头鹰 Noctua NH-D12L',
+      pumpWatts: 0, fanCount: 1, wattPerFan: 1.68, radiator: 0, sockets: ['LGA1851', 'LGA1700', 'LGA1200', 'AM5', 'AM4'],
+      price: 0, confidence: 'official', source: 'noctuaD12L', note: '一只 NF-A12x25r PWM，最大输入 1.68W；旧批次核对扣具；参考价未采集。' },
+    { id: 'air-nhd15', kind: 'AIR', model: '猫头鹰 Noctua NH-D15', highEndAir: true,
+      pumpWatts: 0, fanCount: 2, wattPerFan: 1.56, radiator: 0, sockets: ['LGA1851', 'LGA1700', 'LGA1200', 'AM5', 'AM4'],
+      price: 0, confidence: 'official', source: 'noctuaD15', note: '原版双风扇，非 G2；每只最大输入 1.56W；旧批次核对扣具；参考价未采集。' },
+    { id: 'air-nhu9s', kind: 'AIR', model: '猫头鹰 Noctua NH-U9S',
+      pumpWatts: 0, fanCount: 1, wattPerFan: 1.2, radiator: 0, sockets: ['LGA1851', 'LGA1700', 'LGA1200', 'AM5', 'AM4'],
+      price: 0, confidence: 'official', source: 'noctuaU9S', note: '一只 NF-A9 PWM，最大输入 1.2W；旧批次核对扣具；参考价未采集。' },
+    { id: 'air-ak400', kind: 'AIR', model: '九州风神 DeepCool AK400',
+      pumpWatts: 0, fanCount: 1, wattPerFan: 1.56, radiator: 0, sockets: ['LGA1851', 'LGA1700', 'LGA1200', 'AM5', 'AM4'],
+      price: 0, confidence: 'official', source: 'deepcoolAK400', note: '原版单风扇 1.56W，无数显；旧批次核对扣具；参考价未采集。' },
+    { id: 'air-ak500', kind: 'AIR', model: '九州风神 DeepCool AK500',
+      pumpWatts: 0, fanCount: 1, wattPerFan: 1.44, radiator: 0, sockets: ['LGA1851', 'LGA1700', 'LGA1200', 'AM5', 'AM4'],
+      price: 0, confidence: 'official', source: 'deepcoolAK500', note: '原版单风扇 1.44W，无数显；旧批次核对扣具；参考价未采集。' },
+    { id: 'air-ak620', kind: 'AIR', model: '九州风神 DeepCool AK620',
+      pumpWatts: 0, fanCount: 2, wattPerFan: 1.44, radiator: 0, sockets: ['LGA1851', 'LGA1700', 'LGA1200', 'AM5', 'AM4'],
+      price: 0, confidence: 'official', source: 'deepcoolAK620', note: '原版双风扇，各 1.44W，无数显；旧批次核对扣具；参考价未采集。' }
+  ]);
+
+  /* 2026-11-14：厂家给出0.20A电流；按标准12V PWM风扇折算2.4W为规划预算，
+     保守标estimate。只统计原装风扇，非散热能力或整套散热器实测。 */
+  COOLERS = COOLERS.concat([
+    { id: 'air-ps120-se', kind: 'AIR', model: '利民 Thermalright Phantom Spirit 120 SE',
+      pumpWatts: 0, fanCount: 2, wattPerFan: 2.4, radiator: 0, sockets: ['LGA1851', 'LGA1700', 'LGA1200', 'AM5', 'AM4'],
+      price: 0, confidence: 'estimate', source: 'thermalrightPS120SE',
+      note: '无灯版，双TL-C12B V2；每只按12V×0.20A折算2.4W预算；旧批次核对扣具，风冷限高未自动校验；参考价未采集。' },
+    { id: 'air-ax120-se-am4am5', kind: 'AIR', model: '利民 Thermalright Assassin X 120 Refined SE（AM4/AM5专版）',
+      pumpWatts: 0, fanCount: 1, wattPerFan: 2.4, radiator: 0, sockets: ['AM5', 'AM4'],
+      price: 0, confidence: 'estimate', source: 'thermalrightAX120AM',
+      note: '仅AMD扣具版，不能按全平台版本选择Intel插槽；单TL-C12C按12V×0.20A折算2.4W预算；参考价未采集。' },
+    { id: 'air-pa120-mini-black', kind: 'AIR', model: '利民 Thermalright Peerless Assassin 120 MINI BLACK',
+      pumpWatts: 0, fanCount: 1, wattPerFan: 2.4, radiator: 0, sockets: ['LGA1851', 'LGA1700', 'LGA1200', 'AM5', 'AM4'],
+      price: 0, confidence: 'estimate', source: 'thermalrightPA120Mini',
+      note: '135mm高迷你双塔，但只带一只TL-D12B；按12V×0.20A折算2.4W预算，非普通PA120双风扇；风冷限高未自动校验；参考价未采集。' }
+  ]);
 
   /* ========================================================== 风扇 ====== */
   var FANS = [
@@ -829,9 +1188,36 @@
       price: 169, confidence: 'estimate', source: 'tpuGpuDb' },
     { id: 'fan-cm-mf120', model: '酷冷至尊 MF120 Halo ARGB', size: 120, watts: 3.0, argb: true,
       price: 89, confidence: 'estimate', source: 'tpuGpuDb' },
-    { id: 'fan-arctic-p14', model: 'Arctic P14 PWM PST', size: 140, watts: 2.4, argb: false,
-      price: 69, confidence: 'estimate', source: 'tpuGpuDb' }
+    { id: 'fan-arctic-p14', model: 'Arctic P14 PWM PST', size: 140, watts: 1.44, argb: false,
+      price: 69, confidence: 'official', source: 'arcticP14', note: '按厂家标称 12V × 0.12A 折算；非 Max / Pro 版。' }
   ];
+
+  /* 2026-10-27：Noctua 取最大输入；ARCTIC 按厂家电压 × 标称电流折算。 */
+  FANS = FANS.concat([
+    { id: 'fan-arctic-p12', model: 'ARCTIC P12 PWM PST', size: 120, watts: 1.2, argb: false,
+      price: 0, confidence: 'official', source: 'arcticP12', note: '12V × 0.1A；非 Pro / Max 版；参考价未采集。' },
+    { id: 'fan-arctic-p12-max', model: 'ARCTIC P12 Max (FDB)', size: 120, watts: 3.48, argb: false,
+      price: 0, confidence: 'official', source: 'arcticP12Max', note: 'FDB 版，12V × 0.29A；不混用旧双滚珠批次规格；参考价未采集。' },
+    { id: 'fan-arctic-p12-slim', model: 'ARCTIC P12 Slim PWM PST', size: 120, watts: 1.44, argb: false,
+      price: 0, confidence: 'official', source: 'arcticP12Slim', note: '15mm 薄扇，12V × 0.12A；参考价未采集。' },
+    { id: 'fan-nfa14-pwm', model: '猫头鹰 Noctua NF-A14 PWM', size: 140, watts: 1.56, argb: false,
+      price: 0, confidence: 'official', source: 'noctuaA14', note: '最大输入 1.56W，非 industrialPPC / G2；参考价未采集。' },
+    { id: 'fan-nff12-pwm', model: '猫头鹰 Noctua NF-F12 PWM', size: 120, watts: 0.6, argb: false,
+      price: 0, confidence: 'official', source: 'noctuaF12', note: '最大输入 0.6W，非 industrialPPC；参考价未采集。' },
+    { id: 'fan-nfp12-redux1700', model: '猫头鹰 Noctua NF-P12 redux-1700 PWM', size: 120, watts: 1.08, argb: false,
+      price: 0, confidence: 'official', source: 'noctuaP12redux', note: '最大输入 1.08W；参考价未采集。' },
+    { id: 'fan-nfa14x25-g2', model: '猫头鹰 Noctua NF-A14x25 G2 PWM', size: 140, watts: 2.28, argb: false,
+      price: 0, confidence: 'official', source: 'noctuaA14G2', note: '方框版，最大输入 2.28W；参考价未采集。' },
+    { id: 'fan-nfa12x15-pwm', model: '猫头鹰 Noctua NF-A12x15 PWM', size: 120, watts: 1.56, argb: false,
+      price: 0, confidence: 'official', source: 'noctuaA12Slim', note: '15mm 薄扇，最大输入 1.56W；参考价未采集。' }
+  ]);
+
+  FANS = FANS.concat([
+    { id: 'fan-nfa8-pwm', model: '猫头鹰 Noctua NF-A8 PWM (80mm)', size: 80, watts: 0.96, argb: false,
+      price: 0, confidence: 'official', source: 'noctuaA8', note: '12V版最大输入0.96W，非5V/FLX/ULN；参考价未采集。' },
+    { id: 'fan-nfa9-pwm', model: '猫头鹰 Noctua NF-A9 PWM (92mm)', size: 92, watts: 1.2, argb: false,
+      price: 0, confidence: 'official', source: 'noctuaA9', note: '12V版最大输入1.2W，非5V/FLX版；参考价未采集。' }
+  ]);
 
   /* ========================================================== 机箱 ====== */
   var CASES = [
@@ -871,114 +1257,402 @@
       note: 'ITX 机箱，但通过转接支架可安装 ATX 电源（需确认显卡长度）。' }
   ];
 
+  /* 2026-11-14：限长按默认前风扇、未安装前置冷排口径。
+     所含风扇请在风扇项单独录入；风冷限高/冷排厚度/电源长度不在现有自动校验范围。 */
+  CASES = CASES.concat([
+    { id: 'case-fractal-north-xl', brand: '分形工艺 Fractal', model: 'North XL TG（原版）',
+      moboSupport: ['E-ATX', 'ATX', 'M-ATX', 'ITX'], gpuMaxLen: 413, psuFormFactor: ['ATX'],
+      verticalGpu: false, radiatorSupport: '420（前） / 360（前或顶） / 280（顶） / 140 / 120', argbWatts: 0,
+      price: 0, confidence: 'official', source: 'fractalNorthXL',
+      note: '原版TG，非Momentum/RC；E-ATX宽度≤330mm。413mm限长为前风扇口径，前置420/360冷排时厂家限长380mm，需手动核对；原装3只140mm风扇另录，参考价未采集。' },
+    { id: 'case-fractal-pop-air', brand: '分形工艺 Fractal', model: 'Pop Air（无RGB原版）',
+      moboSupport: ['ATX', 'M-ATX', 'ITX'], gpuMaxLen: 405, psuFormFactor: ['ATX'],
+      verticalGpu: false, radiatorSupport: '280（前） / 240（前或顶） / 120', argbWatts: 0,
+      price: 0, confidence: 'official', source: 'fractalPopAir',
+      note: '非Mini/XL/RGB；405mm为前风扇口径，前置冷排须扣除厚度；顶置冷排需核对内存高度，电源长度≤170mm；原装风扇另录，参考价未采集。' },
+    { id: 'case-fractal-meshify2-compact', brand: '分形工艺 Fractal', model: 'Meshify 2 Compact（无RGB原版）',
+      moboSupport: ['ATX', 'M-ATX', 'ITX'], gpuMaxLen: 341, psuFormFactor: ['ATX'],
+      verticalGpu: false, radiatorSupport: '360（前） / 280（前） / 240（顶） / 120', argbWatts: 0,
+      price: 0, confidence: 'official', source: 'fractalMeshify2C',
+      note: '非Lite/RGB；341mm为前风扇口径，移除前扇可至360mm；前置冷排须另核限长，顶置240冷排受主板/内存高度影响；原装风扇另录，参考价未采集。' }
+  ]);
+
   /* ========================================================== 电源 ======
-   *  conn12v2x6 : 原生 12V-2x6 / 12VHPWR 接口数量
+   *  conn12v2x6 : 随附直连 12V-2x6 / 12VHPWR 显卡侧线缆数量（非电源侧插座数）
    *  pcie8pin   : PCIe 8pin (6+2) 接口数量
    *  eps8pin    : CPU 8pin (4+4) 接口数量 —— 高端主板可能需要 2 个
    * ======================================================================*/
+  // Legacy IDs retain saved-plan compatibility. db-psus.js replaces verified
+  // entries and quarantines all others; old guessed specifications are removed.
   var PSUS = [
-    { id: 'seasonic-prime-tx1300', brand: '海韵 Seasonic', series: 'PRIME TX', model: 'PRIME TX-1300',
-      watts: 1300, efficiency: '80 PLUS 钛金', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 4, eps8pin: 2, sata: 8, tier: '旗舰',
-      price: 3299, confidence: 'estimate', source: 'seasonic' },
-    { id: 'seasonic-prime-px1600', brand: '海韵 Seasonic', series: 'PRIME PX', model: 'PRIME PX-1600',
-      watts: 1600, efficiency: '80 PLUS 铂金', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 2, pcie8pin: 6, eps8pin: 3, sata: 12, tier: '旗舰',
-      price: 4299, confidence: 'estimate', source: 'seasonic' },
-    { id: 'seasonic-prime-tx1600', brand: '海韵 Seasonic', series: 'PRIME TX', model: 'PRIME TX-1600',
-      watts: 1600, efficiency: '80 PLUS 钛金', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 2, pcie8pin: 6, eps8pin: 3, sata: 12, tier: '旗舰',
-      price: 5299, confidence: 'estimate', source: 'seasonic',
-      note: 'PRIME TX 系列旗舰，钛金效率；双 12V-2x6 原生接口。' },
-    { id: 'seasonic-vertex-gx1200', brand: '海韵 Seasonic', series: 'VERTEX GX', model: 'VERTEX GX-1200',
-      watts: 1200, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 4, eps8pin: 2, sata: 6, tier: '均衡',
-      price: 1699, confidence: 'estimate', source: 'seasonic' },
-    { id: 'seasonic-focus-gx1000', brand: '海韵 Seasonic', series: 'FOCUS GX', model: 'FOCUS GX-1000 ATX 3.1',
-      watts: 1000, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 3, eps8pin: 2, sata: 5, tier: '均衡',
-      price: 1099, confidence: 'estimate', source: 'seasonic' },
-    { id: 'seasonic-focus-gx850', brand: '海韵 Seasonic', series: 'FOCUS GX', model: 'FOCUS GX-850 ATX 3.1',
-      watts: 850, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 3, eps8pin: 2, sata: 5, tier: '均衡',
-      price: 899, confidence: 'estimate', source: 'seasonic' },
-    { id: 'seasonic-focus-gx750', brand: '海韵 Seasonic', series: 'FOCUS GX', model: 'FOCUS GX-750 ATX 3.1',
-      watts: 750, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 3, eps8pin: 2, sata: 4, tier: '均衡',
-      price: 749, confidence: 'estimate', source: 'seasonic' },
-    { id: 'seasonic-focus-gx650', brand: '海韵 Seasonic', series: 'FOCUS GX', model: 'FOCUS GX-650 ATX 3.1',
-      watts: 650, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 0, pcie8pin: 3, eps8pin: 2, sata: 4, tier: '基础',
-      price: 599, confidence: 'estimate', source: 'seasonic' },
-    { id: 'superflower-leadex3-1000', brand: '振华 Super Flower', series: 'LEADEX III ARGB', model: 'LEADEX III ARGB 1000W',
-      watts: 1000, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 4, eps8pin: 2, sata: 6, tier: '均衡',
-      price: 1299, confidence: 'estimate', source: 'tpuGpuDb' },
-    { id: 'superflower-leadex3-1300', brand: '振华 Super Flower', series: 'LEADEX III ARGB', model: 'LEADEX III ARGB 1300W',
-      watts: 1300, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 6, eps8pin: 2, sata: 8, tier: '均衡',
-      price: 1899, confidence: 'estimate', source: 'tpuGpuDb',
-      note: 'ARGB 灯效 + 原生 12V-2x6，1300W 段位里较有性价比的选择。' },
-    { id: 'superflower-leadex7-1300', brand: '振华 Super Flower', series: 'LEADEX VII', model: 'LEADEX VII 1300W',
-      watts: 1300, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 2, pcie8pin: 4, eps8pin: 2, sata: 8, tier: '旗舰',
-      price: 2299, confidence: 'estimate', source: 'tpuGpuDb' },
-    { id: 'asus-rog-thor-1200p2', brand: '华硕 ASUS', series: 'ROG THOR', model: 'ROG THOR 1200P2 GAMING',
-      watts: 1200, efficiency: '80 PLUS 钛金', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 4, eps8pin: 2, sata: 6, tier: '旗舰',
-      price: 2999, confidence: 'estimate', source: 'asusAstral5090' },
-    { id: 'asus-rog-strix-1000', brand: '华硕 ASUS', series: 'ROG STRIX', model: 'ROG STRIX 1000W AURA',
-      watts: 1000, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 4, eps8pin: 2, sata: 6, tier: '均衡',
-      price: 1499, confidence: 'estimate', source: 'asusAstral5090' },
-    { id: 'msi-meg-ai1300p', brand: '微星 MSI', series: 'MEG', model: 'MEG Ai1300P PCIE5',
-      watts: 1300, efficiency: '80 PLUS 铂金', atx: 'ATX 3.0', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 6, eps8pin: 2, sata: 8, tier: '旗舰',
-      price: 2799, confidence: 'estimate', source: 'tpuGpuDb',
-      note: 'ATX 3.0 规范（12VHPWR 接口），若追求最新规范建议选 ATX 3.1 型号。' },
-    { id: 'msi-mpg-a1000g', brand: '微星 MSI', series: 'MPG', model: 'MPG A1000G PCIE5',
-      watts: 1000, efficiency: '80 PLUS 金牌', atx: 'ATX 3.0', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 4, eps8pin: 2, sata: 6, tier: '均衡',
-      price: 1099, confidence: 'estimate', source: 'tpuGpuDb' },
-    { id: 'greatwall-f1250', brand: '长城 Great Wall', series: '猎金部落', model: '猎金部落 F1250',
-      watts: 1250, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 6, eps8pin: 2, sata: 8, tier: '均衡',
-      price: 1299, confidence: 'estimate', source: 'tpuGpuDb' },
-    { id: 'huntkey-k850', brand: '航嘉 Huntkey', series: 'MVP', model: 'MVP K850',
-      watts: 850, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 3, eps8pin: 2, sata: 6, tier: '基础',
-      price: 699, confidence: 'estimate', source: 'tpuGpuDb' },
-    { id: 'huntkey-wd650k', brand: '航嘉 Huntkey', series: 'WD', model: 'WD650K',
-      watts: 650, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '非模组',
-      conn12v2x6: 0, pcie8pin: 2, eps8pin: 2, sata: 4, tier: '基础',
-      price: 399, confidence: 'estimate', source: 'tpuGpuDb' },
-    { id: 'fsp-hydro-gt-1000', brand: '全汉 FSP', series: 'HYDRO GT PRO', model: 'HYDRO GT PRO 1000W',
-      watts: 1000, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 4, eps8pin: 2, sata: 6, tier: '均衡',
-      price: 999, confidence: 'estimate', source: 'tpuGpuDb' },
-    { id: 'antec-ne1300g', brand: '安钛克 Antec', series: 'NE Gold', model: 'NE1300G M ATX 3.1',
-      watts: 1300, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 2, pcie8pin: 4, eps8pin: 2, sata: 8, tier: '旗舰',
-      price: 1899, confidence: 'estimate', source: 'tpuGpuDb' },
-    { id: 'greatwall-x6-750', brand: '长城 Great Wall', series: 'X', model: 'X6 750W ATX 3.1',
-      watts: 750, efficiency: '80 PLUS 金牌', atx: 'ATX 3.1', modular: '全模组',
-      conn12v2x6: 1, pcie8pin: 3, eps8pin: 2, sata: 6, tier: '基础',
-      price: 549, confidence: 'estimate', source: 'tpuGpuDb' },
-    { id: 'greatwall-x4-550', brand: '长城 Great Wall', series: 'X', model: 'X4 550W',
-      watts: 550, efficiency: '80 PLUS 铜牌', atx: 'ATX 3.0', modular: '非模组',
-      conn12v2x6: 0, pcie8pin: 2, eps8pin: 1, sata: 4, tier: '基础',
-      price: 299, confidence: 'estimate', source: 'tpuGpuDb',
-      note: '入门级办公机常用，注意只有 1 个 CPU 8pin。' },
-    { id: 'seasonic-sfx-750', brand: '海韵 Seasonic', series: 'SGX', model: 'SGX-750 (SFX-L)',
-      watts: 750, efficiency: '80 PLUS 金牌', atx: 'ATX 3.0', modular: '全模组', formFactor: 'SFX-L',
-      conn12v2x6: 1, pcie8pin: 3, eps8pin: 2, sata: 4, tier: '基础',
-      price: 1199, confidence: 'estimate', source: 'seasonic',
-      note: 'SFX-L 规格，仅适用于 ITX 机箱。' },
-    { id: 'coolermaster-v850-sfx', brand: '酷冷至尊 CoolerMaster', series: 'V SFX', model: 'V850 SFX Gold',
-      watts: 850, efficiency: '80 PLUS 金牌', atx: 'ATX 3.0', modular: '全模组', formFactor: 'SFX',
-      conn12v2x6: 1, pcie8pin: 3, eps8pin: 2, sata: 4, tier: '均衡',
-      price: 1099, confidence: 'estimate', source: 'tpuGpuDb',
-      note: '标准 SFX 规格，ITX 高性能装机的主力选择。' }
+    {
+      "id": "seasonic-prime-tx1300",
+      "brand": "海韵 Seasonic",
+      "series": "PRIME TX",
+      "model": "PRIME TX-1300",
+      "watts": 1300,
+      "price": 3299
+    },
+    {
+      "id": "seasonic-prime-px1600",
+      "brand": "海韵 Seasonic",
+      "series": "PRIME PX",
+      "model": "PRIME PX-1600",
+      "watts": 1600,
+      "price": 4299
+    },
+    {
+      "id": "seasonic-prime-tx1600",
+      "brand": "海韵 Seasonic",
+      "series": "PRIME TX",
+      "model": "PRIME TX-1600",
+      "watts": 1600,
+      "price": 5299
+    },
+    {
+      "id": "seasonic-vertex-gx1200",
+      "brand": "海韵 Seasonic",
+      "series": "VERTEX GX",
+      "model": "VERTEX GX-1200",
+      "watts": 1200,
+      "price": 1699
+    },
+    {
+      "id": "seasonic-focus-gx1000",
+      "brand": "海韵 Seasonic",
+      "series": "FOCUS GX",
+      "model": "FOCUS GX-1000 ATX 3.1",
+      "watts": 1000,
+      "price": 1099
+    },
+    {
+      "id": "seasonic-focus-gx850",
+      "brand": "海韵 Seasonic",
+      "series": "FOCUS GX",
+      "model": "FOCUS GX-850 ATX 3.1",
+      "watts": 850,
+      "price": 899
+    },
+    {
+      "id": "seasonic-focus-gx750",
+      "brand": "海韵 Seasonic",
+      "series": "FOCUS GX",
+      "model": "FOCUS GX-750 ATX 3.1",
+      "watts": 750,
+      "price": 749
+    },
+    {
+      "id": "seasonic-focus-gx650",
+      "brand": "海韵 Seasonic",
+      "series": "FOCUS GX",
+      "model": "FOCUS GX-650 ATX 3.1",
+      "watts": 650,
+      "price": 599
+    },
+    {
+      "id": "superflower-leadex3-1000",
+      "brand": "振华 Super Flower",
+      "series": "LEADEX III ARGB",
+      "model": "LEADEX III ARGB 1000W",
+      "watts": 1000,
+      "price": 1299
+    },
+    {
+      "id": "superflower-leadex3-1300",
+      "brand": "振华 Super Flower",
+      "series": "LEADEX III ARGB",
+      "model": "LEADEX III ARGB 1300W",
+      "watts": 1300,
+      "price": 1899
+    },
+    {
+      "id": "superflower-leadex7-1300",
+      "brand": "振华 Super Flower",
+      "series": "LEADEX VII",
+      "model": "LEADEX VII 1300W",
+      "watts": 1300,
+      "price": 2299
+    },
+    {
+      "id": "asus-rog-thor-1200p2",
+      "brand": "华硕 ASUS",
+      "series": "ROG THOR",
+      "model": "ROG THOR 1200P2 GAMING",
+      "watts": 1200,
+      "price": 2999
+    },
+    {
+      "id": "asus-rog-strix-1000",
+      "brand": "华硕 ASUS",
+      "series": "ROG STRIX",
+      "model": "ROG STRIX 1000W AURA",
+      "watts": 1000,
+      "price": 1499
+    },
+    {
+      "id": "msi-meg-ai1300p",
+      "brand": "微星 MSI",
+      "series": "MEG",
+      "model": "MEG Ai1300P PCIE5",
+      "watts": 1300,
+      "price": 2799
+    },
+    {
+      "id": "msi-mpg-a1000g",
+      "brand": "微星 MSI",
+      "series": "MPG",
+      "model": "MPG A1000G PCIE5",
+      "watts": 1000,
+      "price": 1099
+    },
+    {
+      "id": "greatwall-f1250",
+      "brand": "长城 Great Wall",
+      "series": "猎金部落",
+      "model": "猎金部落 F1250",
+      "watts": 1250,
+      "price": 1299
+    },
+    {
+      "id": "huntkey-k850",
+      "brand": "航嘉 Huntkey",
+      "series": "MVP",
+      "model": "MVP K850",
+      "watts": 850,
+      "price": 699
+    },
+    {
+      "id": "huntkey-wd650k",
+      "brand": "航嘉 Huntkey",
+      "series": "WD",
+      "model": "WD650K",
+      "watts": 650,
+      "price": 399
+    },
+    {
+      "id": "fsp-hydro-gt-1000",
+      "brand": "全汉 FSP",
+      "series": "HYDRO GT PRO",
+      "model": "HYDRO GT PRO 1000W",
+      "watts": 1000,
+      "price": 999
+    },
+    {
+      "id": "antec-ne1300g",
+      "brand": "安钛克 Antec",
+      "series": "NE Gold",
+      "model": "NE1300G M ATX 3.1",
+      "watts": 1300,
+      "price": 1899
+    },
+    {
+      "id": "greatwall-x6-750",
+      "brand": "长城 Great Wall",
+      "series": "X",
+      "model": "X6 750W ATX 3.1",
+      "watts": 750,
+      "price": 549
+    },
+    {
+      "id": "greatwall-x4-550",
+      "brand": "长城 Great Wall",
+      "series": "X",
+      "model": "X4 550W",
+      "watts": 550,
+      "price": 299
+    },
+    {
+      "id": "seasonic-sfx-750",
+      "brand": "海韵 Seasonic",
+      "series": "SGX",
+      "model": "SGX-750 (SFX-L)",
+      "watts": 750,
+      "price": 1199
+    },
+    {
+      "id": "coolermaster-v850-sfx",
+      "brand": "酷冷至尊 CoolerMaster",
+      "series": "V SFX",
+      "model": "V850 SFX Gold",
+      "watts": 850,
+      "price": 1099
+    },
+    {
+      "id": "thermalright-tg-750",
+      "brand": "利民 Thermalright",
+      "series": "TG",
+      "model": "TG-750 金牌全模组",
+      "watts": 750,
+      "price": 449
+    },
+    {
+      "id": "thermalright-tg-1000",
+      "brand": "利民 Thermalright",
+      "series": "TG",
+      "model": "TG-1000 金牌全模组",
+      "watts": 1000,
+      "price": 549
+    },
+    {
+      "id": "superflower-leadex3-850",
+      "brand": "振华 Super Flower",
+      "series": "LEADEX III ARGB",
+      "model": "LEADEX III ARGB 850W",
+      "watts": 850,
+      "price": 799
+    },
+    {
+      "id": "phanteks-amp-gh850",
+      "brand": "追风者 Phanteks",
+      "series": "AMP",
+      "model": "AMP GH850",
+      "watts": 850,
+      "price": 749
+    },
+    {
+      "id": "antec-hcg-850",
+      "brand": "安钛克 Antec",
+      "series": "HCG",
+      "model": "HCG850 GOLD",
+      "watts": 850,
+      "price": 799
+    },
+    {
+      "id": "segotep-gm850w",
+      "brand": "鑫谷 Segotep",
+      "series": "GM",
+      "model": "GM850W",
+      "watts": 850,
+      "price": 599
+    },
+    {
+      "id": "sama-xp1000",
+      "brand": "先马 SAMA",
+      "series": "黑洞",
+      "model": "黑洞 850P XP1000",
+      "watts": 1000,
+      "price": 799
+    },
+    {
+      "id": "deepcool-pq1000m",
+      "brand": "九州风神 DeepCool",
+      "series": "PQ",
+      "model": "PQ1000M",
+      "watts": 1000,
+      "price": 899
+    },
+    {
+      "id": "gigabyte-ud1000gm-pg5",
+      "brand": "技嘉 GIGABYTE",
+      "series": "UD",
+      "model": "UD1000GM PG5",
+      "watts": 1000,
+      "price": 899
+    },
+    {
+      "id": "corsair-rm1000e",
+      "brand": "海盗船 Corsair",
+      "series": "RM",
+      "model": "RM1000e",
+      "watts": 1000,
+      "price": 1099
+    },
+    {
+      "id": "msi-mag-a1000gl",
+      "brand": "微星 MSI",
+      "series": "MAG",
+      "model": "MAG A1000GL PCIE5.1",
+      "watts": 1000,
+      "price": 999
+    },
+    {
+      "id": "asus-tuf-1000g",
+      "brand": "华硕 ASUS",
+      "series": "TUF GAMING",
+      "model": "TUF GAMING 1000G",
+      "watts": 1000,
+      "price": 1199
+    },
+    {
+      "id": "msi-meg-ai1000p",
+      "brand": "微星 MSI",
+      "series": "MEG",
+      "model": "MEG Ai1000P PCIE5",
+      "watts": 1000,
+      "price": 1999
+    },
+    {
+      "id": "fsp-hydro-ptm-x-1000",
+      "brand": "全汉 FSP",
+      "series": "HYDRO PTM X PRO",
+      "model": "HYDRO PTM X PRO 1000W",
+      "watts": 1000,
+      "price": 1599
+    },
+    {
+      "id": "corsair-sf1000",
+      "brand": "海盗船 Corsair",
+      "series": "SF",
+      "model": "SF1000 Platinum (SFX-L)",
+      "watts": 1000,
+      "price": 1599
+    },
+    {
+      "id": "phanteks-revolt-1200",
+      "brand": "追风者 Phanteks",
+      "series": "REVOLT PRO",
+      "model": "REVOLT PRO 1200W",
+      "watts": 1200,
+      "price": 1999
+    },
+    {
+      "id": "asus-tuf-1200g",
+      "brand": "华硕 ASUS",
+      "series": "TUF GAMING",
+      "model": "TUF GAMING 1200G",
+      "watts": 1200,
+      "price": 1499
+    },
+    {
+      "id": "deepcool-px1200g",
+      "brand": "九州风神 DeepCool",
+      "series": "PX",
+      "model": "PX1200G",
+      "watts": 1200,
+      "price": 1299
+    },
+    {
+      "id": "superflower-leadex7-1200",
+      "brand": "振华 Super Flower",
+      "series": "LEADEX VII",
+      "model": "LEADEX VII 1200W",
+      "watts": 1200,
+      "price": 1799
+    },
+    {
+      "id": "segotep-kp1250g",
+      "brand": "鑫谷 Segotep",
+      "series": "昆仑 KL",
+      "model": "昆仑 KL-1250G",
+      "watts": 1250,
+      "price": 1199
+    },
+    {
+      "id": "corsair-hx1200i",
+      "brand": "海盗船 Corsair",
+      "series": "HX",
+      "model": "HX1200i",
+      "watts": 1200,
+      "price": 2299
+    },
+    {
+      "id": "superflower-leadex7-1600",
+      "brand": "振华 Super Flower",
+      "series": "LEADEX VII",
+      "model": "LEADEX VII 1600W",
+      "watts": 1600,
+      "price": 2999
+    }
   ];
 
   /* ==================================================== 其他 / 外设 ==== */
@@ -994,12 +1668,15 @@
   ];
 
   /* ------------------------------------------------------------ 装配 ---- */
+  PSUS = root.HWDB_PSU_AUDIT.apply(PSUS, SOURCES);
   var AIBS = AIB_DB.build(GPUS);
 
   root.HWDB = {
     meta: {
-      version: '2026.09.6',
-      updated: '2026-09-13',
+      toolVersion: '3.1.5',
+      version: '2026.11.1',
+      updated: '2026-11-14',
+      psuCheckedAt: root.HWDB_PSU_AUDIT.checkedAt,
       title: '台式机功耗与电源选型数据库',
       counts: {
         cpu: CPU_DB.length, gpu: GPUS.length, aib: AIBS.length,

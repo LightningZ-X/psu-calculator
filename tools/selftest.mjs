@@ -246,7 +246,7 @@ ok(empty.hasError === false, '空配置无错误');
 // 只选了 CPU、没选显卡：这属于「有选择」，应当正常给推荐
 const cpuOnly = engine.calculate({ cpuId: 'r5-9600x' });
 ok(cpuOnly.hasSelection === true, '只选 CPU 也算已选择');
-ok(cpuOnly.recIdeal > 0, '只选 CPU 会给出推荐瓦数', cpuOnly.recIdeal);
+ok(cpuOnly.recIdeal === 0 && !cpuOnly.canRecommend, '只选 CPU 显示部分功耗，等待显卡选择后推荐', cpuOnly.recIdeal);
 console.log('    空态：规划 0W，推荐 0 款电源，无升级建议，issues 为空');
 
 /* ---------------------------------------------- 11. 民用级 CPU 全覆盖 -- */
@@ -459,9 +459,9 @@ const lockedOc = engine.calculate({
   moboId: 'msi-pro-b760m-a', ramId: 'ddr4-3200-16x2-kf', gpuId: '', gpuAibId: '',
   coolerId: 'air-pa120-se', caseId: 'case-inwin-a5', scenario: 'office'
 });
-ok(codes(lockedOc).includes('CPU_LOCKED'), '锁频 CPU + 超频 -> 提示超频不生效');
-ok(lockedOc.cpuWatts === 117, '锁频 CPU 忽略自定义 200W，仍按 MTP 117W 计算', lockedOc.cpuWatts + 'W');
-ok(!codes(lockedOc).includes('OC_NOTICE'), '锁频 CPU 不再给出"已启用超频"提示');
+ok(!codes(lockedOc).includes('CPU_LOCKED'), '明确自定义功耗时不宣称按原 MTP 计算');
+ok(lockedOc.cpuWatts === 200, '锁频 CPU 允许用户设置功耗墙，取 200W', lockedOc.cpuWatts + 'W');
+ok(codes(lockedOc).includes('OC_NOTICE'), '旧版 overclock 同时启用显卡开关，独立提示');
 
 // 锁频 CPU 走 AM4 平台再验证一次（5700X3D 为锁频 3D 缓存型号）
 const lockedAm4 = engine.calculate({
@@ -596,6 +596,120 @@ ok(HWDB.aibs.some(a => a.generated && a.coverageVerified),
    '存在已核实覆盖范围的规则生成条目');
 ok(HWDB.aibs.some(a => a.generated && !a.coverageVerified),
    '也存在尚未核实覆盖范围的条目（界面会标「推算」）');
+
+section('17. 方案 C 计算回归');
+const splitBase = { cpuId: 'cu7-270kp', gpuId: 'rtx5090', scenario: 'gaming' };
+const splitStock = engine.calculate(splitBase);
+const gpuOnlyOc = engine.calculate({ ...splitBase, cpuOc: false, gpuOc: true });
+const cpuOnlyOc = engine.calculate({ ...splitBase, cpuOc: true, gpuOc: false });
+ok(gpuOnlyOc.cpuWatts === splitStock.cpuWatts && gpuOnlyOc.gpuWatts > splitStock.gpuWatts,
+  '只开显卡超频不会抬高 CPU 功耗');
+ok(cpuOnlyOc.gpuWatts === splitStock.gpuWatts && cpuOnlyOc.cpuWatts > splitStock.cpuWatts,
+  '只开 CPU 超频不会抬高显卡功耗');
+const explicitOff = engine.calculate({ ...splitBase, overclock: true, cpuOc: false, gpuOc: false });
+ok(explicitOff.subtotal === splitStock.subtotal, '显式分项关闭优先于旧 overclock 字段');
+const limited = engine.calculate({ ...splitBase, cpuCustomWatts: 65 });
+ok(limited.cpuWatts === 65 && limited.items[0].source === null, '限功耗不要求开启超频，不继承厂商来源');
+const fanOnly = engine.calculate({ fanId: 'fan-tlc12cs', fanQty: 1 });
+ok(fanOnly.hasSelection && !fanOnly.canRecommend && fanOnly.recIdeal === 0 && fanOnly.picks.list.length === 0,
+  '只选风扇不能给出整机电源推荐');
+const quickCfg = { cpuId: 'r5-9600x', gpuId: '__igpu__', mode: 'quick', scenario: 'office' };
+const quick = engine.calculate(quickCfg);
+const fullCore = engine.calculate({ ...quickCfg, mode: 'full' });
+ok(quick.assumptions.length === 5 && quick.subtotal - fullCore.subtotal === 62,
+  '快速估算逐项补入 62W 辅助设备预算');
+const quickSpecific = engine.calculate({ ...quickCfg, moboId: 'asus-b850-plus' });
+ok(quickSpecific.assumptions.length === 4 && quickSpecific.items.filter(i => i.label === '主板').length === 1,
+  '填写具体主板替代默认主板，不双计');
+ok(quick.coverage.every(c => !c.checked), '默认项不冒充真实兼容性检查');
+ok(quick.expectedRange.low <= quick.expected && quick.expected <= quick.expectedRange.high,
+  '场景参考值落在分项区间内');
+ok(quick.expectedRange.high < quick.subtotal * 0.75, '办公场景不再按整机上限的 75% 估算');
+const noIgpu = engine.calculate({ cpuId: 'i5-12400f', gpuId: '__igpu__' });
+ok(codes(noIgpu).includes('NO_INTEGRATED_GPU'), '无核显 CPU 选择集成显卡时提示错误');
+ok(engine.required12v2x6('2× 12V-2x6') === 2 && engine.required12v2x6('12VHPWR') === 1 && engine.required12v2x6('3×8pin') === 0,
+  '原生 16pin 供电按数量解析');
+const dualGpu = engine.calculate({ ...splitBase, gpuAibId: 'msi-lightning-z-5090' });
+ok(dualGpu.picks.list.length > 0 && dualGpu.picks.list.every(p => p.conn12v2x6 >= 2),
+  '双 16pin 显卡不会被推荐单接口电源');
+const oneNative = engine.calculate({ ...splitBase, gpuAibId: 'msi-lightning-z-5090', psuId: 'seasonic-prime-tx1300' });
+const oneNativePsu = HWDB.psus.find(p => p.conn12v2x6 === 1 && p.pcie8pin < 4);
+const insufficientNative = engine.calculate({ ...splitBase, gpuAibId: 'msi-lightning-z-5090', psuId: oneNativePsu.id });
+ok(insufficientNative.issues.some(i => i.code === 'PSU_NO_12V2X6' && i.level === 'error'),
+  '原生接口不足且无法满足转接数量时为错误');
+ok(!insufficientNative.existingPsu.reusable, '接口不合格电源不能判为可复用');
+ok(dualGpu.picks.list.every(p => p.watts >= dualGpu.recFloor && p.eps8pin >= 2),
+  '候选同时满足功率和高功耗 CPU 供电筛选规则');
+ok(splitStock.reasons.some(s => s.includes('工具保守规则')) && !splitStock.reasons.some(s => s.includes('显卡厂商建议')),
+  '无具体来源的 1000W 兜底规则不冒充厂商建议');
+const generatedAib = HWDB.aibs.find(a => a.generated);
+const generatedResult = engine.calculate({ cpuId: 'r5-9600x', gpuAibId: generatedAib.id });
+ok(generatedResult.items.find(i => i.label === '显卡').source === null,
+  '生成板型不继承公版来源作为自身证据');
+ok(generatedResult.confidence.estimatedPercent > 0 && generatedResult.confidence.sensitivityWatts >= generatedResult.subtotal,
+  '估算项目暴露功耗占比与敏感性推演');
+const overRange = engine.calculate({ ...splitBase, otherCustom: [{ label: '额外负载', watts: 3000 }] });
+ok(overRange.beyond && overRange.picks.list.length === 0 && overRange.upgrade === null,
+  '超出推荐范围时不再把 2000W 当合格候选或升级依据');
+const invalidScenario = engine.calculate({ ...quickCfg, scenario: 'constructor' });
+ok(invalidScenario.scenario === 'gaming' && Number.isFinite(invalidScenario.expectedRange.low),
+  '场景区间也防止原型链枚举绕过');
+ok(JSON.stringify(quickCfg) === JSON.stringify({ cpuId: 'r5-9600x', gpuId: '__igpu__', mode: 'quick', scenario: 'office' }),
+  '快速估算保持输入配置不变');
+
+const customGpuConfig = { cpuId: 'r5-9600x', gpuName: '自定义显卡', gpuCustomWatts: 300,
+  psuId: 'msi-mag-a650gl', mode: 'quick' };
+const customGpuReuse = engine.calculate(customGpuConfig);
+ok(!customGpuReuse.gpuConnectorKnown && !customGpuReuse.existingPsu.verificationComplete &&
+  customGpuReuse.existingPsu.reusable === null && customGpuReuse.existingPsu.level === 'warn',
+  '自定义显卡功率达标但接口未知时不能确认复用');
+ok(engine.calculate({ ...customGpuConfig, gpuCustomWatts: 600 }).existingPsu.reusable === false,
+  '接口未知不能覆盖已确定的功率不足');
+const knownGpuReuse = engine.calculate({ cpuId: 'r5-9600x', gpuId: 'rtx4060',
+  psuId: 'msi-mag-a650gl', mode: 'quick' });
+ok(knownGpuReuse.gpuConnectorKnown && knownGpuReuse.existingPsu.reusable === true,
+  '已知显卡接口与功率满足时仍可确认复用');
+ok(engine.calculate({ cpuId: 'r5-9600x', gpuId: '__igpu__', psuId: 'msi-mag-a650gl', mode: 'quick' }).existingPsu.reusable === true,
+  '明确使用核显无需独立显卡接口');
+
+section('18. 回归修复验证（DDR4 / 价格回退 / 散热分级 / advise 复用）');
+const ddr4Item = engine.calculate({
+  cpuId: 'r7-5800x3d', gpuId: '__igpu__', moboId: 'msi-pro-b760m-a',
+  ramId: 'ddr4-3600-16x2-gskill', ramKits: 1, mode: 'full'
+});
+const ddr4RamRow = ddr4Item.items.find(i => i.label === '内存');
+const ddr4Warn = ddr4Item.issues.find(i => i.code === 'RAM_SPEED');
+const ddr4CpuInfo = ddr4Item.issues.find(i => i.code === 'RAM_CPU_SPEED');
+ok(ddr4RamRow && /DDR4-3600/.test(ddr4RamRow.detail) && !/DDR5-/.test(ddr4RamRow.detail),
+  'DDR4 内存明细正确显示 DDR4- 而非 DDR5-', ddr4RamRow && ddr4RamRow.detail);
+ok(ddr4Warn && /内存 DDR4-3600/.test(ddr4Warn.detail) && /最高 DDR4-3200/.test(ddr4Warn.detail),
+  'DDR4 频率警告正确标示 DDR4', ddr4Warn && ddr4Warn.detail);
+ok(ddr4CpuInfo && /内存为 DDR4-3600/.test(ddr4CpuInfo.detail) && !/200S Plus/.test(ddr4CpuInfo.fix),
+  'AM4 DDR4 超频提示不误带 LGA1851 说明', ddr4CpuInfo && ddr4CpuInfo.fix);
+
+const refGpuOnly = engine.calculate({ cpuId: 'cu7-270kp', gpuId: 'rtx5090', mode: 'quick' });
+const gpu5090 = HWDB.gpus.find(g => g.id === 'rtx5090');
+const cpu270 = HWDB.cpus.find(c => c.id === 'cu7-270kp');
+ok(refGpuOnly.totalPrice === (cpu270.price + gpu5090.price),
+  '未选 AIC 板型时 totalPrice 回退计入公版显卡参考价', refGpuOnly.totalPrice);
+
+const nhd15g2 = engine.calculate({
+  cpuId: 'cu7-270kp', gpuId: '__igpu__', coolerId: 'air-nhd15-g2', mode: 'full'
+});
+ok(!codes(nhd15g2).includes('COOLING_POWER'),
+  '旗舰双塔风冷 NH-D15 G2 配 250W CPU 不误报散热偏弱');
+const nhd15g2Oc = engine.calculate({
+  cpuId: 'cu7-270kp', overclock: true, gpuId: '__igpu__', coolerId: 'air-nhd15-g2', mode: 'full'
+});
+const nhd15Warn = nhd15g2Oc.issues.find(i => i.code === 'COOLING_POWER');
+ok(nhd15Warn && !/或高端双塔风冷/.test(nhd15Warn.fix),
+  '旗舰双塔超限警告仅建议 360mm 水冷，不自相矛盾建议高端双塔');
+
+const advCfg = Object.assign({}, highEnd, { scenario: 'gaming' });
+const advDirect = engine.advise(advCfg, 25000);
+const advReused = engine.advise(advCfg, 25000, engine.calculate(advCfg));
+ok(JSON.stringify(advDirect) === JSON.stringify(advReused),
+  'advise() 传入预计算结果与独立计算返回一致');
 
 /* ------------------------------------------------------------ 汇总 ----- */
 console.log('\n' + '='.repeat(56));

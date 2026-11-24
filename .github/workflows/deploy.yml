@@ -1,0 +1,83 @@
+name: 自检并发布
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  checks-and-deploy:
+    runs-on: windows-2022
+    steps:
+      - name: 准备 git（LF 一致 + 避免危险目录误判）
+        shell: pwsh
+        run: |
+          git config --global core.autocrlf false
+          git config --global --add safe.directory '*'
+
+      - name: 检出源码
+        uses: actions/checkout@v4
+
+      - name: 安装 Node
+        uses: actions/setup-node@v4
+        with:
+          # 必须 22 以上：CDP 测试直接用全局 WebSocket，Node 20 没有这个全局对象
+          # （本机是 v24，所以只有 CI 上才会暴露出来）。
+          node-version: 24
+
+      - name: 数据与设计自检
+        shell: pwsh
+        run: |
+          node tools/selftest.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node tools/psucheck.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node tools/dataaudit.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node tools/designcheck.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          # 注入与状态净化：这是阻断性闸门（不是下面那种非阻断的 E2E）
+          node tools/securitycheck.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          # 无障碍：这类问题视觉上看不出来，只有测量守得住
+          node tools/a11ycheck.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          # 方案快照、升级模拟和输入焦点：使用隔离浏览器存档
+          node tools/decisioncheck.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: 重建单文件产物（供浏览器测试与离线版）
+        shell: pwsh
+        run: |
+          node tools/build-standalone.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      # 不做闸门：这套断言里有一批是靠 rAF 采样「部分已出现」的中间帧来判断
+      # 「逐块显现」的，在虚拟化的 runner 上会漏采样（单文件/file:// 那几节尤甚），
+      # 属于环境性失败而不是产品缺陷。真机上的 `node tools/browsertest.mjs`
+      # 才是它的正式闸门。这里仍然跑，好让粗粒度回归能被看见，
+      # 但用 continue-on-error 让它失败时亮红而**不阻断发布**。
+      - name: 浏览器端到端测试（非阻断）
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          node tools/browsertest.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: 发布到 GitHub Pages
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        shell: pwsh
+        env:
+          DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
+        run: |
+          if ([string]::IsNullOrEmpty($env:DEPLOY_TOKEN)) {
+            Write-Host '::warning:: 未配置 DEPLOY_TOKEN secret，跳过发布；本地仍可用 node tools/deploy-pages.mjs --push'
+            exit 0
+          }
+          node tools/deploy-pages.mjs --push
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

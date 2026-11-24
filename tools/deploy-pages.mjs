@@ -1,12 +1,14 @@
 /* ============================================================================
  *  发布到 GitHub Pages
  * ----------------------------------------------------------------------------
- *  目标站点：https://lightningz-msi.github.io/-/  （仓库 LightningZ-MSI/-，
- *  分支 main，GitHub Pages 从分支根目录发布）
+ *  目标站点：https://lightningz-x.github.io/  （仓库 LightningZ-X/LightningZ-X.github.io，
+ *  账号的「用户站」仓库，分支 main，GitHub Pages 从分支根目录发布。
+ *  早先发布在仓库 LightningZ-X/- 下，网址是 https://lightningz-x.github.io/-/ ——
+ *  那个名字只是个没意义的短横线，念不出来也记不住，所以搬到了用户站根路径。）
  *
  *  为什么要有这个脚本，而不是直接把整个项目推上去：
  *    线上仓库是**只放可运行文件**的发布仓库（用户当初用网页版 "Add files via upload"
- *    传的），里面没有 tools/ docs/ dist/ README.md。
+ *    传的），里面没有 tools/ docs/ dist/。README 使用专门的发布说明。
  *    如果直接把项目根推上去，会把构建脚本、核查记录、42KB 的 README 一起公开，
  *    既不是原样，也把仓库搞脏。所以这里用**白名单**：只发布真正被浏览器请求的东西。
  *
@@ -18,27 +20,36 @@
  *      是否都在发布清单里 —— 「漏传一个 js 文件」是这类静态站最典型的翻车方式。
  *
  *  用法：
- *    node tools/deploy-pages.mjs           # 预演
- *    node tools/deploy-pages.mjs --push    # 提交并推送
+ *    node tools/deploy-pages.mjs                 # 预演
+ *    node tools/deploy-pages.mjs --push          # 提交并推送
+ *    node tools/deploy-pages.mjs --push --prune  # 顺便删掉线上不在白名单里的孤儿文件
  * ==========================================================================*/
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import { createRequire } from 'node:module';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, '..');
+const require = createRequire(import.meta.url);
+const DB = require(path.join(root, 'js', 'db.js'));
 
-const REPO = 'https://github.com/LightningZ-MSI/-.git';
-const SITE = 'https://lightningz-msi.github.io/-/';
+const REPO = 'https://github.com/LightningZ-X/LightningZ-X.github.io.git';
+const SITE = 'https://lightningz-x.github.io/';
 const PUSH = process.argv.includes('--push');
+const PRUNE = process.argv.includes('--prune');
+/* CI（GitHub Actions）往另一个仓库推送时没有本机凭据，靠这个 token 认证；
+   本地没有它时照旧走本机 git 凭据管理器。CI 认证仅通过子进程环境传入，不写远端 URL。 */
+const DEPLOY_TOKEN = process.env.DEPLOY_TOKEN || '';
 
 /* ------------------------------------------------------- 发布白名单 ------ */
 const FILES = [
   'index.html',
   '404.html',
   'favicon.svg',
+  'favicon.ico',
   'robots.txt',
   'sitemap.xml'
 ];
@@ -47,7 +58,9 @@ const DIRS = ['assets', 'js'];
 /* assets / js 里只有这些会被浏览器请求；工具产出的其它东西不发布。
    ⚠️ 别漏了 js —— 这个白名单同时作用于两个目录，
    漏掉的直接后果是「一个 js 都没发布」，然后页面上线即白屏。 */
-const ASSET_ALLOW = f => /\.(css|js|png|svg|ico|webp|jpe?g|woff2?)$/i.test(f);
+const ASSET_ALLOW = f => /\.(css|js|png|svg|ico|webp|jpe?g|woff2?|mp4)$/i.test(f);
+// 构建脚本专用源图已 Base64 内联进 style.css，线上浏览器不会请求原图
+const BUILD_ONLY_ASSETS = new Set(['lightning-mark.png', 'lightning-wordmark.png']);
 
 const run = (cmd, args, opts = {}) =>
   execFileSync(cmd, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], ...opts });
@@ -63,9 +76,11 @@ DIRS.forEach(d => {
   const dir = path.join(root, d);
   if (!fs.existsSync(dir)) { console.error('✗ 白名单目录不存在: ' + d); process.exit(1); }
   fs.readdirSync(dir).filter(ASSET_ALLOW).sort().forEach(f => {
+    if (d === 'assets' && BUILD_ONLY_ASSETS.has(f)) return;
     plan.push({ rel: d + '/' + f, from: path.join(dir, f) });
   });
 });
+plan.push({ rel: 'README.md', from: path.join(root, 'docs', 'PAGES-README.md') });
 
 /* ------------------------------------------- 2. 引用完整性（发布前把关）----
    静态站最典型的翻车方式是「漏传一个文件」：页面在本地好好的，
@@ -73,7 +88,9 @@ DIRS.forEach(d => {
    逐个对照发布清单。 */
 const idx = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const refs = new Set();
-for (const m of idx.matchAll(/(?:src|href)="((?!https?:|data:|#|\/)[^"]+)"/g)) refs.add(m[1]);
+/* 属性名放宽到 data-*：canvas 的标志图走的是 data-mark / data-wordmark，
+   只认 src|href 会漏掉它们 —— 素材一旦改名，线上只丢开场动画而这里不报错。 */
+for (const m of idx.matchAll(/(?:src|href|data-[a-z-]+)="((?!https?:|data:|#|\/)[^"]+)"/g)) refs.add(m[1]);
 const planned = new Set(plan.map(p => p.rel));
 const missing = [...refs].filter(r => !planned.has(r) && fs.existsSync(path.join(root, r)));
 if (missing.length) {
@@ -106,9 +123,22 @@ plan.forEach(p => console.log('    ' + (fs.statSync(p.from).size / 1024).toFixed
 /* --------------------------------------------------------------- 3. 克隆 -- */
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'psu-pages-'));
 const env = { ...process.env, GIT_TERMINAL_PROMPT: '0' };
+if (DEPLOY_TOKEN) {
+  // Git 的运行时配置只存在于子进程环境；失败时留下的 .git/config 不含凭据。
+  const count = Number.parseInt(env.GIT_CONFIG_COUNT || '0', 10);
+  if (!Number.isInteger(count) || count < 0) throw new Error('Invalid GIT_CONFIG_COUNT');
+  env.GIT_CONFIG_COUNT = String(count + 2);
+  env['GIT_CONFIG_KEY_' + count] = 'http.https://github.com/.extraHeader';
+  env['GIT_CONFIG_VALUE_' + count] = 'AUTHORIZATION: basic ' + Buffer.from('x-access-token:' + DEPLOY_TOKEN).toString('base64');
+  env['GIT_CONFIG_KEY_' + (count + 1)] = 'credential.helper';
+  env['GIT_CONFIG_VALUE_' + (count + 1)] = '';
+}
 console.log('\n克隆到 ' + tmp);
 try {
   run('git', ['clone', '--depth', '1', REPO, tmp], { env, stdio: 'inherit' });
+  /* CI 上没有全局 git 身份，先给这个临时仓库配上才能提交 */
+  run('git', ['-C', tmp, 'config', 'user.name', 'LightningZ-X'], { env });
+  run('git', ['-C', tmp, 'config', 'user.email', 'yao080120@qq.com'], { env });
 } catch (e) {
   console.error('✗ 克隆失败（检查网络与 GitHub 凭据）');
   process.exit(1);
@@ -121,6 +151,23 @@ plan.forEach(p => {
   fs.copyFileSync(p.from, dst);
 });
 
+/* sitemap 的 lastmod 每次发布自动按「源头最后一次提交的日期」写，省得忘了手改。
+   用提交日期而不是数据库的数据截止日：lastmod 的语义是「本页最后改动时间」，
+   拿数据截止日会把日期往回调。用提交日期还有个好处 —— 它只在真有新提交时才变，
+   否则每次跑发布都会产生一个只有日期不同的 diff，把「无需发布」的判断顶掉。
+   改的是克隆里的那一份，源文件不动。 */
+let srcDate = '';
+try { srcDate = run('git', ['-C', root, 'show', '-s', '--format=%cs', 'HEAD'], { env }).trim(); } catch (e) {}
+const smPath = path.join(tmp, 'sitemap.xml');
+if (srcDate && fs.existsSync(smPath)) {
+  const before = fs.readFileSync(smPath, 'utf8');
+  const after = before.replace(/(<lastmod>)[^<]*(<\/lastmod>)/, '$1' + srcDate + '$2');
+  if (after !== before) {
+    fs.writeFileSync(smPath, after, 'utf8');
+    console.log('  sitemap lastmod -> ' + srcDate + '（源头最后一次提交的日期）');
+  }
+}
+
 /* 线上多出来的文件（不在白名单里）要报出来，避免留下孤儿资源 */
 const existing = [];
 (function walk(d, base = '') {
@@ -131,7 +178,7 @@ const existing = [];
     else existing.push(rel);
   }
 })(tmp);
-const orphans = existing.filter(f => !planned.has(f));
+const orphans = existing.filter(f => !planned.has(f) && !['CNAME', '.nojekyll'].includes(f));
 
 /* --------------------------------------------------------------- 5. 差异 -- */
 console.log('\n变更内容');
@@ -144,11 +191,24 @@ if (!status.trim()) {
 }
 status.trim().split('\n').forEach(l => console.log('  ' + l));
 if (orphans.length) {
-  console.log('\n  线上存在但不在发布清单里的文件（本次不动它们）：');
-  orphans.forEach(f => console.log('    ' + f));
+  if (PRUNE) {
+    console.log('\n  --prune：删除线上这些不在发布清单里的文件');
+    orphans.forEach(f => { fs.rmSync(path.join(tmp, f), { force: true }); console.log('    - ' + f); });
+  } else {
+    console.log('\n  线上存在但不在发布清单里的文件（加 --prune 可删除）：');
+    orphans.forEach(f => console.log('    ' + f));
+  }
 }
-const stat = run('git', ['-C', tmp, 'diff', '--stat', 'HEAD'], { env });
-if (stat.trim()) console.log('\n' + stat.trim());
+/* 首次发布到空仓库时没有 HEAD（分支还没出生），直接 diff HEAD 会 fatal，
+   所以先探一下再说。 */
+let hasHead = true;
+try { run('git', ['-C', tmp, 'rev-parse', '--verify', 'HEAD'], { env }); } catch (e) { hasHead = false; }
+if (hasHead) {
+  const stat = run('git', ['-C', tmp, 'diff', '--stat', 'HEAD'], { env });
+  if (stat.trim()) console.log('\n' + stat.trim());
+} else {
+  console.log('\n  远端仓库还是空的：本次是首次发布，' + planned.size + ' 个文件全部新增。');
+}
 
 if (!PUSH) {
   console.log('\n（预演结束）确认无误后加 --push 正式发布：');
@@ -161,7 +221,15 @@ if (!PUSH) {
 console.log('\n提交并推送');
 console.log('─'.repeat(60));
 run('git', ['-C', tmp, 'add', '-A'], { env });
-const msg = 'Update site: ROG 官方标志 + /// 分区标记 + CPU/GPU 世代筛选 + 声明弹窗';
+/* 提交信息按实际变更生成，并带上源头提交号 —— 发布仓库的历史要能回溯到源码。
+   以前这里是一条写死的字符串，不管发布什么内容，历史里全是同一句话。 */
+const changed = run('git', ['-C', tmp, 'diff', '--cached', '--name-only'], { env })
+  .trim().split('\n').filter(Boolean);
+let srcSha = '';
+try { srcSha = run('git', ['-C', root, 'rev-parse', '--short', 'HEAD'], { env }).trim(); } catch (e) {}
+const shown = changed.slice(0, 5).join(', ') + (changed.length > 5 ? ' 等' : '');
+const msg = 'publish: ' + shown + '（' + changed.length + ' 个文件' +
+  (srcSha ? '，源头 ' + srcSha : '') + '，数据 ' + DB.meta.version + '）';
 run('git', ['-C', tmp, 'commit', '-m', msg], { env, stdio: 'inherit' });
 try {
   run('git', ['-C', tmp, 'push', 'origin', 'HEAD:main'], { env, stdio: 'inherit' });
